@@ -115,13 +115,13 @@ class CarInterface(CarInterfaceBase):
     # TODO: detect bsm in car_fw?
     ret.enableBsm = 0x3A6 in fingerprint[CAN.main] and 0x3A7 in fingerprint[CAN.main]
 
-    if 0x365 in fingerprint[CAN.main]:  # F150 HEV Cluster_HEV_Data2 signal (869 = 0x365)
-      ret.flags |= int(FordFlags.HEV_CLUSTER_DATA)
-      # info('HEV_CLUSTER_DATA signal detected (interface.py)', True)
-    # Check for HEV battery data signals
-    if 0x07A in fingerprint[CAN.main] and 0x24B in fingerprint[CAN.main] and 0x24C in fingerprint[CAN.main]:  # 122, 587, 588
-      ret.flags |= int(FordFlags.HEV_BATTERY_DATA)
-      # info('HEV_BATTERY_DATA signal detected (interface.py)', True)
+    # if 0x365 in fingerprint[CAN.main]:  # F150 HEV Cluster_HEV_Data2 signal (869 = 0x365)
+    #   ret.flags |= int(FordFlags.HEV_CLUSTER_DATA)
+    #   # info('HEV_CLUSTER_DATA signal detected (interface.py)', True)
+    # # Check for HEV battery data signals
+    # if 0x07A in fingerprint[CAN.main] and 0x24B in fingerprint[CAN.main] and 0x24C in fingerprint[CAN.main]:  # 122, 587, 588
+    #   ret.flags |= int(FordFlags.HEV_BATTERY_DATA)
+    #   # info('HEV_BATTERY_DATA signal detected (interface.py)', True)
 
     # LCA can steer down to zero
     ret.minSteerSpeed = 0.

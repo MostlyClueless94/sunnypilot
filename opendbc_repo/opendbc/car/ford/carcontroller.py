@@ -87,9 +87,6 @@ class CarController(CarControllerBase): #, IntelligentCruiseButtonManagementInte
     self.packer = CANPacker(dbc_names[Bus.pt])
     self.CAN = fordcan.CanBus(CP)
 
-    # Load initial custom parameters from params.json
-    load_custom_params(self, "carcontroller")
-
     # Initialize control variables
     self.apply_curvature_last = 0
     self.accel = 0.0
@@ -211,7 +208,7 @@ class CarController(CarControllerBase): #, IntelligentCruiseButtonManagementInte
     self.ss = None
     self.send_driver_monitor_can_msg = False
     self.send_lane_depart_can_msg = False
-    self.send_hands_free_cluster_msg = False
+    self.send_hands_free_cluster_msg = self.params.get("send_hands_free_cluster_msg", return_default=True)
     self.tja_msg = 0
     self.tja_warn = 0
     self.hands = 0

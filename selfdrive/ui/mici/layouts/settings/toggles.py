@@ -19,6 +19,7 @@ class TogglesLayoutMici(NavWidget):
 
     self._personality_toggle = BigMultiParamToggle("driving personality", "LongitudinalPersonality", ["aggressive", "standard", "relaxed"])
     self._experimental_btn = BigParamControl("experimental mode", "ExperimentalMode")
+    show_hands_free_ui = BigParamControl("show hands-free ui", "send_hands_free_cluster_msg")
     is_metric_toggle = BigParamControl("use metric units", "IsMetric")
     ldw_toggle = BigParamControl("lane departure warnings", "IsLdwEnabled")
     always_on_dm_toggle = BigParamControl("always-on driver monitor", "AlwaysOnDM")
@@ -29,6 +30,7 @@ class TogglesLayoutMici(NavWidget):
     self._scroller = Scroller([
       self._personality_toggle,
       self._experimental_btn,
+      show_hands_free_ui,
       is_metric_toggle,
       ldw_toggle,
       always_on_dm_toggle,
@@ -40,6 +42,7 @@ class TogglesLayoutMici(NavWidget):
     # Toggle lists
     self._refresh_toggles = (
       ("ExperimentalMode", self._experimental_btn),
+      ("send_hands_free_cluster_msg", show_hands_free_ui),
       ("IsMetric", is_metric_toggle),
       ("IsLdwEnabled", ldw_toggle),
       ("AlwaysOnDM", always_on_dm_toggle),

@@ -88,7 +88,7 @@ class CarController(CarControllerBase): #, IntelligentCruiseButtonManagementInte
     self.CAN = fordcan.CanBus(CP)
 
     # Load initial custom parameters from params.json
-    # load_custom_params(self, "carcontroller")
+    load_custom_params(self, "carcontroller")
 
     # Initialize control variables
     self.apply_curvature_last = 0

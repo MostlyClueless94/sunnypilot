@@ -208,7 +208,7 @@ class CarController(CarControllerBase): #, IntelligentCruiseButtonManagementInte
     self.ss = None
     self.send_driver_monitor_can_msg = False
     self.send_lane_depart_can_msg = False
-    self.send_hands_free_cluster_msg = self.params.get("send_hands_free_cluster_msg", return_default=True)
+    self.send_hands_free_cluster_msg = self.params.get_bool("send_hands_free_cluster_msg")
     self.tja_msg = 0
     self.tja_warn = 0
     self.hands = 0

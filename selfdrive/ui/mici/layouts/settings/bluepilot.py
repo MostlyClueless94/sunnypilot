@@ -32,7 +32,7 @@ class BluePilotLayoutMici(NavWidget):
     self.pc_blend_ratio_low_C = BigParamFloatControl("predicted curvature blend ratio low", "pc_blend_ratio_low_C_UI", min=0.0, max=1.0, tint=rl.BLUE)
     self.LC_PID_gain = BigParamFloatControl("low curvature PID gain", "LC_PID_gain_UI", min=0.0, max=5.0, tint=rl.BLUE)
     self.disable_BP_lat = BigParamControl("disable BP lateral control", "disable_BP_lat_UI")
-    self.vbatt_pause_charging = BigParamFloatControl("12V battery limit", "vbatt_pause_charging", min=11.0, max=14.0)
+    self.vbatt_pause_charging = BigParamFloatControl("12V battery limit", "vbatt_pause_charging", min=11.0, max=14.0, step=0.1)
 
     #self.charging_btn = BigButton("charging", "", "icons_mici/settings/charge_icon.png")
     #self.charging_btn.set_click_callback(lambda: self._show_charging_view())

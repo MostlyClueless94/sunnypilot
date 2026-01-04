@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import time
+import threading
 import tomllib
 from abc import abstractmethod, ABC
 from enum import StrEnum
@@ -407,7 +408,6 @@ class CarControllerBase(ABC):
   @abstractmethod
   def update(self, CC: structs.CarControl, CC_SP: structs.CarControlSP, CS: CarStateBase, now_nanos: int) -> tuple[structs.CarControl.Actuators, list[CanData]]:
     pass
-
 
 INTERFACE_ATTR_FILE = {
   "FINGERPRINTS": "fingerprints",

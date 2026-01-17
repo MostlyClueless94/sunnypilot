@@ -146,17 +146,30 @@ def arc_bar_pts(cx: float, cy: float,
 
 
 class TorqueBar(Widget):
-  def __init__(self, demo: bool = False):
+  def __init__(self, demo: bool = False, radius: float = 1200, line_height_min: int = 14, line_height_max: int = 56) -> None:
     super().__init__()
     self._demo = demo
+    self._radius = radius
     self._torque_filter = FirstOrderFilter(0, 0.1, 1 / gui_app.target_fps)
     self._torque_line_alpha_filter = FirstOrderFilter(0.0, 0.1, 1 / gui_app.target_fps)
+    self._torque_line_height_min=line_height_min
+    self._torque_line_height_max=line_height_max
+
+    # self._demo_torque = 0.0
+    # self._demo_increment = 0.03
 
   def update_filter(self, value: float):
     """Update the torque filter value (for demo mode)."""
     self._torque_filter.update(value)
 
   def _update_state(self):
+    # if (self._torque_filter.x > 1.1):
+    #   self._demo_increment = -0.03
+    # elif (self._torque_filter.x < -1.1):
+    #   self._demo_increment = 0.03
+    # self._demo_torque += self._demo_increment
+    # self.update_filter(self._demo_torque)
+
     if self._demo:
       return
 
@@ -183,11 +196,15 @@ class TorqueBar(Widget):
 
     else:
       self._torque_filter.update(-ui_state.sm['carOutput'].actuatorsOutput.torque)
+      #print(f"Torque:  { -ui_state.sm['carOutput'].actuatorsOutput.torque }")
 
   def _render(self, rect: rl.Rectangle) -> None:
+    if ui_state.sm['controlsState'].lateralControlState.which() == 'angleState' and not ui_state.sm.updated["controllerStateBP"]:
+      return
+
     # adjust y pos with torque
     torque_line_offset = np.interp(abs(self._torque_filter.x), [0.5, 1], [22, 26])
-    torque_line_height = np.interp(abs(self._torque_filter.x), [0.5, 1], [14, 56])
+    torque_line_height = np.interp(abs(self._torque_filter.x), [0.5, 1], [self._torque_line_height_min, self._torque_line_height_max])
 
     # animate alpha and angle span
     if not self._demo:
@@ -201,7 +218,7 @@ class TorqueBar(Widget):
       torque_line_bg_color = rl.Color(255, 255, 255, int(255 * 0.15 * self._torque_line_alpha_filter.x))
 
     # draw curved line polygon torque bar
-    torque_line_radius = 1200
+    torque_line_radius = self._radius
     top_angle = -90
     torque_bg_angle_span = self._torque_line_alpha_filter.x * TORQUE_ANGLE_SPAN
     torque_start_angle = top_angle - torque_bg_angle_span / 2

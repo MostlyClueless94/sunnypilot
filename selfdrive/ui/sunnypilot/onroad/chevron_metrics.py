@@ -80,8 +80,17 @@ class ChevronMetrics:
 
     if ford_overlay_enabled:
       # When Ford overlay is enabled, use the display mode selector to show only one value
-      display_mode = int(self._params.get("FordPrefRadarOverlayDisplayMode", return_default=True))
-      # Display modes: 1=Distance, 2=Speed, 3=Time to collision
+      # Param stores 0-2 (selector indices), convert to 1-3 for logic
+      display_mode_str = self._params.get("FordPrefRadarOverlayDisplayMode", return_default=True)
+      try:
+        display_mode = int(display_mode_str)
+        # Handle legacy values (1-3) by converting, or use as-is if 0-2
+        if display_mode > 2:
+          display_mode = display_mode - 1
+        # Convert 0-2 to 1-3 for logic
+        display_mode = display_mode + 1
+      except (ValueError, TypeError):
+        display_mode = 1  # Default to Distance
       # Clamp to valid range (1-3)
       display_mode = max(1, min(3, display_mode))
       if display_mode == 1:  # Distance only

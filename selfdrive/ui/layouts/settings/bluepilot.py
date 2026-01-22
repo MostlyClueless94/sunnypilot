@@ -78,17 +78,23 @@ class BluePilotLayout(Widget):
     )
 
     # Ford overlay display mode selector (conditional on overlay being enabled)
-    # Store 1-3 in param (1=Distance, 2=Speed, 3=TTC) but selector uses 0-2 indices
-    def _ford_display_mode_callback(index: int):
-      # Convert 0-based index to 1-3 param value
-      self._params.put("FordPrefRadarOverlayDisplayMode", str(index + 1))
-
-    current_mode = int(self._params.get("FordPrefRadarOverlayDisplayMode", return_default=True))
-    # Clamp to valid range (1-3) and convert to 0-based index (0-2)
-    current_mode = max(1, min(3, current_mode))
-
+    # Store 0-2 in param to match selector indices, convert to 1-3 when reading in chevron_metrics
+    # 0=Distance, 1=Speed, 2=Time to Collision (stored as 0-2, converted to 1-3 for display logic)
+    
     # Get initial enabled state based on Ford overlay toggle
     ford_overlay_initially_enabled = self._params.get_bool("FordPrefShowRadarLeadOverlay")
+    
+    # Get current mode from param (0-2), with default of 0 (Distance)
+    current_mode_str = self._params.get("FordPrefRadarOverlayDisplayMode", return_default=True)
+    try:
+      current_mode = int(current_mode_str)
+      # Handle legacy values (1-3) by converting to 0-2
+      if current_mode > 2:
+        current_mode = current_mode - 1
+        self._params.put("FordPrefRadarOverlayDisplayMode", str(current_mode))
+    except (ValueError, TypeError):
+      current_mode = 0
+    current_mode = max(0, min(2, current_mode))  # Clamp to 0-2
 
     self._ford_overlay_display_mode = multiple_button_item_sp(
       lambda: tr("Radar Overlay Display"),
@@ -98,9 +104,9 @@ class BluePilotLayout(Widget):
         lambda: tr("Speed"),
         lambda: tr("Time to Collision"),
       ],
-      selected_index=current_mode - 1,  # Convert 1-3 to 0-2 for selector
+      selected_index=current_mode,
       button_width=300,
-      callback=_ford_display_mode_callback,
+      param="FordPrefRadarOverlayDisplayMode",
       icon="speed_limit.png",
       inline=False
     )

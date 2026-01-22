@@ -260,10 +260,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
       fill_alpha = min(fill_alpha, 255)
 
     # Calculate size and position
-    # Increase chevron size when Ford overlay is enabled to accommodate text inside
-    base_sz = np.clip((25 * 30) / (d_rel / 3 + 30), 15.0, 30.0) * 2.35
-    size_multiplier = 1.8 if ford_overlay_enabled else 1.0
-    sz = base_sz * size_multiplier
+    sz = np.clip((25 * 30) / (d_rel / 3 + 30), 15.0, 30.0) * 2.35
     x = np.clip(point[0], 0.0, rect.width - sz / 2)
     y = min(point[1], rect.height - sz * 0.6)
 

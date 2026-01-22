@@ -8,6 +8,7 @@ import numpy as np
 
 import pyray as rl
 from openpilot.common.constants import CV
+from openpilot.common.params import Params
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import gui_app, FontWeight
 from openpilot.system.ui.lib.text_measure import measure_text_cached
@@ -25,6 +26,7 @@ class ChevronMetrics:
   def __init__(self):
     self._lead_status_alpha: float = 0.0
     self._font = gui_app.font(FontWeight.SEMI_BOLD)
+    self._params = Params()
 
   def update_alpha(self, has_lead: bool):
     """Update the alpha value for fade in/out animation"""
@@ -46,90 +48,145 @@ class ChevronMetrics:
     d_rel = lead_data.dRel
     v_rel = lead_data.vRel
 
-    if not lead_vehicle.chevron or len(lead_vehicle.chevron) < 2:
+    if not lead_vehicle.chevron or len(lead_vehicle.chevron) < 3:
       return
 
-    chevron_x = lead_vehicle.chevron[1][0]
-    chevron_y = lead_vehicle.chevron[1][1]
+    # Extract chevron points: [bottom_right, top, bottom_left]
+    chevron_bottom_right = lead_vehicle.chevron[0]
+    chevron_top = lead_vehicle.chevron[1]
+    chevron_bottom_left = lead_vehicle.chevron[2]
+    
+    chevron_x = chevron_top[0]  # Center horizontally
+    chevron_top_y = chevron_top[1]  # Top point y
+    chevron_bottom_y = chevron_bottom_right[1]  # Bottom y (same for both bottom points)
+    
+    # Calculate chevron size for positioning
     sz = np.clip((25 * 30) / (d_rel / 3 + 30), 15.0, 30.0) * 2.35
+    if ford_overlay_enabled:
+      sz *= 1.8  # Match the size multiplier used in _update_lead_vehicle
 
     text_lines = self._build_text_lines(d_rel, v_rel, v_ego, ford_overlay_enabled)
     if not text_lines:
       return
 
-    self._render_text_lines(text_lines, chevron_x, chevron_y, sz, rect)
+    # Calculate chevron center for text positioning
+    chevron_center_y = chevron_top_y + (chevron_bottom_y - chevron_top_y) * 0.6  # Slightly below center for better visual balance
+    
+    self._render_text_lines(text_lines, chevron_x, chevron_center_y, sz, rect, ford_overlay_enabled)
 
-  @staticmethod
-  def _build_text_lines(d_rel: float, v_rel: float, v_ego: float, ford_overlay_enabled: bool = False) -> list[str]:
+  def _build_text_lines(self, d_rel: float, v_rel: float, v_ego: float, ford_overlay_enabled: bool = False) -> list[str]:
     """Build text lines based on chevron info setting"""
     text_lines = []
 
-    # When Ford overlay is enabled, show distance and speed (similar to ALL mode)
-    # Otherwise, respect the chevron_metrics setting
-    show_distance = ford_overlay_enabled or ui_state.chevron_metrics == ChevronOptions.DISTANCE_ONLY or ui_state.chevron_metrics == ChevronOptions.ALL
-    show_speed = ford_overlay_enabled or ui_state.chevron_metrics == ChevronOptions.SPEED_ONLY or ui_state.chevron_metrics == ChevronOptions.ALL
-    show_ttc = ui_state.chevron_metrics == ChevronOptions.TTC_ONLY or ui_state.chevron_metrics == ChevronOptions.ALL
+    if ford_overlay_enabled:
+      # When Ford overlay is enabled, use the display mode selector to show only one value
+      display_mode = int(self._params.get("FordPrefRadarOverlayDisplayMode", return_default=True))
+      # Display modes: 1=Distance, 2=Speed, 3=Time to collision
+      # Clamp to valid range (1-3)
+      display_mode = max(1, min(3, display_mode))
+      if display_mode == 1:  # Distance only
+        val = max(0.0, d_rel)
+        unit = "m" if ui_state.is_metric else "ft"
+        if not ui_state.is_metric:
+          val *= 3.28084
+        text_lines.append(f"{val:.0f} {unit}")
+      elif display_mode == 2:  # Speed only
+        multiplier = CV.MS_TO_KPH if ui_state.is_metric else CV.MS_TO_MPH
+        val = max(0.0, (v_rel + v_ego) * multiplier)
+        unit = "km/h" if ui_state.is_metric else "mph"
+        text_lines.append(f"{val:.0f} {unit}")
+      elif display_mode == 3:  # Time to collision only
+        val = (d_rel / v_ego) if (d_rel > 0 and v_ego > 0) else 0.0
+        ttc_text = f"{val:.1f} s" if (0 < val < 200) else "---"
+        text_lines.append(ttc_text)
+    else:
+      # When Ford overlay is disabled, respect the chevron_metrics setting
+      show_distance = ui_state.chevron_metrics == ChevronOptions.DISTANCE_ONLY or ui_state.chevron_metrics == ChevronOptions.ALL
+      show_speed = ui_state.chevron_metrics == ChevronOptions.SPEED_ONLY or ui_state.chevron_metrics == ChevronOptions.ALL
+      show_ttc = ui_state.chevron_metrics == ChevronOptions.TTC_ONLY or ui_state.chevron_metrics == ChevronOptions.ALL
 
-    # Distance
-    if show_distance:
-      val = max(0.0, d_rel)
-      unit = "m" if ui_state.is_metric else "ft"
-      if not ui_state.is_metric:
-        val *= 3.28084
-      text_lines.append(f"{val:.0f} {unit}")
+      # Distance
+      if show_distance:
+        val = max(0.0, d_rel)
+        unit = "m" if ui_state.is_metric else "ft"
+        if not ui_state.is_metric:
+          val *= 3.28084
+        text_lines.append(f"{val:.0f} {unit}")
 
-    # Speed
-    if show_speed:
-      multiplier = CV.MS_TO_KPH if ui_state.is_metric else CV.MS_TO_MPH
-      val = max(0.0, (v_rel + v_ego) * multiplier)
-      unit = "km/h" if ui_state.is_metric else "mph"
-      text_lines.append(f"{val:.0f} {unit}")
+      # Speed
+      if show_speed:
+        multiplier = CV.MS_TO_KPH if ui_state.is_metric else CV.MS_TO_MPH
+        val = max(0.0, (v_rel + v_ego) * multiplier)
+        unit = "km/h" if ui_state.is_metric else "mph"
+        text_lines.append(f"{val:.0f} {unit}")
 
-    # Time to collision (only show if chevron_metrics is enabled, not for Ford overlay)
-    if show_ttc:
-      val = (d_rel / v_ego) if (d_rel > 0 and v_ego > 0) else 0.0
-      ttc_text = f"{val:.1f} s" if (0 < val < 200) else "---"
-      text_lines.append(ttc_text)
+      # Time to collision
+      if show_ttc:
+        val = (d_rel / v_ego) if (d_rel > 0 and v_ego > 0) else 0.0
+        ttc_text = f"{val:.1f} s" if (0 < val < 200) else "---"
+        text_lines.append(ttc_text)
 
     return text_lines
 
   def _render_text_lines(self, text_lines: list[str], chevron_x: float, chevron_y: float,
-                         sz: float, rect: rl.Rectangle):
+                         sz: float, rect: rl.Rectangle, ford_overlay_enabled: bool = False):
     """Render text lines with proper centering and positioning"""
-    font_size = 40
+    # Use larger font when showing only one value (Ford overlay mode)
+    font_size = 60 if (ford_overlay_enabled and len(text_lines) == 1) else 40
     line_height = 50
     margin = 20
-
-    text_y = chevron_y + sz + 15
-    total_height = len(text_lines) * line_height
-
-    # Adjust Y position if text would go off screen
-    if text_y + total_height > rect.height - margin:
-      y_max = min(chevron_y, rect.height - margin)
-      text_y = y_max - 15 - total_height
-      text_y = max(margin, text_y)
 
     alpha = int(255 * self._lead_status_alpha)
     text_color = rl.Color(255, 255, 255, alpha)
     shadow_color = rl.Color(0, 0, 0, int(200 * self._lead_status_alpha))
 
-    for i, line in enumerate(text_lines):
-      y = int(text_y + (i * line_height))
-      if y + line_height > rect.height - margin:
-        break
-
-      # Measure actual text width for proper centering
+    if ford_overlay_enabled and len(text_lines) == 1:
+      # Place text inside the chevron (centered)
+      line = text_lines[0]
       text_size = measure_text_cached(self._font, line, font_size, 0)
       text_width = text_size.x
-
-      # Center the text horizontally on the chevron
+      text_height = text_size.y
+      
+      # Center text horizontally and vertically within chevron
       x = int(chevron_x - text_width / 2)
+      y = int(chevron_y - text_height / 2)
+      
+      # Ensure text stays within screen bounds
       x = int(np.clip(x, margin, rect.width - text_width - margin))
-
+      y = int(np.clip(y, margin, rect.height - text_height - margin))
+      
       # Draw shadow
       rl.draw_text_ex(self._font, line, rl.Vector2(x + 2, y + 2), font_size, 0, shadow_color)
       # Draw text
       rl.draw_text_ex(self._font, line, rl.Vector2(x, y), font_size, 0, text_color)
+    else:
+      # Original behavior: place text below chevron
+      text_y = chevron_y + sz + 15
+      total_height = len(text_lines) * line_height
+
+      # Adjust Y position if text would go off screen
+      if text_y + total_height > rect.height - margin:
+        y_max = min(chevron_y, rect.height - margin)
+        text_y = y_max - 15 - total_height
+        text_y = max(margin, text_y)
+
+      for i, line in enumerate(text_lines):
+        y = int(text_y + (i * line_height))
+        if y + line_height > rect.height - margin:
+          break
+
+        # Measure actual text width for proper centering
+        text_size = measure_text_cached(self._font, line, font_size, 0)
+        text_width = text_size.x
+
+        # Center the text horizontally on the chevron
+        x = int(chevron_x - text_width / 2)
+        x = int(np.clip(x, margin, rect.width - text_width - margin))
+
+        # Draw shadow
+        rl.draw_text_ex(self._font, line, rl.Vector2(x + 2, y + 2), font_size, 0, shadow_color)
+        # Draw text
+        rl.draw_text_ex(self._font, line, rl.Vector2(x, y), font_size, 0, text_color)
 
   def draw_lead_status(self, sm, radar_state, rect, lead_vehicles, ford_overlay_enabled: bool = False):
     lead_one = radar_state.leadOne

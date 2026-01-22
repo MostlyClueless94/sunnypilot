@@ -10,6 +10,7 @@ from openpilot.system.ui.lib.multilang import tr, tr_noop
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.selfdrive.ui.widgets.web_server_qr_dialog_tici import WebServerQRDialogTici
 from openpilot.selfdrive.ui.widgets.float_control_item import float_control_item
+from openpilot.system.ui.sunnypilot.widgets.list_view import multiple_button_item_sp
 
 
 class BluePilotLayout(Widget):
@@ -70,11 +71,41 @@ class BluePilotLayout(Widget):
     # Ford radar lead overlay toggle
     self._show_ford_radar_overlay = toggle_item(
       lambda: tr("Show Radar Lead Overlay (Ford ACC)"),
-      lambda: tr("Display chevron with distance and speed when using Ford stock ACC."),
+      lambda: tr("Display chevron with lead vehicle info when using Ford stock ACC."),
       initial_state=self._params.get_bool("FordPrefShowRadarLeadOverlay"),
       callback=lambda state: self._toggle_callback(state, "FordPrefShowRadarLeadOverlay"),
       icon="speed_limit.png"
     )
+
+    # Ford overlay display mode selector (conditional on overlay being enabled)
+    # Store 1-3 in param (1=Distance, 2=Speed, 3=TTC) but selector uses 0-2 indices
+    def _ford_display_mode_callback(index: int):
+      # Convert 0-based index to 1-3 param value
+      self._params.put("FordPrefRadarOverlayDisplayMode", str(index + 1))
+    
+    current_mode = int(self._params.get("FordPrefRadarOverlayDisplayMode", return_default=True))
+    # Clamp to valid range (1-3) and convert to 0-based index (0-2)
+    current_mode = max(1, min(3, current_mode))
+    
+    # Get initial enabled state based on Ford overlay toggle
+    ford_overlay_initially_enabled = self._params.get_bool("FordPrefShowRadarLeadOverlay")
+    
+    self._ford_overlay_display_mode = multiple_button_item_sp(
+      lambda: tr("Radar Overlay Display"),
+      lambda: tr("Select which value to display under the chevron."),
+      buttons=[
+        lambda: tr("Distance"),
+        lambda: tr("Speed"),
+        lambda: tr("Time to Collision"),
+      ],
+      selected_index=current_mode - 1,  # Convert 1-3 to 0-2 for selector
+      button_width=300,
+      callback=_ford_display_mode_callback,
+      icon="speed_limit.png",
+      inline=False
+    )
+    # Set initial enabled state
+    self._ford_overlay_display_mode.action_item.set_enabled(ford_overlay_initially_enabled)
 
     # Human turn detection toggle
     self._enable_human_turn_detection = toggle_item(
@@ -198,6 +229,7 @@ class BluePilotLayout(Widget):
       self._show_web_routes_qr,
       self._show_hands_free_ui,
       self._show_ford_radar_overlay,
+      self._ford_overlay_display_mode,
       self._enable_human_turn_detection,
       self._lane_change_factor_high,
       self._enable_lane_positioning,
@@ -244,6 +276,9 @@ class BluePilotLayout(Widget):
     self._pc_blend_ratio_high_C.action_item.set_enabled(ui_state.params.get_bool("custom_profile"))
     self._pc_blend_ratio_low_C.action_item.set_enabled(ui_state.params.get_bool("custom_profile"))
     self._lc_pid_gain.action_item.set_enabled(ui_state.params.get_bool("custom_profile"))
+    # Enable display mode selector only when Ford overlay is enabled
+    ford_overlay_enabled = ui_state.params.get_bool("FordPrefShowRadarLeadOverlay")
+    self._ford_overlay_display_mode.action_item.set_enabled(ford_overlay_enabled)
 
   def show_event(self):
     super().show_event()

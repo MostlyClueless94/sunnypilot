@@ -134,7 +134,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
 
       self._update_model(lead_one, path_x_array)
       if render_lead_indicator:
-        self._update_leads(radar_state, path_x_array)
+        self._update_leads(radar_state, path_x_array, ford_overlay_enabled)
       self._transform_dirty = False
 
     # Draw elements
@@ -160,7 +160,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     self._road_edge_stds = np.array(model.roadEdgeStds, dtype=np.float32)
     self._acceleration_x = np.array(model.acceleration.x, dtype=np.float32)
 
-  def _update_leads(self, radar_state, path_x_array):
+  def _update_leads(self, radar_state, path_x_array, ford_overlay_enabled: bool = False):
     """Update positions of lead vehicles"""
     self._lead_vehicles = [LeadVehicle(), LeadVehicle()]
     leads = [radar_state.leadOne, radar_state.leadTwo]
@@ -174,7 +174,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
         z = self._path.raw_points[idx, 2] if idx < len(self._path.raw_points) else 0.0
         point = self._map_to_screen(d_rel, -y_rel, z + self._path_offset_z)
         if point:
-          self._lead_vehicles[i] = self._update_lead_vehicle(d_rel, v_rel, point, self._rect)
+          self._lead_vehicles[i] = self._update_lead_vehicle(d_rel, v_rel, point, self._rect, ford_overlay_enabled)
 
   def _update_model(self, lead, path_x_array):
     """Update model visualization data based on model message"""
@@ -248,7 +248,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
       stops=gradient_stops,
     )
 
-  def _update_lead_vehicle(self, d_rel, v_rel, point, rect):
+  def _update_lead_vehicle(self, d_rel, v_rel, point, rect, ford_overlay_enabled: bool = False):
     speed_buff, lead_buff = 10.0, 40.0
 
     # Calculate fill alpha
@@ -260,7 +260,10 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
       fill_alpha = min(fill_alpha, 255)
 
     # Calculate size and position
-    sz = np.clip((25 * 30) / (d_rel / 3 + 30), 15.0, 30.0) * 2.35
+    # Increase chevron size when Ford overlay is enabled to accommodate text inside
+    base_sz = np.clip((25 * 30) / (d_rel / 3 + 30), 15.0, 30.0) * 2.35
+    size_multiplier = 1.8 if ford_overlay_enabled else 1.0
+    sz = base_sz * size_multiplier
     x = np.clip(point[0], 0.0, rect.width - sz / 2)
     y = min(point[1], rect.height - sz * 0.6)
 

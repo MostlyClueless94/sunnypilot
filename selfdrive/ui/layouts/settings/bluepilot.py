@@ -82,14 +82,14 @@ class BluePilotLayout(Widget):
     def _ford_display_mode_callback(index: int):
       # Convert 0-based index to 1-3 param value
       self._params.put("FordPrefRadarOverlayDisplayMode", str(index + 1))
-    
+
     current_mode = int(self._params.get("FordPrefRadarOverlayDisplayMode", return_default=True))
     # Clamp to valid range (1-3) and convert to 0-based index (0-2)
     current_mode = max(1, min(3, current_mode))
-    
+
     # Get initial enabled state based on Ford overlay toggle
     ford_overlay_initially_enabled = self._params.get_bool("FordPrefShowRadarLeadOverlay")
-    
+
     self._ford_overlay_display_mode = multiple_button_item_sp(
       lambda: tr("Radar Overlay Display"),
       lambda: tr("Select which value to display under the chevron."),

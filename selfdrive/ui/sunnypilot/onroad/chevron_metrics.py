@@ -55,11 +55,11 @@ class ChevronMetrics:
     chevron_bottom_right = lead_vehicle.chevron[0]
     chevron_top = lead_vehicle.chevron[1]
     chevron_bottom_left = lead_vehicle.chevron[2]
-    
+
     chevron_x = chevron_top[0]  # Center horizontally
     chevron_top_y = chevron_top[1]  # Top point y
     chevron_bottom_y = chevron_bottom_right[1]  # Bottom y (same for both bottom points)
-    
+
     # Calculate chevron size for positioning
     sz = np.clip((25 * 30) / (d_rel / 3 + 30), 15.0, 30.0) * 2.35
     if ford_overlay_enabled:
@@ -71,7 +71,7 @@ class ChevronMetrics:
 
     # Calculate chevron center for text positioning
     chevron_center_y = chevron_top_y + (chevron_bottom_y - chevron_top_y) * 0.6  # Slightly below center for better visual balance
-    
+
     self._render_text_lines(text_lines, chevron_x, chevron_center_y, sz, rect, ford_overlay_enabled)
 
   def _build_text_lines(self, d_rel: float, v_rel: float, v_ego: float, ford_overlay_enabled: bool = False) -> list[str]:
@@ -146,15 +146,15 @@ class ChevronMetrics:
       text_size = measure_text_cached(self._font, line, font_size, 0)
       text_width = text_size.x
       text_height = text_size.y
-      
+
       # Center text horizontally and vertically within chevron
       x = int(chevron_x - text_width / 2)
       y = int(chevron_y - text_height / 2)
-      
+
       # Ensure text stays within screen bounds
       x = int(np.clip(x, margin, rect.width - text_width - margin))
       y = int(np.clip(y, margin, rect.height - text_height - margin))
-      
+
       # Draw shadow
       rl.draw_text_ex(self._font, line, rl.Vector2(x + 2, y + 2), font_size, 0, shadow_color)
       # Draw text

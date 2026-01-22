@@ -33,13 +33,14 @@ class ChevronMetrics:
     else:
       self._lead_status_alpha = min(1.0, self._lead_status_alpha + 0.1)
 
-  def should_render(self) -> bool:
+  def should_render(self, ford_overlay_enabled: bool = False) -> bool:
     """Check if dev UI should be rendered"""
-    return ui_state.chevron_metrics != ChevronOptions.OFF and self._lead_status_alpha > 0.0
+    # Render if chevron metrics is enabled OR if Ford overlay is enabled
+    return (ui_state.chevron_metrics != ChevronOptions.OFF or ford_overlay_enabled) and self._lead_status_alpha > 0.0
 
-  def _draw_lead(self, lead_data, lead_vehicle, v_ego: float, rect: rl.Rectangle):
+  def _draw_lead(self, lead_data, lead_vehicle, v_ego: float, rect: rl.Rectangle, ford_overlay_enabled: bool = False):
     """Draw lead vehicle status information (distance, speed, TTC)"""
-    if not self.should_render():
+    if not self.should_render(ford_overlay_enabled):
       return
 
     d_rel = lead_data.dRel
@@ -52,19 +53,25 @@ class ChevronMetrics:
     chevron_y = lead_vehicle.chevron[1][1]
     sz = np.clip((25 * 30) / (d_rel / 3 + 30), 15.0, 30.0) * 2.35
 
-    text_lines = self._build_text_lines(d_rel, v_rel, v_ego)
+    text_lines = self._build_text_lines(d_rel, v_rel, v_ego, ford_overlay_enabled)
     if not text_lines:
       return
 
     self._render_text_lines(text_lines, chevron_x, chevron_y, sz, rect)
 
   @staticmethod
-  def _build_text_lines(d_rel: float, v_rel: float, v_ego: float) -> list[str]:
+  def _build_text_lines(d_rel: float, v_rel: float, v_ego: float, ford_overlay_enabled: bool = False) -> list[str]:
     """Build text lines based on chevron info setting"""
     text_lines = []
 
+    # When Ford overlay is enabled, show distance and speed (similar to ALL mode)
+    # Otherwise, respect the chevron_metrics setting
+    show_distance = ford_overlay_enabled or ui_state.chevron_metrics == ChevronOptions.DISTANCE_ONLY or ui_state.chevron_metrics == ChevronOptions.ALL
+    show_speed = ford_overlay_enabled or ui_state.chevron_metrics == ChevronOptions.SPEED_ONLY or ui_state.chevron_metrics == ChevronOptions.ALL
+    show_ttc = ui_state.chevron_metrics == ChevronOptions.TTC_ONLY or ui_state.chevron_metrics == ChevronOptions.ALL
+
     # Distance
-    if ui_state.chevron_metrics == ChevronOptions.DISTANCE_ONLY or ui_state.chevron_metrics == ChevronOptions.ALL:
+    if show_distance:
       val = max(0.0, d_rel)
       unit = "m" if ui_state.is_metric else "ft"
       if not ui_state.is_metric:
@@ -72,14 +79,14 @@ class ChevronMetrics:
       text_lines.append(f"{val:.0f} {unit}")
 
     # Speed
-    if ui_state.chevron_metrics == ChevronOptions.SPEED_ONLY or ui_state.chevron_metrics == ChevronOptions.ALL:
+    if show_speed:
       multiplier = CV.MS_TO_KPH if ui_state.is_metric else CV.MS_TO_MPH
       val = max(0.0, (v_rel + v_ego) * multiplier)
       unit = "km/h" if ui_state.is_metric else "mph"
       text_lines.append(f"{val:.0f} {unit}")
 
-    # Time to collision
-    if ui_state.chevron_metrics == ChevronOptions.TTC_ONLY or ui_state.chevron_metrics == ChevronOptions.ALL:
+    # Time to collision (only show if chevron_metrics is enabled, not for Ford overlay)
+    if show_ttc:
       val = (d_rel / v_ego) if (d_rel > 0 and v_ego > 0) else 0.0
       ttc_text = f"{val:.1f} s" if (0 < val < 200) else "---"
       text_lines.append(ttc_text)
@@ -124,7 +131,7 @@ class ChevronMetrics:
       # Draw text
       rl.draw_text_ex(self._font, line, rl.Vector2(x, y), font_size, 0, text_color)
 
-  def draw_lead_status(self, sm, radar_state, rect, lead_vehicles):
+  def draw_lead_status(self, sm, radar_state, rect, lead_vehicles, ford_overlay_enabled: bool = False):
     lead_one = radar_state.leadOne
     lead_two = radar_state.leadTwo
 
@@ -133,15 +140,15 @@ class ChevronMetrics:
 
     self.update_alpha(has_lead_one or has_lead_two)
 
-    if not self.should_render():
+    if not self.should_render(ford_overlay_enabled):
       return
 
     v_ego = sm['carState'].vEgo
 
     if has_lead_one and lead_vehicles[0].chevron:
-      self._draw_lead(lead_one, lead_vehicles[0], v_ego, rect)
+      self._draw_lead(lead_one, lead_vehicles[0], v_ego, rect, ford_overlay_enabled)
 
     if has_lead_two and lead_vehicles[1].chevron:
       d_rel_diff = abs(lead_one.dRel - lead_two.dRel) if has_lead_one else float('inf')
       if d_rel_diff > 3.0:
-        self._draw_lead(lead_two, lead_vehicles[1], v_ego, rect)
+        self._draw_lead(lead_two, lead_vehicles[1], v_ego, rect, ford_overlay_enabled)

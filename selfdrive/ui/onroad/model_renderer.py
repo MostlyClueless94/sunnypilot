@@ -56,6 +56,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     self._road_edge_stds = np.zeros(2, dtype=np.float32)
     self._lead_vehicles = [LeadVehicle(), LeadVehicle()]
     self._path_offset_z = HEIGHT_INIT[0]
+    self._params = Params()
 
     # Initialize ModelPoints objects
     self._path = ModelPoints()
@@ -76,7 +77,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     )
 
     # Get longitudinal control setting from car parameters
-    if car_params := Params().get("CarParams"):
+    if car_params := self._params.get("CarParams"):
       cp = messaging.log_from_bytes(car_params, car.CarParams)
       self._longitudinal_control = cp.openpilotLongitudinalControl
 
@@ -109,7 +110,17 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     model = sm['modelV2']
     radar_state = sm['radarState'] if sm.valid['radarState'] else None
     lead_one = radar_state.leadOne if radar_state else None
-    render_lead_indicator = self._longitudinal_control and radar_state is not None
+    
+    # Check for Ford ACC overlay feature
+    # Show chevron when using openpilot longitudinal control OR when using Ford ACC with overlay enabled
+    ford_overlay_enabled = False
+    is_ford_vehicle = False
+    if ui_state.CP:
+      is_ford_vehicle = ui_state.CP.brand == "ford"
+      if is_ford_vehicle and not self._longitudinal_control:
+        ford_overlay_enabled = self._params.get_bool("FordPrefShowRadarLeadOverlay")
+    
+    render_lead_indicator = (self._longitudinal_control or ford_overlay_enabled) and radar_state is not None
 
     # Update model data when needed
     model_updated = sm.updated['modelV2']
@@ -132,7 +143,8 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
 
     if render_lead_indicator and radar_state:
       self._draw_lead_indicator()
-      self.chevron_metrics.draw_lead_status(sm, radar_state, self._rect, self._lead_vehicles)
+      # Pass ford_overlay_enabled flag to chevron metrics so it can render even when chevron_metrics is OFF
+      self.chevron_metrics.draw_lead_status(sm, radar_state, self._rect, self._lead_vehicles, ford_overlay_enabled=ford_overlay_enabled)
 
   def _update_raw_points(self, model):
     """Update raw 3D points from model data"""

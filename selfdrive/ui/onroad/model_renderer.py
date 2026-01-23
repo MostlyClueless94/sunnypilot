@@ -104,8 +104,18 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     live_calib = sm['liveCalibration']
     self._path_offset_z = live_calib.height[0] if live_calib.height else HEIGHT_INIT[0]
 
-    if sm.updated['carParams']:
-      self._longitudinal_control = sm['carParams'].openpilotLongitudinalControl
+    # Get carParams from message stream (more reliable in replay) or fallback to ui_state.CP
+    car_params = None
+    if sm.valid['carParams']:
+      car_params = sm['carParams']
+      self._longitudinal_control = car_params.openpilotLongitudinalControl
+    elif ui_state.CP:
+      car_params = ui_state.CP
+      # Use longitudinal control from params if available
+      if ui_state.CP.alphaLongitudinalAvailable:
+        self._longitudinal_control = ui_state.has_longitudinal_control
+      else:
+        self._longitudinal_control = ui_state.CP.openpilotLongitudinalControl
 
     model = sm['modelV2']
     radar_state = sm['radarState'] if sm.valid['radarState'] else None
@@ -115,8 +125,8 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     # Show chevron when using openpilot longitudinal control OR when using Ford ACC with overlay enabled
     ford_overlay_enabled = False
     is_ford_vehicle = False
-    if ui_state.CP:
-      is_ford_vehicle = ui_state.CP.brand == "ford"
+    if car_params:
+      is_ford_vehicle = car_params.brand == "ford"
       if is_ford_vehicle and not self._longitudinal_control:
         ford_overlay_enabled = self._params.get_bool("FordPrefShowRadarLeadOverlay")
 

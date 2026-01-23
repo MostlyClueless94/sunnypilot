@@ -42,6 +42,7 @@ class LeadVehicle:
   glow: list[float] = field(default_factory=list)
   chevron: list[float] = field(default_factory=list)
   fill_alpha: int = 0
+  is_radar: bool = False
 
 
 class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
@@ -189,13 +190,14 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     for i, lead_data in enumerate(leads):
       if lead_data and lead_data.status:
         d_rel, y_rel, v_rel = lead_data.dRel, lead_data.yRel, lead_data.vRel
+        is_radar = lead_data.radar if hasattr(lead_data, 'radar') else False
         idx = self._get_path_length_idx(path_x_array, d_rel)
 
         # Get z-coordinate from path at the lead vehicle position
         z = self._path.raw_points[idx, 2] if idx < len(self._path.raw_points) else 0.0
         point = self._map_to_screen(d_rel, -y_rel, z + self._path_offset_z)
         if point:
-          self._lead_vehicles[i] = self._update_lead_vehicle(d_rel, v_rel, point, self._rect, ford_overlay_enabled)
+          self._lead_vehicles[i] = self._update_lead_vehicle(d_rel, v_rel, point, self._rect, ford_overlay_enabled, is_radar)
 
   def _update_model(self, lead, path_x_array):
     """Update model visualization data based on model message"""
@@ -269,7 +271,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
       stops=gradient_stops,
     )
 
-  def _update_lead_vehicle(self, d_rel, v_rel, point, rect, ford_overlay_enabled: bool = False):
+  def _update_lead_vehicle(self, d_rel, v_rel, point, rect, ford_overlay_enabled: bool = False, is_radar: bool = False):
     speed_buff, lead_buff = 10.0, 40.0
 
     # Calculate fill alpha
@@ -291,7 +293,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     glow = [(x + (sz * 1.35) + g_xo, y + sz + g_yo), (x, y - g_yo), (x - (sz * 1.35) - g_xo, y + sz + g_yo)]
     chevron = [(x + (sz * 1.25), y + sz), (x, y), (x - (sz * 1.25), y + sz)]
 
-    return LeadVehicle(glow=glow, chevron=chevron, fill_alpha=int(fill_alpha))
+    return LeadVehicle(glow=glow, chevron=chevron, fill_alpha=int(fill_alpha), is_radar=is_radar)
 
   def _draw_lane_lines(self):
     """Draw lane lines and road edges"""
@@ -347,8 +349,18 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
       if not lead.glow or not lead.chevron:
         continue
 
-      rl.draw_triangle_fan(lead.glow, len(lead.glow), rl.Color(218, 202, 37, 255))
-      rl.draw_triangle_fan(lead.chevron, len(lead.chevron), rl.Color(201, 34, 49, lead.fill_alpha))
+      # Dynamic colors based on detection source: blue for radar, yellow for vision
+      if lead.is_radar:
+        # Blue for radar detection
+        glow_color = rl.Color(0, 134, 233, 255)  # Blue glow
+        chevron_color = rl.Color(0, 100, 200, lead.fill_alpha)  # Blue chevron
+      else:
+        # Yellow for vision detection
+        glow_color = rl.Color(218, 202, 37, 255)  # Yellow glow
+        chevron_color = rl.Color(201, 34, 49, lead.fill_alpha)  # Red chevron (original)
+
+      rl.draw_triangle_fan(lead.glow, len(lead.glow), glow_color)
+      rl.draw_triangle_fan(lead.chevron, len(lead.chevron), chevron_color)
 
   @staticmethod
   def _get_path_length_idx(pos_x_array: np.ndarray, path_distance: float) -> int:

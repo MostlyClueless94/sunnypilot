@@ -27,6 +27,7 @@ class ChevronMetrics:
     self._lead_status_alpha: float = 0.0
     self._font = gui_app.font(FontWeight.SEMI_BOLD)
     self._params = Params()
+    self._close_mode: bool = False  # Track if chevron should be flipped (upside down)
 
   def update_alpha(self, has_lead: bool):
     """Update the alpha value for fade in/out animation"""
@@ -51,14 +52,31 @@ class ChevronMetrics:
     if not lead_vehicle.chevron or len(lead_vehicle.chevron) < 3:
       return
 
-    # Extract chevron points: [bottom_right, top, bottom_left]
-    chevron_bottom_right = lead_vehicle.chevron[0]
-    chevron_top = lead_vehicle.chevron[1]
-    chevron_bottom_left = lead_vehicle.chevron[2]
+    # Deadband logic: switch to close mode at 50ft (15.24m), switch back at 60ft (18.29m)
+    # dRel is in meters, so convert feet to meters: 1 ft = 0.3048 m
+    CLOSE_MODE_THRESHOLD_M = 50.0 * 0.3048  # 50 feet = 15.24 meters
+    NORMAL_MODE_THRESHOLD_M = 60.0 * 0.3048  # 60 feet = 18.29 meters
+    
+    if d_rel < CLOSE_MODE_THRESHOLD_M:
+      self._close_mode = True
+    elif d_rel > NORMAL_MODE_THRESHOLD_M:
+      self._close_mode = False
+    # Otherwise keep current state (deadband between thresholds)
 
-    chevron_x = chevron_top[0]  # Center horizontally
-    chevron_top_y = chevron_top[1]  # Top point y
-    chevron_bottom_y = chevron_bottom_right[1]  # Bottom y (same for both bottom points)
+    # Extract chevron points
+    # Normal: [bottom_right, top, bottom_left] - chevron[1] is top point (smaller y)
+    # Flipped: [top_right, bottom, top_left] - chevron[1] is bottom point (larger y)
+    chevron_point_0 = lead_vehicle.chevron[0]
+    chevron_point_1 = lead_vehicle.chevron[1]
+    chevron_point_2 = lead_vehicle.chevron[2]
+
+    chevron_x = chevron_point_1[0]  # Center horizontally (always the middle point)
+    
+    # In screen coordinates, smaller y is at top, larger y is at bottom
+    # Determine top and bottom based on y-coordinates
+    all_y_coords = [chevron_point_0[1], chevron_point_1[1], chevron_point_2[1]]
+    chevron_top_y = min(all_y_coords)  # Top of chevron (smallest y)
+    chevron_bottom_y = max(all_y_coords)  # Bottom of chevron (largest y)
 
     # Calculate chevron size for positioning
     sz = np.clip((25 * 30) / (d_rel / 3 + 30), 15.0, 30.0) * 2.35
@@ -67,12 +85,21 @@ class ChevronMetrics:
     if not text_lines:
       return
 
-    # Position text below chevron with adequate spacing to avoid blocking chevron
-    # Use chevron size to calculate appropriate spacing
+    # Position text: below chevron normally, above chevron when in close mode
     spacing_offset = max(70, sz * 0.6)  # At least 70px, or 60% of chevron size
-    chevron_bottom_center_y = chevron_bottom_y + spacing_offset
+    
+    if self._close_mode:
+      # Position text well above the chevron (similar to where flipped chevron used to be)
+      # Add extra upward offset to float above the lead vehicle
+      upward_offset = sz * 3.0  # Move text up by 3x chevron size to float above vehicle
+      chevron_text_y = chevron_top_y - spacing_offset - upward_offset
+    else:
+      # Position text below the chevron
+      chevron_text_y = chevron_bottom_y + spacing_offset
 
-    self._render_text_lines(text_lines, chevron_x, chevron_bottom_center_y, sz, rect, ford_overlay_enabled)
+    # Get chevron color for border (blue for radar, red for vision)
+    is_radar = lead_vehicle.is_radar if hasattr(lead_vehicle, 'is_radar') else False
+    self._render_text_lines(text_lines, chevron_x, chevron_text_y, sz, rect, ford_overlay_enabled, is_radar, self._close_mode)
 
   def _build_text_lines(self, d_rel: float, v_rel: float, v_ego: float, ford_overlay_enabled: bool = False) -> list[str]:
     """Build text lines based on chevron info setting"""
@@ -127,7 +154,7 @@ class ChevronMetrics:
     return text_lines
 
   def _render_text_lines(self, text_lines: list[str], chevron_x: float, chevron_y: float,
-                         sz: float, rect: rl.Rectangle, ford_overlay_enabled: bool = False):
+                         sz: float, rect: rl.Rectangle, ford_overlay_enabled: bool = False, is_radar: bool = False, close_mode: bool = False):
     """Render text lines with proper centering and positioning"""
     font_size = 60 if ford_overlay_enabled else 40
     margin = 20
@@ -162,8 +189,13 @@ class ChevronMetrics:
       text_height = text_sizes[0].y if text_sizes else font_size
       box_height = text_height + (padding * 2)
       
-      # Calculate y position (centered vertically at chevron_y)
-      y = int(chevron_y - box_height / 2)
+      # Calculate y position: below chevron normally, above chevron when in close mode
+      if close_mode:
+        # Position boxes above chevron (bottom of boxes at chevron_y, which is above the flipped chevron)
+        y = int(chevron_y - box_height)
+      else:
+        # Position boxes below chevron (top of boxes at chevron_y, which is below the chevron)
+        y = int(chevron_y)
       
       # Ensure boxes stay within screen bounds
       if start_x < margin:
@@ -173,6 +205,12 @@ class ChevronMetrics:
         start_x = rect.width - margin - total_width
         current_x = start_x
       
+      # Determine border color based on chevron color (blue for radar, red for vision)
+      if is_radar:
+        border_color = rl.Color(0, 100, 200, alpha)  # Blue border for radar
+      else:
+        border_color = rl.Color(201, 34, 49, alpha)  # Red border for vision
+      
       # Render each value with its box
       for i, (line, text_size) in enumerate(zip(text_lines, text_sizes)):
         box_width = text_size.x + (padding * 2)
@@ -180,6 +218,9 @@ class ChevronMetrics:
         # Draw dark grey box
         box_rect = rl.Rectangle(int(current_x), int(y), box_width, box_height)
         rl.draw_rectangle_rounded(box_rect, 0.2, 10, box_color)
+        
+        # Draw border with chevron color
+        rl.draw_rectangle_rounded_lines_ex(box_rect, 0.2, 10, 2, border_color)
         
         # Draw text centered in box
         text_x = int(current_x + padding)

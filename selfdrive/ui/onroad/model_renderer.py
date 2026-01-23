@@ -43,6 +43,7 @@ class LeadVehicle:
   chevron: list[float] = field(default_factory=list)
   fill_alpha: int = 0
   is_radar: bool = False
+  flip_chevron: bool = False  # Flip chevron upside down when close
 
 
 class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
@@ -164,8 +165,8 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     self._draw_path(sm)
 
     if render_lead_indicator and radar_state:
+      # Always draw chevron first, then text overlay
       self._draw_lead_indicator()
-      # Pass ford_overlay_enabled flag to chevron metrics so it can render even when chevron_metrics is OFF
       self.chevron_metrics.draw_lead_status(sm, radar_state, self._rect, self._lead_vehicles, ford_overlay_enabled=ford_overlay_enabled)
 
   def _update_raw_points(self, model):
@@ -191,13 +192,27 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
       if lead_data and lead_data.status:
         d_rel, y_rel, v_rel = lead_data.dRel, lead_data.yRel, lead_data.vRel
         is_radar = lead_data.radar if hasattr(lead_data, 'radar') else False
+        
+        # Deadband logic: move text above chevron at 50ft (15.24m), move back below at 60ft (18.29m)
+        # dRel is in meters, so convert feet to meters: 1 ft = 0.3048 m
+        CLOSE_MODE_THRESHOLD_M = 50.0 * 0.3048  # 50 feet = 15.24 meters
+        NORMAL_MODE_THRESHOLD_M = 60.0 * 0.3048  # 60 feet = 18.29 meters
+        
+        # Update ChevronMetrics state (ModelRenderer inherits from ChevronMetrics)
+        if d_rel < CLOSE_MODE_THRESHOLD_M:
+          self._close_mode = True
+        elif d_rel > NORMAL_MODE_THRESHOLD_M:
+          self._close_mode = False
+        # Otherwise keep current state (deadband between thresholds)
+        flip_chevron = False  # Don't flip chevron, just move text
+        
         idx = self._get_path_length_idx(path_x_array, d_rel)
 
         # Get z-coordinate from path at the lead vehicle position
         z = self._path.raw_points[idx, 2] if idx < len(self._path.raw_points) else 0.0
         point = self._map_to_screen(d_rel, -y_rel, z + self._path_offset_z)
         if point:
-          self._lead_vehicles[i] = self._update_lead_vehicle(d_rel, v_rel, point, self._rect, ford_overlay_enabled, is_radar)
+          self._lead_vehicles[i] = self._update_lead_vehicle(d_rel, v_rel, point, self._rect, ford_overlay_enabled, is_radar, flip_chevron)
 
   def _update_model(self, lead, path_x_array):
     """Update model visualization data based on model message"""
@@ -271,7 +286,8 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
       stops=gradient_stops,
     )
 
-  def _update_lead_vehicle(self, d_rel, v_rel, point, rect, ford_overlay_enabled: bool = False, is_radar: bool = False):
+  def _update_lead_vehicle(self, d_rel, v_rel, point, rect, ford_overlay_enabled: bool = False, is_radar: bool = False, flip_chevron: bool = False):
+    # flip_chevron parameter kept for compatibility but not used - chevron always stays normal
     speed_buff, lead_buff = 10.0, 40.0
 
     # Calculate fill alpha
@@ -285,15 +301,19 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     # Calculate size and position
     sz = np.clip((25 * 30) / (d_rel / 3 + 30), 15.0, 30.0) * 2.35
     x = np.clip(point[0], 0.0, rect.width - sz / 2)
-    y = min(point[1], rect.height - sz * 0.6)
+    base_y = min(point[1], rect.height - sz * 0.6)
 
     g_xo = sz / 5
     g_yo = sz / 10
 
+    # Create glow and chevron points
+    # Normal: chevron points down [bottom_right, top, bottom_left]
+    # Always use normal orientation - don't flip chevron
+    y = base_y
     glow = [(x + (sz * 1.35) + g_xo, y + sz + g_yo), (x, y - g_yo), (x - (sz * 1.35) - g_xo, y + sz + g_yo)]
     chevron = [(x + (sz * 1.25), y + sz), (x, y), (x - (sz * 1.25), y + sz)]
 
-    return LeadVehicle(glow=glow, chevron=chevron, fill_alpha=int(fill_alpha), is_radar=is_radar)
+    return LeadVehicle(glow=glow, chevron=chevron, fill_alpha=int(fill_alpha), is_radar=is_radar, flip_chevron=flip_chevron)
 
   def _draw_lane_lines(self):
     """Draw lane lines and road edges"""

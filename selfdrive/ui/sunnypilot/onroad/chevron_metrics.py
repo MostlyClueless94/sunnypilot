@@ -67,8 +67,10 @@ class ChevronMetrics:
     if not text_lines:
       return
 
-    # Position text below chevron
-    chevron_bottom_center_y = chevron_bottom_y + 20  # Position below chevron
+    # Position text below chevron with adequate spacing to avoid blocking chevron
+    # Use chevron size to calculate appropriate spacing
+    spacing_offset = max(50, sz * 0.5)  # At least 50px, or half chevron size
+    chevron_bottom_center_y = chevron_bottom_y + spacing_offset
 
     self._render_text_lines(text_lines, chevron_x, chevron_bottom_center_y, sz, rect, ford_overlay_enabled)
 

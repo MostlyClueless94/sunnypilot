@@ -27,6 +27,7 @@ class BluePilotLayout(Widget):
     self._refresh_toggles = (
       ("BPPortalEnabled", self._enable_web_routes),
       ("send_hands_free_cluster_msg", self._show_hands_free_ui),
+      ("FordPrefShowRadarLeadOverlay", self._show_ford_radar_overlay),
       ("enable_human_turn_detection", self._enable_human_turn_detection),
       ("enable_lane_positioning", self._enable_lane_positioning),
       ("enable_lane_full_mode", self._enable_lane_full_mode),
@@ -65,6 +66,16 @@ class BluePilotLayout(Widget):
       callback=lambda state: self._toggle_callback(state, "send_hands_free_cluster_msg"),
       icon="monitoring.png"
     )
+
+    # Ford radar lead overlay toggle
+    self._show_ford_radar_overlay = toggle_item(
+      lambda: tr("Show Radar Lead Overlay (Ford ACC)"),
+      lambda: tr("Display chevron with lead vehicle info when using Ford stock ACC."),
+      initial_state=self._params.get_bool("FordPrefShowRadarLeadOverlay"),
+      callback=lambda state: self._toggle_callback(state, "FordPrefShowRadarLeadOverlay"),
+      icon="speed_limit.png"
+    )
+
 
     # Human turn detection toggle
     self._enable_human_turn_detection = toggle_item(
@@ -187,6 +198,7 @@ class BluePilotLayout(Widget):
       self._enable_web_routes,
       self._show_web_routes_qr,
       self._show_hands_free_ui,
+      self._show_ford_radar_overlay,
       self._enable_human_turn_detection,
       self._lane_change_factor_high,
       self._enable_lane_positioning,

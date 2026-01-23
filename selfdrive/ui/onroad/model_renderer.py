@@ -1,4 +1,5 @@
 import colorsys
+import time
 import numpy as np
 import pyray as rl
 from cereal import messaging, car
@@ -41,6 +42,8 @@ class LeadVehicle:
   glow: list[float] = field(default_factory=list)
   chevron: list[float] = field(default_factory=list)
   fill_alpha: int = 0
+  is_radar: bool = False
+  flip_chevron: bool = False  # Flip chevron upside down when close
 
 
 class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
@@ -56,6 +59,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     self._road_edge_stds = np.zeros(2, dtype=np.float32)
     self._lead_vehicles = [LeadVehicle(), LeadVehicle()]
     self._path_offset_z = HEIGHT_INIT[0]
+    self._params = Params()
 
     # Initialize ModelPoints objects
     self._path = ModelPoints()
@@ -76,7 +80,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     )
 
     # Get longitudinal control setting from car parameters
-    if car_params := Params().get("CarParams"):
+    if car_params := self._params.get("CarParams"):
       cp = messaging.log_from_bytes(car_params, car.CarParams)
       self._longitudinal_control = cp.openpilotLongitudinalControl
 
@@ -103,13 +107,43 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     live_calib = sm['liveCalibration']
     self._path_offset_z = live_calib.height[0] if live_calib.height else HEIGHT_INIT[0]
 
-    if sm.updated['carParams']:
-      self._longitudinal_control = sm['carParams'].openpilotLongitudinalControl
+    # Get carParams - try message stream first (works in device), fallback to params (works in replay)
+    # Similar pattern to how controllerStateBP/lateralUncertainty is accessed
+    car_params = None
+    
+    # Try to get from message stream (published by card.py every 50 seconds)
+    if sm.valid['carParams']:
+      try:
+        car_params = sm['carParams']
+        self._longitudinal_control = car_params.openpilotLongitudinalControl
+      except (KeyError, AttributeError):
+        pass
+    
+    # Fallback to params-based CarParams (replay writes to params, ui_state updates every 5 seconds)
+    if car_params is None:
+      # Always check ui_state.CP as fallback (replay writes CarParams to params)
+      if ui_state.CP:
+        car_params = ui_state.CP
+        # Use longitudinal control from params if available
+        if ui_state.CP.alphaLongitudinalAvailable:
+          self._longitudinal_control = ui_state.has_longitudinal_control
+        else:
+          self._longitudinal_control = ui_state.CP.openpilotLongitudinalControl
 
     model = sm['modelV2']
     radar_state = sm['radarState'] if sm.valid['radarState'] else None
     lead_one = radar_state.leadOne if radar_state else None
-    render_lead_indicator = self._longitudinal_control and radar_state is not None
+
+    # Check for Ford ACC overlay feature
+    # Show chevron when using openpilot longitudinal control OR when using Ford ACC with overlay enabled
+    ford_overlay_enabled = False
+    is_ford_vehicle = False
+    if car_params:
+      is_ford_vehicle = car_params.brand == "ford"
+      if is_ford_vehicle and not self._longitudinal_control:
+        ford_overlay_enabled = self._params.get_bool("FordPrefShowRadarLeadOverlay")
+
+    render_lead_indicator = (self._longitudinal_control or ford_overlay_enabled) and radar_state is not None
 
     # Update model data when needed
     model_updated = sm.updated['modelV2']
@@ -123,7 +157,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
 
       self._update_model(lead_one, path_x_array)
       if render_lead_indicator:
-        self._update_leads(radar_state, path_x_array)
+        self._update_leads(radar_state, path_x_array, ford_overlay_enabled)
       self._transform_dirty = False
 
     # Draw elements
@@ -131,8 +165,9 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     self._draw_path(sm)
 
     if render_lead_indicator and radar_state:
+      # Always draw chevron first, then text overlay
       self._draw_lead_indicator()
-      self.chevron_metrics.draw_lead_status(sm, radar_state, self._rect, self._lead_vehicles)
+      self.chevron_metrics.draw_lead_status(sm, radar_state, self._rect, self._lead_vehicles, ford_overlay_enabled=ford_overlay_enabled)
 
   def _update_raw_points(self, model):
     """Update raw 3D points from model data"""
@@ -148,7 +183,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     self._road_edge_stds = np.array(model.roadEdgeStds, dtype=np.float32)
     self._acceleration_x = np.array(model.acceleration.x, dtype=np.float32)
 
-  def _update_leads(self, radar_state, path_x_array):
+  def _update_leads(self, radar_state, path_x_array, ford_overlay_enabled: bool = False):
     """Update positions of lead vehicles"""
     self._lead_vehicles = [LeadVehicle(), LeadVehicle()]
     leads = [radar_state.leadOne, radar_state.leadTwo]
@@ -156,13 +191,28 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     for i, lead_data in enumerate(leads):
       if lead_data and lead_data.status:
         d_rel, y_rel, v_rel = lead_data.dRel, lead_data.yRel, lead_data.vRel
+        is_radar = lead_data.radar if hasattr(lead_data, 'radar') else False
+        
+        # Deadband logic: move text above chevron at 50ft (15.24m), move back below at 60ft (18.29m)
+        # dRel is in meters, so convert feet to meters: 1 ft = 0.3048 m
+        CLOSE_MODE_THRESHOLD_M = 50.0 * 0.3048  # 50 feet = 15.24 meters
+        NORMAL_MODE_THRESHOLD_M = 60.0 * 0.3048  # 60 feet = 18.29 meters
+        
+        # Update ChevronMetrics state (ModelRenderer inherits from ChevronMetrics)
+        if d_rel < CLOSE_MODE_THRESHOLD_M:
+          self._close_mode = True
+        elif d_rel > NORMAL_MODE_THRESHOLD_M:
+          self._close_mode = False
+        # Otherwise keep current state (deadband between thresholds)
+        flip_chevron = False  # Don't flip chevron, just move text
+        
         idx = self._get_path_length_idx(path_x_array, d_rel)
 
         # Get z-coordinate from path at the lead vehicle position
         z = self._path.raw_points[idx, 2] if idx < len(self._path.raw_points) else 0.0
         point = self._map_to_screen(d_rel, -y_rel, z + self._path_offset_z)
         if point:
-          self._lead_vehicles[i] = self._update_lead_vehicle(d_rel, v_rel, point, self._rect)
+          self._lead_vehicles[i] = self._update_lead_vehicle(d_rel, v_rel, point, self._rect, ford_overlay_enabled, is_radar, flip_chevron)
 
   def _update_model(self, lead, path_x_array):
     """Update model visualization data based on model message"""
@@ -236,7 +286,8 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
       stops=gradient_stops,
     )
 
-  def _update_lead_vehicle(self, d_rel, v_rel, point, rect):
+  def _update_lead_vehicle(self, d_rel, v_rel, point, rect, ford_overlay_enabled: bool = False, is_radar: bool = False, flip_chevron: bool = False):
+    # flip_chevron parameter kept for compatibility but not used - chevron always stays normal
     speed_buff, lead_buff = 10.0, 40.0
 
     # Calculate fill alpha
@@ -250,15 +301,19 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     # Calculate size and position
     sz = np.clip((25 * 30) / (d_rel / 3 + 30), 15.0, 30.0) * 2.35
     x = np.clip(point[0], 0.0, rect.width - sz / 2)
-    y = min(point[1], rect.height - sz * 0.6)
+    base_y = min(point[1], rect.height - sz * 0.6)
 
     g_xo = sz / 5
     g_yo = sz / 10
 
+    # Create glow and chevron points
+    # Normal: chevron points down [bottom_right, top, bottom_left]
+    # Always use normal orientation - don't flip chevron
+    y = base_y
     glow = [(x + (sz * 1.35) + g_xo, y + sz + g_yo), (x, y - g_yo), (x - (sz * 1.35) - g_xo, y + sz + g_yo)]
     chevron = [(x + (sz * 1.25), y + sz), (x, y), (x - (sz * 1.25), y + sz)]
 
-    return LeadVehicle(glow=glow, chevron=chevron, fill_alpha=int(fill_alpha))
+    return LeadVehicle(glow=glow, chevron=chevron, fill_alpha=int(fill_alpha), is_radar=is_radar, flip_chevron=flip_chevron)
 
   def _draw_lane_lines(self):
     """Draw lane lines and road edges"""
@@ -314,8 +369,18 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
       if not lead.glow or not lead.chevron:
         continue
 
-      rl.draw_triangle_fan(lead.glow, len(lead.glow), rl.Color(218, 202, 37, 255))
-      rl.draw_triangle_fan(lead.chevron, len(lead.chevron), rl.Color(201, 34, 49, lead.fill_alpha))
+      # Dynamic colors based on detection source: blue for radar, yellow for vision
+      if lead.is_radar:
+        # Blue for radar detection
+        glow_color = rl.Color(0, 134, 233, 255)  # Blue glow
+        chevron_color = rl.Color(0, 100, 200, lead.fill_alpha)  # Blue chevron
+      else:
+        # Yellow for vision detection
+        glow_color = rl.Color(218, 202, 37, 255)  # Yellow glow
+        chevron_color = rl.Color(201, 34, 49, lead.fill_alpha)  # Red chevron (original)
+
+      rl.draw_triangle_fan(lead.glow, len(lead.glow), glow_color)
+      rl.draw_triangle_fan(lead.chevron, len(lead.chevron), chevron_color)
 
   @staticmethod
   def _get_path_length_idx(pos_x_array: np.ndarray, path_distance: float) -> int:

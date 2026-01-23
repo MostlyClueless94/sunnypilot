@@ -35,10 +35,10 @@ class PanelType(IntEnum):
   DEVICE = 0
   NETWORK = 1
   TOGGLES = 2
-  SOFTWARE = 3
-  FIREHOSE = 4
-  DEVELOPER = 5
-  BLUEPILOT = 6
+  BLUEPILOT = 3
+  SOFTWARE = 4
+  FIREHOSE = 5
+  DEVELOPER = 6
 
 
 @dataclass
@@ -61,10 +61,10 @@ class SettingsLayout(Widget):
       PanelType.DEVICE: PanelInfo(tr_noop("Device"), DeviceLayout()),
       PanelType.NETWORK: PanelInfo(tr_noop("Network"), NetworkUI(wifi_manager)),
       PanelType.TOGGLES: PanelInfo(tr_noop("Toggles"), TogglesLayout()),
+      PanelType.BLUEPILOT: PanelInfo(tr_noop("BluePilot"), BluePilotLayout()),
       PanelType.SOFTWARE: PanelInfo(tr_noop("Software"), SoftwareLayout()),
       PanelType.FIREHOSE: PanelInfo(tr_noop("Firehose"), FirehoseLayout()),
       PanelType.DEVELOPER: PanelInfo(tr_noop("Developer"), DeveloperLayout()),
-      PanelType.BLUEPILOT: PanelInfo(tr_noop("BluePilot"), BluePilotLayout()),
     }
 
     self._font_medium = gui_app.font(FontWeight.MEDIUM)

@@ -1,4 +1,5 @@
 import colorsys
+import time
 import numpy as np
 import pyray as rl
 from cereal import messaging, car
@@ -104,18 +105,28 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     live_calib = sm['liveCalibration']
     self._path_offset_z = live_calib.height[0] if live_calib.height else HEIGHT_INIT[0]
 
-    # Get carParams from message stream (more reliable in replay) or fallback to ui_state.CP
+    # Get carParams - try message stream first (works in device), fallback to params (works in replay)
+    # Similar pattern to how controllerStateBP/lateralUncertainty is accessed
     car_params = None
+    
+    # Try to get from message stream (published by card.py every 50 seconds)
     if sm.valid['carParams']:
-      car_params = sm['carParams']
-      self._longitudinal_control = car_params.openpilotLongitudinalControl
-    elif ui_state.CP:
-      car_params = ui_state.CP
-      # Use longitudinal control from params if available
-      if ui_state.CP.alphaLongitudinalAvailable:
-        self._longitudinal_control = ui_state.has_longitudinal_control
-      else:
-        self._longitudinal_control = ui_state.CP.openpilotLongitudinalControl
+      try:
+        car_params = sm['carParams']
+        self._longitudinal_control = car_params.openpilotLongitudinalControl
+      except (KeyError, AttributeError):
+        pass
+    
+    # Fallback to params-based CarParams (replay writes to params, ui_state updates every 5 seconds)
+    if car_params is None:
+      # Always check ui_state.CP as fallback (replay writes CarParams to params)
+      if ui_state.CP:
+        car_params = ui_state.CP
+        # Use longitudinal control from params if available
+        if ui_state.CP.alphaLongitudinalAvailable:
+          self._longitudinal_control = ui_state.has_longitudinal_control
+        else:
+          self._longitudinal_control = ui_state.CP.openpilotLongitudinalControl
 
     model = sm['modelV2']
     radar_state = sm['radarState'] if sm.valid['radarState'] else None

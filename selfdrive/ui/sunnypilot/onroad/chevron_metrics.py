@@ -212,15 +212,27 @@ class ChevronMetrics:
         border_color = rl.Color(201, 34, 49, alpha)  # Red border for vision
       
       # Render each value with its box
+      # Border thickness: 3x thicker (was 2px, now 6px)
+      # To make border go outwards, we need to shrink the rectangle and draw thicker border
+      border_thickness = 6  # 3x the original 2px
+      border_expansion = border_thickness - 2  # Additional thickness beyond original
+      
       for i, (line, text_size) in enumerate(zip(text_lines, text_sizes)):
         box_width = text_size.x + (padding * 2)
         
-        # Draw dark grey box
+        # Draw dark grey box (original size)
         box_rect = rl.Rectangle(int(current_x), int(y), box_width, box_height)
         rl.draw_rectangle_rounded(box_rect, 0.2, 10, box_color)
         
-        # Draw border with chevron color
-        rl.draw_rectangle_rounded_lines_ex(box_rect, 0.2, 10, 2, border_color)
+        # Draw border with chevron color - expand rectangle outward so border doesn't cover data
+        # Shrink rectangle by half the additional thickness, then draw thicker border
+        border_rect = rl.Rectangle(
+          int(current_x - border_expansion / 2),
+          int(y - border_expansion / 2),
+          box_width + border_expansion,
+          box_height + border_expansion
+        )
+        rl.draw_rectangle_rounded_lines_ex(border_rect, 0.2, 10, border_thickness, border_color)
         
         # Draw text centered in box
         text_x = int(current_x + padding)

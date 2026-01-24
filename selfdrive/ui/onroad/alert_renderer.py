@@ -21,10 +21,10 @@ ALERT_LINE_SPACING = 45
 ALERT_BORDER_RADIUS = 30
 
 # Pill notification constants (for informational notifications)
-PILL_HEIGHT_SINGLE = 70  # Height for single line
-PILL_HEIGHT_DOUBLE = 116  # Height for two lines (increased by ~5% to prevent top overflow)
+PILL_HEIGHT_SINGLE = 110  # Height for single line (increased to accommodate more padding)
+PILL_HEIGHT_DOUBLE = 164  # Height for two lines (increased to accommodate more padding)
 PILL_PADDING_H = 30  # Horizontal padding
-PILL_PADDING_V = 15  # Vertical padding
+PILL_PADDING_V = 15  # Vertical padding (base padding, additional padding applied in text rendering)
 PILL_TOP_MARGIN = 40
 PILL_SPACING_FROM_WHEEL = 20  # Space between pill and steering wheel
 PILL_FONT_SIZE = 48
@@ -60,7 +60,7 @@ ALERT_COLORS = {
 }
 
 # Pill notification colors
-PILL_BACKGROUND_COLOR = rl.Color(70, 91, 234, 255)  # #466BEA - matches ButtonStyle.PRIMARY (blue for informational)
+PILL_BACKGROUND_COLOR = rl.Color(45, 45, 45, 255)  # Dark grey for informational notifications
 PILL_ALERT_COLOR = rl.Color(0xDA, 0x6F, 0x25, 0xFF)  # Orange for alerts (matches AlertStatus.userPrompt)
 
 
@@ -249,7 +249,9 @@ class AlertRenderer(Widget):
     pill_width = min(text_width + 2 * PILL_PADDING_H, available_width)
     
     # Position: right-aligned, between center and wheel
-    pill_x = wheel_x - PILL_SPACING_FROM_WHEEL - pill_width
+    # Move 7% further to the right (toward center) by increasing spacing from wheel
+    spacing_adjustment = available_width * 0.07
+    pill_x = wheel_x - PILL_SPACING_FROM_WHEEL - pill_width + spacing_adjustment
     pill_y = rect.y + PILL_TOP_MARGIN
     
     return rl.Rectangle(pill_x, pill_y, pill_width, pill_height)
@@ -409,9 +411,9 @@ class AlertRenderer(Widget):
       
       # Center vertically with extra top and bottom padding
       # Add extra padding to prevent text from sticking above or below the pill
-      # More bottom padding to ensure second line has clearance
-      extra_top_padding = rect.height * 0.05
-      extra_bottom_padding = rect.height * 0.08  # More bottom padding for two-line messages
+      # Increased padding percentages for more space (doubled from previous change)
+      extra_top_padding = rect.height * 0.25  # Increased from 0.15
+      extra_bottom_padding = rect.height * 0.22  # Increased from 0.15 for more bottom space
       available_height = rect.height - extra_top_padding - extra_bottom_padding
       start_y = rect.y + extra_top_padding + (available_height - total_text_height) / 2
       
@@ -424,10 +426,13 @@ class AlertRenderer(Widget):
       line2_y = start_y + line1_size.y + PILL_LINE_SPACING
       rl.draw_text_ex(self.font_bold, line2, rl.Vector2(line2_x, line2_y), PILL_FONT_SIZE, 0, rl.WHITE)
     else:
-      # Single line - center text vertically and horizontally
+      # Single line - center text vertically and horizontally with extra padding
       text_size = measure_text_cached(self.font_bold, text, PILL_FONT_SIZE)
+      # Add extra top/bottom padding for single line too (doubled from previous change)
+      extra_padding = rect.height * 0.25
+      available_height = rect.height - (extra_padding * 2)
       x = rect.x + (rect.width - text_size.x) / 2
-      y = rect.y + (rect.height - text_size.y) / 2
+      y = rect.y + extra_padding + (available_height - text_size.y) / 2
       rl.draw_text_ex(self.font_bold, text, rl.Vector2(x, y), PILL_FONT_SIZE, 0, rl.WHITE)
 
   def _draw_text(self, rect: rl.Rectangle, alert: Alert) -> None:

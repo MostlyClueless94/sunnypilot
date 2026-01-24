@@ -67,6 +67,10 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     self._road_edges = [ModelPoints() for _ in range(2)]
     self._acceleration_x = np.empty((0,), dtype=np.float32)
 
+    # Path smoothing: store previous smoothed path for temporal damping
+    self._previous_path_projected_points = np.empty((0, 2), dtype=np.float32)
+    self._path_smoothing_damping = 0.3  # Higher = more damping (0.0-1.0)
+
     # Transform matrix (3x3 for car space to screen space)
     self._car_space_transform = np.zeros((3, 3), dtype=np.float32)
     self._transform_dirty = True
@@ -239,6 +243,9 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
       self._path.raw_points, 0.9, self._path_offset_z, max_idx, max_distance, allow_invert=False
     )
 
+    # Apply path smoothing to reduce swaying
+    self._apply_smooth_path()
+
     self._update_experimental_gradient()
 
   def _update_experimental_gradient(self):
@@ -285,6 +292,61 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
       colors=segment_colors,
       stops=gradient_stops,
     )
+
+  def _apply_smooth_path(self):
+    """Apply path smoothing to reduce swaying - ported from bp-dev QT UI
+    
+    Uses Gaussian-weighted spatial smoothing on Y-axis (lateral movement) combined
+    with temporal damping to reduce path oscillation and swaying.
+    """
+    if self._path.projected_points.size == 0:
+      return
+    
+    # Need at least 4 points for smoothing
+    if len(self._path.projected_points) < 4:
+      self._previous_path_projected_points = self._path.projected_points.copy()
+      return
+    
+    n = len(self._path.projected_points)
+    smoothed = np.zeros_like(self._path.projected_points)
+    
+    # Apply Gaussian-weighted spatial smoothing to Y-axis (lateral movement)
+    for i in range(n):
+      pt = self._path.projected_points[i].copy()
+      
+      # Apply Gaussian smoothing to Y coordinate for points not at edges
+      if i > 1 and i < n - 1:
+        y_smooth = 0.0
+        weight_sum = 0.0
+        
+        # Gaussian weights for nearby points (±2 points)
+        for j in range(-2, 3):
+          idx = i + j
+          if 0 <= idx < n:
+            weight = np.exp(-0.5 * j * j)  # Gaussian weight
+            y_smooth += self._path.projected_points[idx][1] * weight
+            weight_sum += weight
+        
+        if weight_sum > 0:
+          pt[1] = y_smooth / weight_sum
+      
+      smoothed[i] = pt
+    
+    # Apply temporal damping to reduce oscillation
+    # Only apply if previous path has same number of points (path structure unchanged)
+    if (self._previous_path_projected_points.size > 0 and 
+        len(self._previous_path_projected_points) == len(smoothed)):
+      damping = self._path_smoothing_damping
+      for i in range(len(smoothed)):
+        y_diff = smoothed[i][1] - self._previous_path_projected_points[i][1]
+        smoothed[i][1] = self._previous_path_projected_points[i][1] + y_diff * (1.0 - damping)
+    else:
+      # Path structure changed, reset temporal smoothing
+      self._previous_path_projected_points = smoothed.copy()
+    
+    # Store smoothed path for next frame
+    self._previous_path_projected_points = smoothed.copy()
+    self._path.projected_points = smoothed
 
   def _update_lead_vehicle(self, d_rel, v_rel, point, rect, ford_overlay_enabled: bool = False, is_radar: bool = False, flip_chevron: bool = False):
     # flip_chevron parameter kept for compatibility but not used - chevron always stays normal

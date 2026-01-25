@@ -200,7 +200,9 @@ class CarState(CarStateBase, MadsCarState):
     hybrid_drive.throttleDemandPercent = 0.0
     hybrid_drive.throttleThresholdPercent = 0.0
     hybrid_drive.powerFlowMode = ""
+    hybrid_drive.powerFlowModeValue = 0
     hybrid_drive.engineOnReason = ""
+    hybrid_drive.engineOnReasonValue = 0
 
     hybrid_battery.dataAvailable = False
     hybrid_battery.voltHighLimit = 0.0
@@ -273,12 +275,12 @@ class CarState(CarStateBase, MadsCarState):
             hybrid_drive.throttleThresholdPercent = hev_data[
                 "EffWhlThres_Pc_Dsply"
             ]
-            hybrid_drive.powerFlowMode = get_hev_power_flow_text(
-                hev_data["PwrFlowTxt_D_Dsply"]
-            )
-            hybrid_drive.engineOnReason = get_hev_engine_on_reason_text(
-                hev_data["EngOnMsg1_D_Dsply"]
-            )
+            power_flow_value = int(hev_data["PwrFlowTxt_D_Dsply"])
+            engine_reason_value = int(hev_data["EngOnMsg1_D_Dsply"])
+            hybrid_drive.powerFlowMode = get_hev_power_flow_text(power_flow_value)
+            hybrid_drive.powerFlowModeValue = power_flow_value
+            hybrid_drive.engineOnReason = get_hev_engine_on_reason_text(engine_reason_value)
+            hybrid_drive.engineOnReasonValue = engine_reason_value
     except (KeyError, AttributeError):
       pass
 

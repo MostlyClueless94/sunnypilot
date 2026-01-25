@@ -477,7 +477,9 @@ struct CarStateBP @0xb057204d7deadf3f {
     throttleDemandPercent @1 :Float32;
     throttleThresholdPercent @2 :Float32;
     powerFlowMode @3 :Text;
+    powerFlowModeValue @5 :UInt8;  # Raw numeric value for PlotJuggler compatibility
     engineOnReason @4 :Text;
+    engineOnReasonValue @6 :UInt8;  # Raw numeric value for PlotJuggler compatibility
   }
 
   struct HybridBattery {

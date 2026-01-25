@@ -60,10 +60,11 @@ class HybridBatteryGauge(Widget):
       return False
     
     sm = ui_state.sm
-    if sm.recv_frame["carStateBP"] < ui_state.started_frame:
-      return False
-    
     try:
+      # Check if message exists and is recent enough
+      if "carStateBP" not in sm.recv_frame or sm.recv_frame["carStateBP"] < ui_state.started_frame:
+        return False
+      
       car_state_bp = sm['carStateBP']
       return car_state_bp.hybridBattery.dataAvailable
     except (KeyError, AttributeError):
@@ -101,92 +102,97 @@ class HybridBatteryGauge(Widget):
         rect: Rectangle defining the rendering area
         left_offset: Left offset to account for confidence ball or other UI elements
     """
-    if not self._should_render():
+    try:
+      if not self._should_render():
+        return
+      
+      battery_data = self._get_battery_data()
+      if battery_data is None:
+        return
+      
+      soc = battery_data['soc']
+      voltage = battery_data['voltage']
+      amps = battery_data['amps']
+      
+      # Calculate battery position (accounting for left offset)
+      x = rect.x + BATTERY_X_OFFSET + left_offset
+      y = rect.y + BATTERY_Y_OFFSET
+      
+      # Draw battery body (rounded rectangle)
+      battery_body = rl.Rectangle(x, y, BATTERY_WIDTH, BATTERY_HEIGHT)
+      
+      # Draw battery background
+      rl.draw_rectangle_rounded(battery_body, BATTERY_ROUNDNESS, 10, BATTERY_BG_COLOR)
+      
+      # Draw battery fill based on SOC
+      fill_width = int(BATTERY_WIDTH * (soc / 100.0))
+      if fill_width > 0:
+        fill_rect = rl.Rectangle(x, y, fill_width, BATTERY_HEIGHT)
+        fill_color = self._get_battery_fill_color(soc)
+        rl.draw_rectangle_rounded(fill_rect, BATTERY_ROUNDNESS, 10, fill_color)
+      
+      # Draw battery border
+      rl.draw_rectangle_rounded_lines_ex(
+        battery_body, BATTERY_ROUNDNESS, 10, BATTERY_BORDER_THICKNESS, BATTERY_BORDER_COLOR
+      )
+      
+      # Draw battery terminal (positive end, on the right)
+      terminal_x = x + BATTERY_WIDTH
+      terminal_y = y + (BATTERY_HEIGHT - BATTERY_TERMINAL_HEIGHT) / 2
+      terminal_rect = rl.Rectangle(terminal_x, terminal_y, BATTERY_TERMINAL_WIDTH, BATTERY_TERMINAL_HEIGHT)
+      rl.draw_rectangle_rounded(terminal_rect, 0.5, 10, BATTERY_BG_COLOR)
+      rl.draw_rectangle_rounded_lines_ex(
+        terminal_rect, 0.5, 10, BATTERY_BORDER_THICKNESS, BATTERY_BORDER_COLOR
+      )
+      
+      # Draw SOC percentage to the right of battery
+      soc_text = f"{int(soc)}%"
+      soc_text_size = measure_text_cached(self._font_bold, soc_text, SOC_FONT_SIZE)
+      soc_x = x + BATTERY_WIDTH + BATTERY_TERMINAL_WIDTH + SOC_X_SPACING
+      soc_y = y + (BATTERY_HEIGHT - soc_text_size.y) / 2
+      rl.draw_text_ex(
+        self._font_bold,
+        soc_text,
+        rl.Vector2(soc_x, soc_y),
+        SOC_FONT_SIZE,
+        0,
+        TEXT_COLOR
+      )
+      
+      # Draw voltage and amps below battery
+      voltage_text = f"{voltage:.1f}V"
+      amps_text = f"{amps:+.1f}A"  # + sign for positive, - for negative
+      
+      voltage_text_size = measure_text_cached(self._font_medium, voltage_text, VOLTAGE_AMPS_FONT_SIZE)
+      amps_text_size = measure_text_cached(self._font_medium, amps_text, VOLTAGE_AMPS_FONT_SIZE)
+      
+      # Position voltage on left, amps on right
+      voltage_x = x
+      amps_x = x + BATTERY_WIDTH - amps_text_size.x
+      
+      info_y = y + BATTERY_HEIGHT + VOLTAGE_AMPS_Y_OFFSET
+      
+      # Draw voltage (left side)
+      rl.draw_text_ex(
+        self._font_medium,
+        voltage_text,
+        rl.Vector2(voltage_x, info_y),
+        VOLTAGE_AMPS_FONT_SIZE,
+        0,
+        TEXT_COLOR
+      )
+      
+      # Draw amps (right side) with color coding
+      amps_color = CHARGING_COLOR if amps > 0 else DISCHARGING_COLOR if amps < 0 else TEXT_COLOR
+      rl.draw_text_ex(
+        self._font_medium,
+        amps_text,
+        rl.Vector2(amps_x, info_y),
+        VOLTAGE_AMPS_FONT_SIZE,
+        0,
+        amps_color
+      )
+    except Exception:
+      # Silently fail if there's any error during rendering to prevent UI crash
+      # This can happen in replay mode if message structure differs or data is missing
       return
-    
-    battery_data = self._get_battery_data()
-    if battery_data is None:
-      return
-    
-    soc = battery_data['soc']
-    voltage = battery_data['voltage']
-    amps = battery_data['amps']
-    
-    # Calculate battery position (accounting for left offset)
-    x = rect.x + BATTERY_X_OFFSET + left_offset
-    y = rect.y + BATTERY_Y_OFFSET
-    
-    # Draw battery body (rounded rectangle)
-    battery_body = rl.Rectangle(x, y, BATTERY_WIDTH, BATTERY_HEIGHT)
-    
-    # Draw battery background
-    rl.draw_rectangle_rounded(battery_body, BATTERY_ROUNDNESS, 10, BATTERY_BG_COLOR)
-    
-    # Draw battery fill based on SOC
-    fill_width = int(BATTERY_WIDTH * (soc / 100.0))
-    if fill_width > 0:
-      fill_rect = rl.Rectangle(x, y, fill_width, BATTERY_HEIGHT)
-      fill_color = self._get_battery_fill_color(soc)
-      rl.draw_rectangle_rounded(fill_rect, BATTERY_ROUNDNESS, 10, fill_color)
-    
-    # Draw battery border
-    rl.draw_rectangle_rounded_lines_ex(
-      battery_body, BATTERY_ROUNDNESS, 10, BATTERY_BORDER_THICKNESS, BATTERY_BORDER_COLOR
-    )
-    
-    # Draw battery terminal (positive end, on the right)
-    terminal_x = x + BATTERY_WIDTH
-    terminal_y = y + (BATTERY_HEIGHT - BATTERY_TERMINAL_HEIGHT) / 2
-    terminal_rect = rl.Rectangle(terminal_x, terminal_y, BATTERY_TERMINAL_WIDTH, BATTERY_TERMINAL_HEIGHT)
-    rl.draw_rectangle_rounded(terminal_rect, 0.5, 10, BATTERY_BG_COLOR)
-    rl.draw_rectangle_rounded_lines_ex(
-      terminal_rect, 0.5, 10, BATTERY_BORDER_THICKNESS, BATTERY_BORDER_COLOR
-    )
-    
-    # Draw SOC percentage to the right of battery
-    soc_text = f"{int(soc)}%"
-    soc_text_size = measure_text_cached(self._font_bold, soc_text, SOC_FONT_SIZE)
-    soc_x = x + BATTERY_WIDTH + BATTERY_TERMINAL_WIDTH + SOC_X_SPACING
-    soc_y = y + (BATTERY_HEIGHT - soc_text_size.y) / 2
-    rl.draw_text_ex(
-      self._font_bold,
-      soc_text,
-      rl.Vector2(soc_x, soc_y),
-      SOC_FONT_SIZE,
-      0,
-      TEXT_COLOR
-    )
-    
-    # Draw voltage and amps below battery
-    voltage_text = f"{voltage:.1f}V"
-    amps_text = f"{amps:+.1f}A"  # + sign for positive, - for negative
-    
-    voltage_text_size = measure_text_cached(self._font_medium, voltage_text, VOLTAGE_AMPS_FONT_SIZE)
-    amps_text_size = measure_text_cached(self._font_medium, amps_text, VOLTAGE_AMPS_FONT_SIZE)
-    
-    # Position voltage on left, amps on right
-    voltage_x = x
-    amps_x = x + BATTERY_WIDTH - amps_text_size.x
-    
-    info_y = y + BATTERY_HEIGHT + VOLTAGE_AMPS_Y_OFFSET
-    
-    # Draw voltage (left side)
-    rl.draw_text_ex(
-      self._font_medium,
-      voltage_text,
-      rl.Vector2(voltage_x, info_y),
-      VOLTAGE_AMPS_FONT_SIZE,
-      0,
-      TEXT_COLOR
-    )
-    
-    # Draw amps (right side) with color coding
-    amps_color = CHARGING_COLOR if amps > 0 else DISCHARGING_COLOR if amps < 0 else TEXT_COLOR
-    rl.draw_text_ex(
-      self._font_medium,
-      amps_text,
-      rl.Vector2(amps_x, info_y),
-      VOLTAGE_AMPS_FONT_SIZE,
-      0,
-      amps_color
-    )

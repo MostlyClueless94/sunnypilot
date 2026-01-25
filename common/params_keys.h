@@ -285,6 +285,8 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"show_lead_speed", {PERSISTENT | BACKUP, BOOL, "1"}},
     {"FordPrefShowRadarLeadOverlay", {PERSISTENT | BACKUP, BOOL, "1"}},
     {"FordPrefRadarOverlayDisplayMode", {PERSISTENT | BACKUP, INT, "1"}},
+    {"FordPrefHevDataAvailable", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"FordPrefHevBattDataAvailable", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"mici_complication", {PERSISTENT | BACKUP, INT, "1"}},
 
     // BluePilot Portal (Web Routes Server)

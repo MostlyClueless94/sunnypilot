@@ -62,12 +62,17 @@ class HybridBatteryGauge(Widget):
     sm = ui_state.sm
     try:
       # Check if message exists and is recent enough
-      if "carStateBP" not in sm.recv_frame or sm.recv_frame["carStateBP"] < ui_state.started_frame:
+      try:
+        recv_frame = sm.recv_frame["carStateBP"]
+      except (KeyError, TypeError):
+        return False
+      
+      if recv_frame < ui_state.started_frame:
         return False
       
       car_state_bp = sm['carStateBP']
       return car_state_bp.hybridBattery.dataAvailable
-    except (KeyError, AttributeError):
+    except (KeyError, AttributeError, TypeError):
       return False
   
   def _get_battery_data(self):
@@ -83,7 +88,7 @@ class HybridBatteryGauge(Widget):
         'soc_min': battery.socMinPerc,
         'soc_max': battery.socMaxPerc,
       }
-    except (KeyError, AttributeError):
+    except (KeyError, AttributeError, TypeError):
       return None
   
   def _get_battery_fill_color(self, soc: float) -> rl.Color:

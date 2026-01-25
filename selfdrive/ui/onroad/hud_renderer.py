@@ -8,6 +8,7 @@ from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.lib.text_measure import measure_text_cached
 from openpilot.system.ui.widgets import Widget
 from openpilot.selfdrive.ui.mici.onroad.torque_bar import TorqueBar
+from openpilot.selfdrive.ui.onroad.hybrid_battery_gauge import HybridBatteryGauge
 
 # Constants
 SET_SPEED_NA = 255
@@ -74,6 +75,7 @@ class HudRenderer(Widget):
     self._font_medium: rl.Font = gui_app.font(FontWeight.MEDIUM)
 
     self._exp_button: ExpButton = ExpButton(UI_CONFIG.button_size, UI_CONFIG.wheel_icon_size)
+    self._battery_gauge = HybridBatteryGauge()
 
   def _update_state(self) -> None:
     """Update HUD state based on car state and controls state."""
@@ -123,6 +125,9 @@ class HudRenderer(Widget):
       self._draw_set_speed(rect)
 
     self._draw_current_speed(rect)
+
+    # Render hybrid battery gauge (upper left, between MAX box and current speed)
+    self._battery_gauge.render(rect, self._left_offset)
 
     button_x = rect.x + rect.width - UI_CONFIG.border_size - UI_CONFIG.button_size
     button_y = rect.y + UI_CONFIG.border_size

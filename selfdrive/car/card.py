@@ -72,7 +72,7 @@ class Car:
   def __init__(self, CI=None, RI=None) -> None:
     self.can_sock = messaging.sub_sock('can', timeout=20)
     self.sm = messaging.SubMaster(['pandaStates', 'carControl', 'onroadEvents'] + ['carControlSP', 'longitudinalPlanSP'])
-    self.pm = messaging.PubMaster(['sendcan', 'carState', 'carParams', 'carOutput', 'liveTracks'] + ['carParamsSP', 'carStateSP', 'controllerStateBP'])
+    self.pm = messaging.PubMaster(['sendcan', 'carState', 'carParams', 'carOutput', 'liveTracks'] + ['carParamsSP', 'carStateSP', 'controllerStateBP', 'carStateBP'])
 
     self.can_rcv_cum_timeout_counter = 0
 
@@ -270,6 +270,12 @@ class Car:
     cs_sp_send.valid = CS.canValid
     cs_sp_send.carStateSP = CS_SP
     self.pm.send('carStateSP', cs_sp_send)
+
+    # carStateBP - hybrid drive gauge data
+    if hasattr(self.CI.CS, 'car_state_bp_msg') and self.CI.CS.car_state_bp_msg is not None:
+      cs_bp_send = self.CI.CS.car_state_bp_msg
+      cs_bp_send.valid = CS.canValid
+      self.pm.send('carStateBP', cs_bp_send)
 
   def controls_update(self, CS: car.CarState, CC: car.CarControl, CC_SP: custom.CarControlSP):
     """control update loop, driven by carControl"""

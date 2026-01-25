@@ -63,8 +63,8 @@ class FordFlags(IntFlag):
   # Static flags
   CANFD = 1
   ALT_STEER_ANGLE = 2
-  # HEV_CLUSTER_DATA = 4
-  # HEV_BATTERY_DATA = 8
+  HEV_CLUSTER_DATA = 4
+  HEV_BATTERY_DATA = 8
 
 
 class RADAR:

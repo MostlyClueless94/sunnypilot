@@ -9,6 +9,7 @@ from openpilot.system.ui.lib.text_measure import measure_text_cached
 from openpilot.system.ui.widgets import Widget
 from openpilot.selfdrive.ui.mici.onroad.torque_bar import TorqueBar
 from openpilot.selfdrive.ui.onroad.hybrid_battery_gauge import HybridBatteryGauge
+from openpilot.selfdrive.ui.onroad.powerflow_gauge import PowerflowGauge
 
 # Constants
 SET_SPEED_NA = 255
@@ -69,6 +70,7 @@ class HudRenderer(Widget):
     self.speed: float = 0.0
     self.v_ego_cluster_seen: bool = False
     self._torque_bar = TorqueBar(radius=3300, line_height_min=24, line_height_max=76)
+    self._powerflow_gauge = PowerflowGauge()
 
     self._font_semi_bold: rl.Font = gui_app.font(FontWeight.SEMI_BOLD)
     self._font_bold: rl.Font = gui_app.font(FontWeight.BOLD)
@@ -105,6 +107,7 @@ class HudRenderer(Widget):
     speed_conversion = CV.MS_TO_KPH if ui_state.is_metric else CV.MS_TO_MPH
     self.speed = max(0.0, v_ego * speed_conversion)
     self._torque_bar._update_state()
+    self._powerflow_gauge._update_state()
 
   def _render(self, rect: rl.Rectangle) -> None:
     """Render HUD elements to the screen."""
@@ -118,6 +121,9 @@ class HudRenderer(Widget):
       COLORS.HEADER_GRADIENT_END,
     )
 
+    # Render powerflow gauge above torque bar
+    self._powerflow_gauge.render(rect)
+    
     if ui_state.sm['controlsState'].lateralControlState.which() != 'angleState' or ui_state.sm.updated["controllerStateBP"]:
       self._torque_bar.render(rect)
 
@@ -125,9 +131,6 @@ class HudRenderer(Widget):
       self._draw_set_speed(rect)
 
     self._draw_current_speed(rect)
-
-    # Render hybrid battery gauge (upper left, between MAX box and current speed)
-    self._battery_gauge.render(rect, self._left_offset)
 
     button_x = rect.x + rect.width - UI_CONFIG.border_size - UI_CONFIG.button_size
     button_y = rect.y + UI_CONFIG.border_size

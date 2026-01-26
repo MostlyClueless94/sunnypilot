@@ -26,7 +26,7 @@ POWERFLOW_BORDER_THICKNESS = 2.0  # Border line thickness
 POWERFLOW_BAR_HEIGHT = 40  # Height/thickness of the animated power flow bar
 POWERFLOW_CENTER_COLOR = rl.Color(255, 255, 255, 255)  # White at center (no power flow)
 POWERFLOW_REGEN_COLOR = rl.Color(100, 255, 100, 255)  # Green for regenerative braking (left)
-POWERFLOW_DEMAND_COLOR = rl.Color(100, 150, 255, 255)  # Blue for throttle demand (right)
+POWERFLOW_DEMAND_COLOR = rl.Color(70, 91, 234, 255)  # Blue for throttle demand (right) - RGB: 70, 91, 234
 
 
 class PowerflowGauge(Widget):
@@ -49,6 +49,8 @@ class PowerflowGauge(Widget):
       car_state_bp = sm['carStateBP']
       throttle_demand = car_state_bp.hybridDrive.throttleDemandPercent
       # Clamp to expected range [-102.2, 102.4] and normalize to [-1, 1] for easier calculation
+      # Positive = throttle demand (power out, should be blue)
+      # Negative = regenerative braking (power in, should be green)
       normalized_value = np.clip(throttle_demand / 102.0, -1.0, 1.0)
       self._powerflow_filter.update(normalized_value)
     except (KeyError, AttributeError, TypeError):
@@ -241,48 +243,29 @@ class PowerflowGauge(Widget):
       # Ensure we don't go beyond end_angle
       bar_end_angle = min(bar_end_angle, end_angle)
     
-    # Calculate color based on power flow value
-    # White at center (0), green for regen (negative), blue for demand (positive)
-    abs_value = abs(powerflow_value)
+    # Calculate solid color based on power flow value
+    # Full green for regen (negative), full blue for demand (positive)
     if powerflow_value < 0:
-      # Regenerative braking - blend from white to green
-      start_color = POWERFLOW_CENTER_COLOR
-      end_color = blend_colors(
-        POWERFLOW_CENTER_COLOR,
-        POWERFLOW_REGEN_COLOR,
-        abs_value
-      )
+      # Regenerative braking (negative) - full green
+      base_color = POWERFLOW_REGEN_COLOR
     else:
-      # Throttle demand - blend from white to blue
-      start_color = POWERFLOW_CENTER_COLOR
-      end_color = blend_colors(
-        POWERFLOW_CENTER_COLOR,
-        POWERFLOW_DEMAND_COLOR,
-        abs_value
-      )
+      # Throttle demand (positive) - full blue
+      base_color = POWERFLOW_DEMAND_COLOR
     
-    # Draw the power flow bar as an arc
+    # Calculate opacity: 25% at 0%, 100% at ±100%
+    # Linear interpolation: opacity = 0.25 + (abs_value * 0.75)
+    abs_value = abs(powerflow_value)
+    opacity = 0.25 + (abs_value * 0.75)  # Range: 0.25 to 1.0
+    alpha = int(255 * opacity)
+    
+    # Apply opacity to color
+    bar_color = rl.Color(base_color.r, base_color.g, base_color.b, alpha)
+    
+    # Draw the power flow bar as an arc with solid color
     bar_pts = arc_bar_pts(
       cx, cy, mid_r, POWERFLOW_BAR_HEIGHT,
       bar_start_angle, bar_end_angle
     )
     
-    # Create gradient for the bar
-    # Calculate gradient points based on bar position
-    if powerflow_value < 0:
-      # Regen: gradient from center (right) to left edge
-      start_grad_pt = (cx + np.cos(np.deg2rad(center_angle)) * mid_r) / rect.width
-      end_grad_pt = (cx + np.cos(np.deg2rad(bar_end_angle)) * mid_r) / rect.width
-    else:
-      # Demand: gradient from center (left) to right edge
-      start_grad_pt = (cx + np.cos(np.deg2rad(center_angle)) * mid_r) / rect.width
-      end_grad_pt = (cx + np.cos(np.deg2rad(bar_end_angle)) * mid_r) / rect.width
-    
-    gradient = Gradient(
-      start=(start_grad_pt, 0),
-      end=(end_grad_pt, 0),
-      colors=[start_color, end_color],
-      stops=[0.0, 1.0],
-    )
-    
-    draw_polygon(rect, bar_pts, gradient=gradient)
+    # Draw with solid color instead of gradient
+    draw_polygon(rect, bar_pts, color=bar_color)

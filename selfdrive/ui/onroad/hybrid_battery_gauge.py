@@ -168,7 +168,9 @@ class HybridBatteryGauge(Widget):
       # Simplified: right edge ≈ left_rect.x + UI_BORDER_SIZE + BTN_SIZE
       # Use ~250px from left_offset to position between driver monitor and torque bar (which is centered)
       driver_monitor_right_edge = 250  # Approximate right edge of driver monitor area
-      x = left_offset + driver_monitor_right_edge + BATTERY_X_SPACING
+      battery_x_base = left_offset + driver_monitor_right_edge + BATTERY_X_SPACING
+      # Move 25% of battery width to the left
+      x = battery_x_base - (BATTERY_WIDTH * 0.25)
       # Position at bottom: account for battery height + voltage/amps text + margin
       total_height = BATTERY_HEIGHT + VOLTAGE_AMPS_Y_OFFSET + VOLTAGE_AMPS_FONT_SIZE
       y = rect.y + rect.height - total_height - BATTERY_Y_MARGIN

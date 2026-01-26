@@ -111,6 +111,7 @@ class AugmentedRoadView(CameraView):
     )
     self.model_renderer.render(self._content_rect)
     self._hud_renderer.render(self._content_rect)
+    self.alert_renderer.set_speed_right(self._hud_renderer.get_speed_right())
     self.alert_renderer.render(self._content_rect)
     self.driver_state_renderer.render(left_rect)
 

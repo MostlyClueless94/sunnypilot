@@ -68,6 +68,8 @@ class HudRenderer(Widget):
     self.speed: float = 0.0
     self.v_ego_cluster_seen: bool = False
     self._torque_bar = TorqueBar(radius=3300, line_height_min=24, line_height_max=76)
+    self.speed_right = 0
+
 
     self._font_semi_bold: rl.Font = gui_app.font(FontWeight.SEMI_BOLD)
     self._font_bold: rl.Font = gui_app.font(FontWeight.BOLD)
@@ -174,11 +176,15 @@ class HudRenderer(Widget):
       set_speed_color,
     )
 
+  def get_speed_right(self) -> int:
+    return self.speed_right
+
   def _draw_current_speed(self, rect: rl.Rectangle) -> None:
     """Draw the current vehicle speed and unit."""
     speed_text = str(round(self.speed))
     speed_text_size = measure_text_cached(self._font_bold, speed_text, FONT_SIZES.current_speed)
     speed_pos = rl.Vector2(rect.x + rect.width / 2 - speed_text_size.x / 2, 180 - speed_text_size.y / 2)
+    self.speed_right = speed_pos.x + speed_text_size.x
     rl.draw_text_ex(self._font_bold, speed_text, speed_pos, FONT_SIZES.current_speed, 0, COLORS.WHITE)
 
     unit_text = tr("km/h") if ui_state.is_metric else tr("mph")

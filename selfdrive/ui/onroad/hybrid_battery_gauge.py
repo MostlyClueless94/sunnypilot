@@ -18,7 +18,7 @@ from openpilot.common.swaglog import cloudlog
 
 
 # Constants
-BATTERY_WIDTH = 120  # Width of battery body
+BATTERY_WIDTH = 90  # Width of battery body (reduced from 120 to make room for larger SOC font)
 BATTERY_HEIGHT = 50  # Height of battery body
 BATTERY_TERMINAL_WIDTH = 20  # Width of battery terminal (positive end)
 BATTERY_TERMINAL_HEIGHT = 20  # Height of battery terminal
@@ -27,12 +27,12 @@ BATTERY_BORDER_THICKNESS = 3  # Border thickness
 BATTERY_X_SPACING = 40  # Space between driver monitor and battery gauge
 BATTERY_Y_MARGIN = 30  # Margin from bottom of screen
 
-SOC_FONT_SIZE = 36  # Font size for SOC percentage
+SOC_FONT_SIZE = 48  # Font size for SOC percentage (increased from 36)
 SOC_X_SPACING = 15  # Space between battery and SOC text
 
 VOLTAGE_AMPS_Y_OFFSET = 8  # Space below battery for voltage/amps
-VOLTAGE_AMPS_FONT_SIZE = 24  # Font size for voltage and amps
-VOLTAGE_AMPS_SPACING = 20  # Space between voltage and amps
+VOLTAGE_AMPS_FONT_SIZE = 40  # Font size for voltage and amps (32 * 1.25 = 40)
+VOLTAGE_AMPS_LINE_SPACING = 8  # Space between voltage and amps lines
 BACKGROUND_PADDING = 15  # Padding around widget for background box
 BACKGROUND_ROUNDNESS = 0.3  # Roundness for background box
 
@@ -73,9 +73,9 @@ class HybridBatteryGauge(Widget):
   
   def _should_render(self) -> bool:
     """Check if battery gauge should be rendered"""
-    # Only render if hybrid drive overlay is enabled and battery data is available
-    overlay_enabled = self._params.get_bool("FordPrefHybridDriveOverlay")
-    if not overlay_enabled:
+    # Only render if hybrid battery status is enabled and battery data is available
+    battery_status_enabled = self._params.get_bool("FordPrefHybridBatteryStatus")
+    if not battery_status_enabled:
       return False
     
     sm = ui_state.sm
@@ -171,8 +171,9 @@ class HybridBatteryGauge(Widget):
       battery_x_base = left_offset + driver_monitor_right_edge + BATTERY_X_SPACING
       # Move 25% of battery width to the left
       x = battery_x_base - (BATTERY_WIDTH * 0.25)
-      # Position at bottom: account for battery height + voltage/amps text + margin
-      total_height = BATTERY_HEIGHT + VOLTAGE_AMPS_Y_OFFSET + VOLTAGE_AMPS_FONT_SIZE
+      # Position at bottom: account for battery height + voltage line + amps line + spacing + margin
+      # Voltage and amps are now on separate lines, so we need 2x font size + line spacing
+      total_height = BATTERY_HEIGHT + VOLTAGE_AMPS_Y_OFFSET + (VOLTAGE_AMPS_FONT_SIZE * 2) + VOLTAGE_AMPS_LINE_SPACING
       y = rect.y + rect.height - total_height - BATTERY_Y_MARGIN
       
       # Calculate text sizes for background box dimensions
@@ -183,7 +184,8 @@ class HybridBatteryGauge(Widget):
       # Width: from battery left edge to end of SOC text + padding
       soc_text_end_x = x + BATTERY_WIDTH + BATTERY_TERMINAL_WIDTH + SOC_X_SPACING + soc_text_size.x
       background_width = soc_text_end_x - x + BACKGROUND_PADDING * 2
-      # Height: from battery top to bottom of voltage/amps text + padding
+      # Height: from battery top to bottom of amps text (second line) + padding
+      # total_height already accounts for both voltage and amps lines
       background_height = total_height + BACKGROUND_PADDING * 2
       background_x = x - BACKGROUND_PADDING
       background_y = y - BACKGROUND_PADDING
@@ -233,38 +235,37 @@ class HybridBatteryGauge(Widget):
         TEXT_COLOR
       )
       
-      # Draw voltage and amps below battery
+      # Draw voltage and amps below battery on separate lines
       voltage_text = f"{voltage:.1f}V"
       amps_text = f"{amps:+.1f}A"  # + sign for positive, - for negative
       
       voltage_text_size = measure_text_cached(self._font_medium, voltage_text, VOLTAGE_AMPS_FONT_SIZE)
       amps_text_size = measure_text_cached(self._font_medium, amps_text, VOLTAGE_AMPS_FONT_SIZE)
       
-      # Position voltage on left (below battery), amps on right (below SOC percentage)
+      # Position voltage and amps on left (below battery), on separate lines
       voltage_x = x
-      # Move amps left from SOC position (16% of the spacing distance to prevent overflow)
-      spacing_distance = BATTERY_TERMINAL_WIDTH + SOC_X_SPACING
-      amps_offset = spacing_distance * 0.16  # 16% of spacing distance (was 6%, added 10% more)
-      amps_x = soc_x - amps_offset
+      amps_x = x
       
-      info_y = y + BATTERY_HEIGHT + VOLTAGE_AMPS_Y_OFFSET
+      # Calculate Y positions for separate lines
+      voltage_y = y + BATTERY_HEIGHT + VOLTAGE_AMPS_Y_OFFSET
+      amps_y = voltage_y + VOLTAGE_AMPS_FONT_SIZE + VOLTAGE_AMPS_LINE_SPACING
       
-      # Draw voltage (left side, below battery)
+      # Draw voltage (first line, below battery)
       rl.draw_text_ex(
         self._font_medium,
         voltage_text,
-        rl.Vector2(voltage_x, info_y),
+        rl.Vector2(voltage_x, voltage_y),
         VOLTAGE_AMPS_FONT_SIZE,
         0,
         TEXT_COLOR
       )
       
-      # Draw amps (right side, below SOC percentage) with color coding
+      # Draw amps (second line, below voltage) with color coding
       amps_color = CHARGING_COLOR if amps > 0 else DISCHARGING_COLOR if amps < 0 else TEXT_COLOR
       rl.draw_text_ex(
         self._font_medium,
         amps_text,
-        rl.Vector2(amps_x, info_y),
+        rl.Vector2(amps_x, amps_y),
         VOLTAGE_AMPS_FONT_SIZE,
         0,
         amps_color

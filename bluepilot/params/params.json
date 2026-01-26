@@ -78,6 +78,22 @@
       "enabled": true
     },
     {
+      "name": "FordPrefHybridBatteryStatus",
+      "default": false,
+      "type": "bool",
+      "flags": ["PERSISTENT", "BACKUP"],
+      "create_default": true,
+      "enabled": true
+    },
+    {
+      "name": "FordPrefHybridPowerFlow",
+      "default": false,
+      "type": "bool",
+      "flags": ["PERSISTENT", "BACKUP"],
+      "create_default": true,
+      "enabled": true
+    },
+    {
       "name": "FordPrefHybridDriveGaugeSize",
       "default": 1,
       "type": "int",

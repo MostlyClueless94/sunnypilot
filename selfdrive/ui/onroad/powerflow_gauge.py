@@ -26,7 +26,7 @@ POWERFLOW_BORDER_THICKNESS = 2.0  # Border line thickness
 POWERFLOW_BAR_HEIGHT = 40  # Height/thickness of the animated power flow bar
 POWERFLOW_CENTER_COLOR = rl.Color(255, 255, 255, 255)  # White at center (no power flow)
 POWERFLOW_REGEN_COLOR = rl.Color(100, 255, 100, 255)  # Green for regenerative braking (left)
-POWERFLOW_DEMAND_COLOR = rl.Color(70, 91, 234, 255)  # Blue for throttle demand (right) - RGB: 70, 91, 234
+POWERFLOW_DEMAND_COLOR = rl.Color(100, 150, 255, 255)  # Brighter blue for throttle demand (right) - better daytime visibility
 
 
 class PowerflowGauge(Widget):
@@ -58,11 +58,11 @@ class PowerflowGauge(Widget):
   
   def _should_render(self) -> bool:
     """Check if powerflow gauge should be rendered"""
-    # Only render if hybrid drive overlay is enabled
+    # Only render if hybrid power flow is enabled
     from openpilot.common.params import Params
     params = Params()
-    overlay_enabled = params.get_bool("FordPrefHybridDriveOverlay")
-    if not overlay_enabled:
+    power_flow_enabled = params.get_bool("FordPrefHybridPowerFlow")
+    if not power_flow_enabled:
       return False
     
     sm = ui_state.sm
@@ -245,21 +245,13 @@ class PowerflowGauge(Widget):
     
     # Calculate solid color based on power flow value
     # Full green for regen (negative), full blue for demand (positive)
+    # Always use 100% opacity for better daytime visibility
     if powerflow_value < 0:
       # Regenerative braking (negative) - full green
-      base_color = POWERFLOW_REGEN_COLOR
+      bar_color = POWERFLOW_REGEN_COLOR
     else:
       # Throttle demand (positive) - full blue
-      base_color = POWERFLOW_DEMAND_COLOR
-    
-    # Calculate opacity: 25% at 0%, 100% at ±100%
-    # Linear interpolation: opacity = 0.25 + (abs_value * 0.75)
-    abs_value = abs(powerflow_value)
-    opacity = 0.25 + (abs_value * 0.75)  # Range: 0.25 to 1.0
-    alpha = int(255 * opacity)
-    
-    # Apply opacity to color
-    bar_color = rl.Color(base_color.r, base_color.g, base_color.b, alpha)
+      bar_color = POWERFLOW_DEMAND_COLOR
     
     # Draw the power flow bar as an arc with solid color
     bar_pts = arc_bar_pts(

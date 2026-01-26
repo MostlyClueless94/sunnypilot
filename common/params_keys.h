@@ -286,6 +286,8 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"FordPrefShowRadarLeadOverlay", {PERSISTENT | BACKUP, BOOL, "1"}},
     {"FordPrefRadarOverlayDisplayMode", {PERSISTENT | BACKUP, INT, "1"}},
     {"FordPrefHybridDriveOverlay", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"FordPrefHybridBatteryStatus", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"FordPrefHybridPowerFlow", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"FordPrefHevDataAvailable", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"FordPrefHevBattDataAvailable", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"mici_complication", {PERSISTENT | BACKUP, INT, "1"}},

@@ -28,7 +28,8 @@ class BluePilotLayout(Widget):
       ("BPPortalEnabled", self._enable_web_routes),
       ("send_hands_free_cluster_msg", self._show_hands_free_ui),
       ("FordPrefShowRadarLeadOverlay", self._show_ford_radar_overlay),
-      ("FordPrefHybridDriveOverlay", self._show_hybrid_drive_overlay),
+      ("FordPrefHybridBatteryStatus", self._show_hybrid_battery_status),
+      ("FordPrefHybridPowerFlow", self._show_hybrid_power_flow),
       ("enable_human_turn_detection", self._enable_human_turn_detection),
       ("enable_lane_positioning", self._enable_lane_positioning),
       ("enable_lane_full_mode", self._enable_lane_full_mode),
@@ -77,12 +78,21 @@ class BluePilotLayout(Widget):
       icon="speed_limit.png"
     )
 
-    # Hybrid drive overlay toggle
-    self._show_hybrid_drive_overlay = toggle_item(
-      lambda: tr("Show Hybrid Drive Overlay"),
-      lambda: tr("Display hybrid battery and power flow gauges for hybrid vehicles."),
-      initial_state=self._params.get_bool("FordPrefHybridDriveOverlay"),
-      callback=lambda state: self._toggle_callback(state, "FordPrefHybridDriveOverlay"),
+    # Hybrid battery status toggle
+    self._show_hybrid_battery_status = toggle_item(
+      lambda: tr("Show Hybrid/EV Battery Status"),
+      lambda: tr("Display hybrid battery gauge with SOC, voltage, and amps."),
+      initial_state=self._params.get_bool("FordPrefHybridBatteryStatus"),
+      callback=lambda state: self._toggle_callback(state, "FordPrefHybridBatteryStatus"),
+      icon="warning.png"
+    )
+
+    # Hybrid power flow toggle
+    self._show_hybrid_power_flow = toggle_item(
+      lambda: tr("Show Hybrid/EV Power Flow"),
+      lambda: tr("Display power flow gauge showing throttle demand and regenerative braking."),
+      initial_state=self._params.get_bool("FordPrefHybridPowerFlow"),
+      callback=lambda state: self._toggle_callback(state, "FordPrefHybridPowerFlow"),
       icon="warning.png"
     )
 
@@ -208,7 +218,8 @@ class BluePilotLayout(Widget):
       self._show_web_routes_qr,
       self._show_hands_free_ui,
       self._show_ford_radar_overlay,
-      self._show_hybrid_drive_overlay,
+      self._show_hybrid_battery_status,
+      self._show_hybrid_power_flow,
       self._enable_human_turn_detection,
       self._lane_change_factor_high,
       self._enable_lane_positioning,

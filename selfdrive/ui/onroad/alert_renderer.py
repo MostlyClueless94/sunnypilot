@@ -26,7 +26,6 @@ PILL_HEIGHT_DOUBLE = 164  # Height for two lines (increased to accommodate more 
 PILL_PADDING_H = 30  # Horizontal padding
 PILL_PADDING_V = 15  # Vertical padding (base padding, additional padding applied in text rendering)
 PILL_TOP_MARGIN = 40
-PILL_SPACING_FROM_WHEEL = 20  # Space between pill and steering wheel
 PILL_FONT_SIZE = 48
 PILL_LINE_SPACING = 8  # Space between two lines
 PILL_MAX_CHARS_PER_LINE = 28  # Maximum characters per line before wrapping
@@ -140,6 +139,9 @@ class AlertRenderer(Widget):
     # Return current alert
     return Alert(text1=ss.alertText1, text2=ss.alertText2, size=ss.alertSize.raw, status=ss.alertStatus.raw)
 
+  def set_speed_right(self, speed_right: int):
+    self.speed_right = speed_right
+
   def _render(self, rect: rl.Rectangle):
     alert = self.get_alert(ui_state.sm)
     if not alert:
@@ -147,10 +149,10 @@ class AlertRenderer(Widget):
 
     # Check if this is an informational notification (normal status, not full screen)
     is_informational = (alert.status == AlertStatus.normal and alert.size != AlertSize.full)
-    
+
     # Check if this is an alert that should be rendered as orange pill (userPrompt, not full screen)
     is_alert_pill = (alert.status == AlertStatus.userPrompt and alert.size != AlertSize.full)
-    
+
     if is_informational:
       # Render as pill-shaped notification in top right
       alert_rect = self._get_pill_rect(rect, alert)
@@ -201,22 +203,22 @@ class AlertRenderer(Widget):
     # Calculate available space
     # Steering wheel button is at: rect.x + rect.width - UI_CONFIG.border_size - UI_CONFIG.button_size
     wheel_x = rect.x + rect.width - UI_CONFIG.border_size - UI_CONFIG.button_size
-    center_x = rect.x + rect.width / 2
-    
-    # Available width is from center to wheel, minus spacing
-    available_width = wheel_x - center_x - PILL_SPACING_FROM_WHEEL
-    
+    center_x = self.speed_right
+
+    # Available width is from the right of the speed to to wheel
+    available_width = wheel_x - center_x
+
     if available_width < 100:  # Not enough space
       return None
-    
+
     # Use text1 for pill (informational notifications typically have short text1)
     text = alert.text1 if alert.text1 else alert.text2
     if not text:
       return None
-    
+
     # Check if text needs to be split into two lines
     needs_wrapping = len(text) > PILL_MAX_CHARS_PER_LINE
-    
+
     # Measure text to determine width
     # For wrapping, measure the longest line
     if needs_wrapping:
@@ -225,17 +227,17 @@ class AlertRenderer(Widget):
       line1_words = []
       line2_words = []
       current_length = 0
-      
+
       for word in words:
         test_line = ' '.join(line1_words + [word])
         if len(test_line) <= PILL_MAX_CHARS_PER_LINE:
           line1_words.append(word)
         else:
           line2_words.append(word)
-      
+
       line1 = ' '.join(line1_words) if line1_words else text[:PILL_MAX_CHARS_PER_LINE]
       line2 = ' '.join(line2_words) if line2_words else text[PILL_MAX_CHARS_PER_LINE:]
-      
+
       # Measure both lines to find the widest
       line1_size = measure_text_cached(self.font_bold, line1, PILL_FONT_SIZE)
       line2_size = measure_text_cached(self.font_bold, line2, PILL_FONT_SIZE)
@@ -245,15 +247,14 @@ class AlertRenderer(Widget):
       text_size = measure_text_cached(self.font_bold, text, PILL_FONT_SIZE)
       text_width = text_size.x
       pill_height = PILL_HEIGHT_SINGLE
-    
+
     pill_width = min(text_width + 2 * PILL_PADDING_H, available_width)
-    
+
     # Position: right-aligned, between center and wheel
     # Move 7% further to the right (toward center) by increasing spacing from wheel
-    spacing_adjustment = available_width * 0.07
-    pill_x = wheel_x - PILL_SPACING_FROM_WHEEL - pill_width + spacing_adjustment
+    pill_x = center_x + (wheel_x - center_x) / 2 - pill_width / 2
     pill_y = rect.y + PILL_TOP_MARGIN
-    
+
     return rl.Rectangle(pill_x, pill_y, pill_width, pill_height)
 
   def _draw_background(self, rect: rl.Rectangle, alert: Alert) -> None:
@@ -283,26 +284,26 @@ class AlertRenderer(Widget):
     text = alert.text1 if alert.text1 else alert.text2
     if not text:
       return None
-    
+
     # Check if text needs to be split into two lines
     needs_wrapping = len(text) > ALERT_PILL_MAX_CHARS_PER_LINE
-    
+
     if needs_wrapping:
       # Split text at space near the middle
       words = text.split()
       line1_words = []
       line2_words = []
-      
+
       for word in words:
         test_line = ' '.join(line1_words + [word])
         if len(test_line) <= ALERT_PILL_MAX_CHARS_PER_LINE:
           line1_words.append(word)
         else:
           line2_words.append(word)
-      
+
       line1 = ' '.join(line1_words) if line1_words else text[:ALERT_PILL_MAX_CHARS_PER_LINE]
       line2 = ' '.join(line2_words) if line2_words else text[ALERT_PILL_MAX_CHARS_PER_LINE:]
-      
+
       # Measure both lines to find the widest (using alert font size)
       line1_size = measure_text_cached(self.font_bold, line1, ALERT_PILL_FONT_SIZE)
       line2_size = measure_text_cached(self.font_bold, line2, ALERT_PILL_FONT_SIZE)
@@ -312,14 +313,14 @@ class AlertRenderer(Widget):
       text_size = measure_text_cached(self.font_bold, text, ALERT_PILL_FONT_SIZE)
       text_width = text_size.x
       pill_height = ALERT_PILL_HEIGHT_SINGLE
-    
+
     pill_width = text_width + 2 * ALERT_PILL_PADDING_H
-    
+
     # Position: centered horizontally, 1/3 up from bottom
     pill_x = rect.x + (rect.width - pill_width) / 2
     # 1/3 up from bottom means 2/3 down from top
     pill_y = rect.y + (rect.height * 2 / 3) - (pill_height / 2)
-    
+
     return rl.Rectangle(pill_x, pill_y, pill_width, pill_height)
 
   def _draw_alert_pill_text(self, rect: rl.Rectangle, alert: Alert) -> None:
@@ -328,43 +329,43 @@ class AlertRenderer(Widget):
     text = alert.text1 if alert.text1 else alert.text2
     if not text:
       return
-    
+
     # Check if text needs to be split into two lines
     needs_wrapping = len(text) > ALERT_PILL_MAX_CHARS_PER_LINE
-    
+
     if needs_wrapping:
       # Split text at space near the middle
       words = text.split()
       line1_words = []
       line2_words = []
-      
+
       for word in words:
         test_line = ' '.join(line1_words + [word])
         if len(test_line) <= ALERT_PILL_MAX_CHARS_PER_LINE:
           line1_words.append(word)
         else:
           line2_words.append(word)
-      
+
       line1 = ' '.join(line1_words) if line1_words else text[:ALERT_PILL_MAX_CHARS_PER_LINE]
       line2 = ' '.join(line2_words) if line2_words else text[ALERT_PILL_MAX_CHARS_PER_LINE:]
-      
+
       # Measure both lines (using alert font size)
       line1_size = measure_text_cached(self.font_bold, line1, ALERT_PILL_FONT_SIZE)
       line2_size = measure_text_cached(self.font_bold, line2, ALERT_PILL_FONT_SIZE)
-      
+
       # Calculate total height needed for two lines
       total_text_height = line1_size.y + ALERT_PILL_LINE_SPACING + line2_size.y
-      
+
       # Center vertically with extra top and bottom padding
       extra_top_padding = rect.height * 0.05
       extra_bottom_padding = rect.height * 0.08
       available_height = rect.height - extra_top_padding - extra_bottom_padding
       start_y = rect.y + extra_top_padding + (available_height - total_text_height) / 2
-      
+
       # Draw first line (centered horizontally)
       line1_x = rect.x + (rect.width - line1_size.x) / 2
       rl.draw_text_ex(self.font_bold, line1, rl.Vector2(line1_x, start_y), ALERT_PILL_FONT_SIZE, 0, rl.WHITE)
-      
+
       # Draw second line (centered horizontally)
       line2_x = rect.x + (rect.width - line2_size.x) / 2
       line2_y = start_y + line1_size.y + ALERT_PILL_LINE_SPACING
@@ -382,33 +383,33 @@ class AlertRenderer(Widget):
     text = alert.text1 if alert.text1 else alert.text2
     if not text:
       return
-    
+
     # Check if text needs to be split into two lines
     needs_wrapping = len(text) > PILL_MAX_CHARS_PER_LINE
-    
+
     if needs_wrapping:
       # Split text at space near the middle
       words = text.split()
       line1_words = []
       line2_words = []
-      
+
       for word in words:
         test_line = ' '.join(line1_words + [word])
         if len(test_line) <= PILL_MAX_CHARS_PER_LINE:
           line1_words.append(word)
         else:
           line2_words.append(word)
-      
+
       line1 = ' '.join(line1_words) if line1_words else text[:PILL_MAX_CHARS_PER_LINE]
       line2 = ' '.join(line2_words) if line2_words else text[PILL_MAX_CHARS_PER_LINE:]
-      
+
       # Measure both lines
       line1_size = measure_text_cached(self.font_bold, line1, PILL_FONT_SIZE)
       line2_size = measure_text_cached(self.font_bold, line2, PILL_FONT_SIZE)
-      
+
       # Calculate total height needed for two lines
       total_text_height = line1_size.y + PILL_LINE_SPACING + line2_size.y
-      
+
       # Center vertically with extra top and bottom padding
       # Add extra padding to prevent text from sticking above or below the pill
       # Increased padding percentages for more space (doubled from previous change)
@@ -416,11 +417,11 @@ class AlertRenderer(Widget):
       extra_bottom_padding = rect.height * 0.22  # Increased from 0.15 for more bottom space
       available_height = rect.height - extra_top_padding - extra_bottom_padding
       start_y = rect.y + extra_top_padding + (available_height - total_text_height) / 2
-      
+
       # Draw first line (centered horizontally)
       line1_x = rect.x + (rect.width - line1_size.x) / 2
       rl.draw_text_ex(self.font_bold, line1, rl.Vector2(line1_x, start_y), PILL_FONT_SIZE, 0, rl.WHITE)
-      
+
       # Draw second line (centered horizontally)
       line2_x = rect.x + (rect.width - line2_size.x) / 2
       line2_y = start_y + line1_size.y + PILL_LINE_SPACING

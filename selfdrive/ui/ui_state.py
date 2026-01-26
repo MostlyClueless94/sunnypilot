@@ -60,6 +60,7 @@ class UIState(UIStateSP):
         "carControl",
         "liveParameters",
         "rawAudioData",
+        "carStateBP",  # BluePilot: Hybrid battery and drive data
       ] + self.sm_services_ext
     )
 

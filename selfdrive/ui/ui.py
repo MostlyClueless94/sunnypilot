@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 import os
+import traceback
 import pyray as rl
 
 from openpilot.system.hardware import TICI
 from openpilot.common.realtime import config_realtime_process, set_core_affinity
+from openpilot.common.swaglog import cloudlog
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.selfdrive.ui.layouts.main import MainLayout
 from openpilot.selfdrive.ui.mici.layouts.main import MiciMainLayout
@@ -23,7 +25,13 @@ def main():
   for should_render in gui_app.render():
     ui_state.update()
     if should_render:
-      main_layout.render()
+      try:
+        main_layout.render()
+      except Exception as e:
+        # Log the full exception to help debug the crash
+        cloudlog.error(f"UI render error: {e}")
+        cloudlog.error(traceback.format_exc())
+        # Continue running to prevent complete UI crash
 
       # reaffine after power save offlines our core
       if TICI and os.sched_getaffinity(0) != cores:

@@ -8,6 +8,7 @@ from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.selfdrive.ui.onroad.alert_renderer import AlertRenderer
 from openpilot.selfdrive.ui.onroad.driver_state import DriverStateRenderer
 from openpilot.selfdrive.ui.onroad.hud_renderer import HudRenderer
+from openpilot.selfdrive.ui.onroad.hybrid_battery_gauge import HybridBatteryGauge
 from openpilot.selfdrive.ui.onroad.model_renderer import ModelRenderer
 from openpilot.selfdrive.ui.onroad.cameraview import CameraView
 from openpilot.system.ui.lib.application import gui_app
@@ -58,6 +59,7 @@ class AugmentedRoadView(CameraView):
     self.alert_renderer = AlertRenderer()
     self.driver_state_renderer = DriverStateRenderer()
     self._confidence_ball = ConfidenceBall(radius=50)
+    self._battery_gauge = HybridBatteryGauge()
 
     # debug
     self._pm = messaging.PubMaster(['uiDebug'])
@@ -114,6 +116,10 @@ class AugmentedRoadView(CameraView):
     self.alert_renderer.set_speed_right(self._hud_renderer.get_speed_right())
     self.alert_renderer.render(self._content_rect)
     self.driver_state_renderer.render(left_rect)
+    
+    # Render hybrid battery gauge (bottom right of driver monitor)
+    # Pass left_rect.x as the left_offset so battery gauge positions relative to driver monitor
+    self._battery_gauge.render(self._content_rect, left_rect.x)
 
     # Custom UI extension point - add custom overlays here
     # Use self._content_rect for positioning within camera bounds

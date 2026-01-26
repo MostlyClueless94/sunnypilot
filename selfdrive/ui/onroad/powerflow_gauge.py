@@ -7,16 +7,19 @@ The gauge is concentric with the torque bar but has slightly more curvature and 
 import numpy as np
 import pyray as rl
 from openpilot.selfdrive.ui.ui_state import ui_state
-from openpilot.system.ui.lib.application import gui_app
+from openpilot.system.ui.lib.application import gui_app, FontWeight
+from openpilot.system.ui.lib.text_measure import measure_text_cached
 from openpilot.system.ui.widgets import Widget
 from openpilot.selfdrive.ui.mici.onroad.torque_bar import arc_bar_pts, TORQUE_ANGLE_SPAN
 from openpilot.selfdrive.ui.mici.onroad import blend_colors
 from openpilot.system.ui.lib.shader_polygon import draw_polygon, Gradient
+from opendbc.car.ford.helpers import get_hev_power_flow_text, get_hev_engine_on_reason_text
 
 # Constants
 POWERFLOW_ANGLE_SPAN = 15.0  # Slightly longer than torque bar (12.7 degrees)
 POWERFLOW_RADIUS = 3400  # Slightly larger radius than torque bar (3300) for more curvature
-POWERFLOW_LINE_HEIGHT = 60  # Height/thickness of the powerflow arch (doubled for text space)
+POWERFLOW_LINE_HEIGHT = 60  # Height/thickness of the powerflow arch (for tick marks and animated bar)
+POWERFLOW_BG_HEIGHT = 60 + 80 + 34 + 12  # Background height: arch + text offset + font size + padding
 POWERFLOW_Y_OFFSET = 50  # Vertical offset above torque bar
 POWERFLOW_BG_COLOR = rl.Color(20, 20, 20, 200)  # Translucent dark grey
 POWERFLOW_TICK_COLOR = rl.Color(200, 200, 200, 255)  # Light grey for tick marks
@@ -27,6 +30,10 @@ POWERFLOW_BAR_HEIGHT = 40  # Height/thickness of the animated power flow bar
 POWERFLOW_CENTER_COLOR = rl.Color(255, 255, 255, 255)  # White at center (no power flow)
 POWERFLOW_REGEN_COLOR = rl.Color(100, 255, 100, 255)  # Green for regenerative braking (left)
 POWERFLOW_DEMAND_COLOR = rl.Color(100, 150, 255, 255)  # Brighter blue for throttle demand (right) - better daytime visibility
+POWERFLOW_TEXT_FONT_SIZE = 41  # Font size for power flow mode and engine on reason text (34 * 1.2 = 40.8, rounded to 41)
+POWERFLOW_TEXT_Y_OFFSET = 95  # Vertical offset below the powerflow meter arch (increased to move text down)
+POWERFLOW_TEXT_COLOR = rl.Color(255, 255, 255, 255)  # White text
+POWERFLOW_TEXT_BG_PADDING = 12  # Padding around text (used for background calculation)
 
 
 class PowerflowGauge(Widget):
@@ -38,6 +45,12 @@ class PowerflowGauge(Widget):
     # Smooth animation filter for power flow value
     from openpilot.common.filter_simple import FirstOrderFilter
     self._powerflow_filter = FirstOrderFilter(0.0, 0.0, 1.0 / gui_app.target_fps * 10)
+    # Font for text labels (bold for better visibility)
+    self._font_bold = gui_app.font(FontWeight.BOLD)
+    # Initialize text values
+    self._power_flow_mode_value = 0
+    self._engine_on_reason_value = 0
+    self._top_angle = -90
   
   def _update_state(self):
     """Update power flow state and animate changes"""
@@ -53,8 +66,13 @@ class PowerflowGauge(Widget):
       # Negative = regenerative braking (power in, should be green)
       normalized_value = np.clip(throttle_demand / 102.0, -1.0, 1.0)
       self._powerflow_filter.update(normalized_value)
+      
+      # Store current power flow mode and engine on reason for text display
+      self._power_flow_mode_value = car_state_bp.hybridDrive.powerFlowModeValue
+      self._engine_on_reason_value = car_state_bp.hybridDrive.engineOnReasonValue
     except (KeyError, AttributeError, TypeError):
-      pass
+      self._power_flow_mode_value = 0
+      self._engine_on_reason_value = 0
   
   def _should_render(self) -> bool:
     """Check if powerflow gauge should be rendered"""
@@ -108,12 +126,24 @@ class PowerflowGauge(Widget):
       powerflow_start_angle = top_angle - POWERFLOW_ANGLE_SPAN / 2
       powerflow_end_angle = top_angle + POWERFLOW_ANGLE_SPAN / 2
       
-      # Calculate centerline radius
+      # Store top_angle for text drawing
+      self._top_angle = top_angle
+      
+      # Calculate centerline radius for tick marks and animated bar
       mid_r = POWERFLOW_RADIUS + POWERFLOW_LINE_HEIGHT / 2
       
-      # Draw powerflow arch background
+      # Calculate background arch radius (extends down to include text)
+      # Text is at: mid_r + POWERFLOW_LINE_HEIGHT / 2 - POWERFLOW_TEXT_Y_OFFSET
+      # Background should extend from current position down to text area
+      text_radius = mid_r + POWERFLOW_LINE_HEIGHT / 2 - POWERFLOW_TEXT_Y_OFFSET
+      bg_bottom_radius = text_radius - POWERFLOW_TEXT_FONT_SIZE / 2 - POWERFLOW_TEXT_BG_PADDING
+      bg_top_radius = mid_r + POWERFLOW_LINE_HEIGHT / 2
+      bg_mid_radius = (bg_top_radius + bg_bottom_radius) / 2
+      bg_height = bg_top_radius - bg_bottom_radius
+      
+      # Draw expanded powerflow arch background (includes text area)
       bg_pts = arc_bar_pts(
-        cx, cy, mid_r, POWERFLOW_LINE_HEIGHT,
+        cx, cy, bg_mid_radius, bg_height,
         powerflow_start_angle, powerflow_end_angle
       )
       draw_polygon(rect, bg_pts, color=POWERFLOW_BG_COLOR)
@@ -205,7 +235,10 @@ class PowerflowGauge(Widget):
         )
       
       # Draw animated power flow bar with dynamic colors
-      self._draw_powerflow_bar(rect, cx, cy, mid_r, powerflow_start_angle, powerflow_end_angle)
+      self._draw_powerflow_bar(rect, cx, cy, mid_r, powerflow_start_angle, powerflow_end_angle        )
+      
+      # Draw text labels below the arch
+      self._draw_arch_text_labels(rect, cx, cy, mid_r, powerflow_start_angle, powerflow_end_angle, self._top_angle)
       
     except Exception as e:
       # Log error but don't crash
@@ -214,6 +247,155 @@ class PowerflowGauge(Widget):
       cloudlog.error(f"PowerflowGauge render error: {e}")
       cloudlog.error(traceback.format_exc())
       return
+  
+  def _draw_arch_text_labels(self, rect, cx, cy, mid_r, start_angle, end_angle, center_angle):
+    """Draw text labels below the powerflow meter arch, following the arch curve"""
+    try:
+      # Get text strings from integer values
+      engine_reason_text = get_hev_engine_on_reason_text(getattr(self, '_engine_on_reason_value', 0))
+      power_flow_text = get_hev_power_flow_text(getattr(self, '_power_flow_mode_value', 0))
+      
+      # Skip empty strings
+      if not engine_reason_text and not power_flow_text:
+        return
+      
+      # Calculate text radius (below the arch)
+      # Subtract offset to move text further from center (downward for arch above screen)
+      text_radius = mid_r + POWERFLOW_LINE_HEIGHT / 2 - POWERFLOW_TEXT_Y_OFFSET
+      
+      # Collect text angles for background arch calculation
+      text_start_angle = None
+      text_end_angle = None
+      
+      # Draw engine on reason on left side (negative/regen side)
+      # Position at -50% on the meter (halfway between start_angle and center_angle)
+      if engine_reason_text:
+        # Calculate center angle for -50% position: halfway between start and center
+        center_text_angle = start_angle + (center_angle - start_angle) * 0.5
+        
+        # Measure full text to calculate angle span
+        engine_text_size = measure_text_cached(self._font_bold, engine_reason_text, POWERFLOW_TEXT_FONT_SIZE)
+        
+        # Calculate angle span needed for the text (in radians, then convert to degrees)
+        # Arc length = radius * angle, so angle = arc_length / radius
+        text_arc_length = engine_text_size.x
+        text_angle_span_deg = np.rad2deg(text_arc_length / text_radius)
+        
+        # Start angle for text (leftmost character)
+        engine_text_start_angle = center_text_angle - text_angle_span_deg / 2
+        engine_text_end_angle = center_text_angle + text_angle_span_deg / 2
+        
+        # Track overall text span for background
+        if text_start_angle is None or engine_text_start_angle < text_start_angle:
+          text_start_angle = engine_text_start_angle
+        if text_end_angle is None or engine_text_end_angle > text_end_angle:
+          text_end_angle = engine_text_end_angle
+        
+        # Draw each character along the arch
+        cumulative_width = 0
+        for i, char in enumerate(engine_reason_text):
+          # Measure width of current character
+          char_text = char
+          char_size = measure_text_cached(self._font_bold, char_text, POWERFLOW_TEXT_FONT_SIZE)
+          char_width = char_size.x
+          
+          # Calculate angle for this character (at its center)
+          char_center_offset_angle = np.rad2deg((cumulative_width + char_width / 2) / text_radius)
+          char_angle = engine_text_start_angle + char_center_offset_angle
+          char_angle_rad = np.deg2rad(char_angle)
+          
+          # Calculate position for this character
+          char_x = cx + np.cos(char_angle_rad) * text_radius
+          char_y = cy + np.sin(char_angle_rad) * text_radius
+          
+          
+          # Calculate rotation for this character (tangent to radius)
+          char_rotation = char_angle + 90
+          
+          # Draw character with rotation
+          char_size_single = measure_text_cached(self._font_bold, char_text, POWERFLOW_TEXT_FONT_SIZE)
+          char_origin = rl.Vector2(char_size_single.x / 2, char_size_single.y / 2)
+          rl.draw_text_pro(
+            self._font_bold,
+            char_text,
+            rl.Vector2(char_x, char_y),
+            char_origin,
+            char_rotation,
+            POWERFLOW_TEXT_FONT_SIZE,
+            0,
+            POWERFLOW_TEXT_COLOR
+          )
+          
+          # Update cumulative width for next character
+          cumulative_width += char_width
+      
+      # Draw power flow mode on right side (positive/throttle side)
+      # Position at +50% on the meter (halfway between center_angle and end_angle)
+      if power_flow_text:
+        # Calculate center angle for +50% position: halfway between center and end
+        center_text_angle = center_angle + (end_angle - center_angle) * 0.5
+        
+        # Measure full text to calculate angle span
+        powerflow_text_size = measure_text_cached(self._font_bold, power_flow_text, POWERFLOW_TEXT_FONT_SIZE)
+        
+        # Calculate angle span needed for the text (in radians, then convert to degrees)
+        # Arc length = radius * angle, so angle = arc_length / radius
+        text_arc_length = powerflow_text_size.x
+        text_angle_span_deg = np.rad2deg(text_arc_length / text_radius)
+        
+        # Start angle for text (leftmost character)
+        powerflow_text_start_angle = center_text_angle - text_angle_span_deg / 2
+        powerflow_text_end_angle = center_text_angle + text_angle_span_deg / 2
+        
+        # Track overall text span for background
+        if text_start_angle is None or powerflow_text_start_angle < text_start_angle:
+          text_start_angle = powerflow_text_start_angle
+        if text_end_angle is None or powerflow_text_end_angle > text_end_angle:
+          text_end_angle = powerflow_text_end_angle
+        
+        # Draw each character along the arch
+        cumulative_width = 0
+        for i, char in enumerate(power_flow_text):
+          # Measure width of current character
+          char_text = char
+          char_size = measure_text_cached(self._font_bold, char_text, POWERFLOW_TEXT_FONT_SIZE)
+          char_width = char_size.x
+          
+          # Calculate angle for this character (at its center)
+          char_center_offset_angle = np.rad2deg((cumulative_width + char_width / 2) / text_radius)
+          char_angle = powerflow_text_start_angle + char_center_offset_angle
+          char_angle_rad = np.deg2rad(char_angle)
+          
+          # Calculate position for this character
+          char_x = cx + np.cos(char_angle_rad) * text_radius
+          char_y = cy + np.sin(char_angle_rad) * text_radius
+          
+          # Calculate rotation for this character (tangent to radius)
+          char_rotation = char_angle + 90
+          
+          # Draw character with rotation
+          char_size_single = measure_text_cached(self._font_bold, char_text, POWERFLOW_TEXT_FONT_SIZE)
+          char_origin = rl.Vector2(char_size_single.x / 2, char_size_single.y / 2)
+          rl.draw_text_pro(
+            self._font_bold,
+            char_text,
+            rl.Vector2(char_x, char_y),
+            char_origin,
+            char_rotation,
+            POWERFLOW_TEXT_FONT_SIZE,
+            0,
+            POWERFLOW_TEXT_COLOR
+          )
+          
+          # Update cumulative width for next character
+          cumulative_width += char_width
+      
+    except Exception as e:
+      # Log error but don't crash
+      from openpilot.common.swaglog import cloudlog
+      import traceback
+      cloudlog.error(f"PowerflowGauge text label error: {e}")
+      cloudlog.error(traceback.format_exc())
   
   def _draw_powerflow_bar(self, rect, cx, cy, mid_r, start_angle, end_angle):
     """Draw the animated power flow bar with dynamic colors"""

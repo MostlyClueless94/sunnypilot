@@ -30,10 +30,10 @@ POWERFLOW_BAR_HEIGHT = 40  # Height/thickness of the animated power flow bar
 POWERFLOW_CENTER_COLOR = rl.Color(255, 255, 255, 255)  # White at center (no power flow)
 POWERFLOW_REGEN_COLOR = rl.Color(100, 255, 100, 255)  # Green for regenerative braking (left)
 POWERFLOW_DEMAND_COLOR = rl.Color(100, 150, 255, 255)  # Brighter blue for throttle demand (right) - better daytime visibility
-POWERFLOW_TEXT_FONT_SIZE = 41  # Font size for power flow mode and engine on reason text (34 * 1.2 = 40.8, rounded to 41)
+POWERFLOW_TEXT_FONT_SIZE = 51  # Font size for power flow mode and engine on reason text (41 * 1.25 = 51.25, rounded to 51)
 POWERFLOW_TEXT_Y_OFFSET = 95  # Vertical offset below the powerflow meter arch (increased to move text down)
 POWERFLOW_TEXT_COLOR = rl.Color(255, 255, 255, 255)  # White text
-POWERFLOW_TEXT_BG_PADDING = 12  # Padding around text (used for background calculation)
+POWERFLOW_TEXT_BG_PADDING = 18  # Padding around text (increased from 12 to accommodate larger font)
 
 
 class PowerflowGauge(Widget):
@@ -113,13 +113,18 @@ class PowerflowGauge(Widget):
       # Calculate center point (same as torque bar for concentric positioning)
       cx = rect.x + rect.width / 2 + 8
       
-      # Position concentrically with torque bar
+      # Position concentrically with torque bar, but moved up significantly
       # Torque bar uses: cy = rect.y + rect.height + torque_line_radius - torque_line_offset
-      # Use same calculation but account for being "above" - the larger radius will naturally position it higher
+      # Move powerflow widget up so its bottom is where top currently is
       torque_bar_radius = 3300
       # Estimate torque_line_offset (typically 22-26px, use middle value)
       torque_line_offset_estimate = 24
-      cy = rect.y + rect.height + torque_bar_radius - torque_line_offset_estimate
+      # Calculate base position
+      base_cy = rect.y + rect.height + torque_bar_radius - torque_line_offset_estimate
+      # Move up by half the widget height (split difference between original and fully moved up)
+      # Background extends from top_radius down to bottom_radius, total height ~200px
+      widget_height_estimate = 100  # Half of 200px to split the difference
+      cy = base_cy - widget_height_estimate
       
       # Calculate arch angles (centered at top, slightly longer span than torque bar)
       top_angle = -90  # Same as torque bar
@@ -267,73 +272,11 @@ class PowerflowGauge(Widget):
       text_start_angle = None
       text_end_angle = None
       
-      # Draw engine on reason on left side (negative/regen side)
+      # Draw power flow mode on left side (negative/regen side)
       # Position at -50% on the meter (halfway between start_angle and center_angle)
-      if engine_reason_text:
+      if power_flow_text:
         # Calculate center angle for -50% position: halfway between start and center
         center_text_angle = start_angle + (center_angle - start_angle) * 0.5
-        
-        # Measure full text to calculate angle span
-        engine_text_size = measure_text_cached(self._font_bold, engine_reason_text, POWERFLOW_TEXT_FONT_SIZE)
-        
-        # Calculate angle span needed for the text (in radians, then convert to degrees)
-        # Arc length = radius * angle, so angle = arc_length / radius
-        text_arc_length = engine_text_size.x
-        text_angle_span_deg = np.rad2deg(text_arc_length / text_radius)
-        
-        # Start angle for text (leftmost character)
-        engine_text_start_angle = center_text_angle - text_angle_span_deg / 2
-        engine_text_end_angle = center_text_angle + text_angle_span_deg / 2
-        
-        # Track overall text span for background
-        if text_start_angle is None or engine_text_start_angle < text_start_angle:
-          text_start_angle = engine_text_start_angle
-        if text_end_angle is None or engine_text_end_angle > text_end_angle:
-          text_end_angle = engine_text_end_angle
-        
-        # Draw each character along the arch
-        cumulative_width = 0
-        for i, char in enumerate(engine_reason_text):
-          # Measure width of current character
-          char_text = char
-          char_size = measure_text_cached(self._font_bold, char_text, POWERFLOW_TEXT_FONT_SIZE)
-          char_width = char_size.x
-          
-          # Calculate angle for this character (at its center)
-          char_center_offset_angle = np.rad2deg((cumulative_width + char_width / 2) / text_radius)
-          char_angle = engine_text_start_angle + char_center_offset_angle
-          char_angle_rad = np.deg2rad(char_angle)
-          
-          # Calculate position for this character
-          char_x = cx + np.cos(char_angle_rad) * text_radius
-          char_y = cy + np.sin(char_angle_rad) * text_radius
-          
-          
-          # Calculate rotation for this character (tangent to radius)
-          char_rotation = char_angle + 90
-          
-          # Draw character with rotation
-          char_size_single = measure_text_cached(self._font_bold, char_text, POWERFLOW_TEXT_FONT_SIZE)
-          char_origin = rl.Vector2(char_size_single.x / 2, char_size_single.y / 2)
-          rl.draw_text_pro(
-            self._font_bold,
-            char_text,
-            rl.Vector2(char_x, char_y),
-            char_origin,
-            char_rotation,
-            POWERFLOW_TEXT_FONT_SIZE,
-            0,
-            POWERFLOW_TEXT_COLOR
-          )
-          
-          # Update cumulative width for next character
-          cumulative_width += char_width
-      
-      # Draw power flow mode on right side (positive/throttle side)
-      # Position at +50% on the meter (halfway between center_angle and end_angle)
-      if power_flow_text:
-        # Calculate center angle for +50% position: halfway between center and end
-        center_text_angle = center_angle + (end_angle - center_angle) * 0.5
         
         # Measure full text to calculate angle span
         powerflow_text_size = measure_text_cached(self._font_bold, power_flow_text, POWERFLOW_TEXT_FONT_SIZE)
@@ -364,6 +307,67 @@ class PowerflowGauge(Widget):
           # Calculate angle for this character (at its center)
           char_center_offset_angle = np.rad2deg((cumulative_width + char_width / 2) / text_radius)
           char_angle = powerflow_text_start_angle + char_center_offset_angle
+          char_angle_rad = np.deg2rad(char_angle)
+          
+          # Calculate position for this character
+          char_x = cx + np.cos(char_angle_rad) * text_radius
+          char_y = cy + np.sin(char_angle_rad) * text_radius
+          
+          # Calculate rotation for this character (tangent to radius)
+          char_rotation = char_angle + 90
+          
+          # Draw character with rotation
+          char_size_single = measure_text_cached(self._font_bold, char_text, POWERFLOW_TEXT_FONT_SIZE)
+          char_origin = rl.Vector2(char_size_single.x / 2, char_size_single.y / 2)
+          rl.draw_text_pro(
+            self._font_bold,
+            char_text,
+            rl.Vector2(char_x, char_y),
+            char_origin,
+            char_rotation,
+            POWERFLOW_TEXT_FONT_SIZE,
+            0,
+            POWERFLOW_TEXT_COLOR
+          )
+          
+          # Update cumulative width for next character
+          cumulative_width += char_width
+      
+      # Draw engine on reason on right side (positive/throttle side)
+      # Position at +50% on the meter (halfway between center_angle and end_angle)
+      if engine_reason_text:
+        # Calculate center angle for +50% position: halfway between center and end
+        center_text_angle = center_angle + (end_angle - center_angle) * 0.5
+        
+        # Measure full text to calculate angle span
+        engine_text_size = measure_text_cached(self._font_bold, engine_reason_text, POWERFLOW_TEXT_FONT_SIZE)
+        
+        # Calculate angle span needed for the text (in radians, then convert to degrees)
+        # Arc length = radius * angle, so angle = arc_length / radius
+        text_arc_length = engine_text_size.x
+        text_angle_span_deg = np.rad2deg(text_arc_length / text_radius)
+        
+        # Start angle for text (leftmost character)
+        engine_text_start_angle = center_text_angle - text_angle_span_deg / 2
+        engine_text_end_angle = center_text_angle + text_angle_span_deg / 2
+        
+        # Track overall text span for background
+        if text_start_angle is None or engine_text_start_angle < text_start_angle:
+          text_start_angle = engine_text_start_angle
+        if text_end_angle is None or engine_text_end_angle > text_end_angle:
+          text_end_angle = engine_text_end_angle
+        
+        # Draw each character along the arch
+        cumulative_width = 0
+        for i, char in enumerate(engine_reason_text):
+          # Measure width of current character
+          char_text = char
+          char_size = measure_text_cached(self._font_bold, char_text, POWERFLOW_TEXT_FONT_SIZE)
+          char_width = char_size.x
+          
+          # Calculate angle for this character (at its center)
+          char_center_offset_angle = np.rad2deg((cumulative_width + char_width / 2) / text_radius)
+          char_angle = engine_text_start_angle + char_center_offset_angle
           char_angle_rad = np.deg2rad(char_angle)
           
           # Calculate position for this character

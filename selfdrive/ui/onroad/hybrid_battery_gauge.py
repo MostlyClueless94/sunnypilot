@@ -31,8 +31,8 @@ SOC_FONT_SIZE = 48  # Font size for SOC percentage (increased from 36)
 SOC_X_SPACING = 15  # Space between battery and SOC text
 
 VOLTAGE_AMPS_Y_OFFSET = 8  # Space below battery for voltage/amps
-VOLTAGE_AMPS_FONT_SIZE = 40  # Font size for voltage and amps (32 * 1.25 = 40)
-VOLTAGE_AMPS_LINE_SPACING = 8  # Space between voltage and amps lines
+VOLTAGE_AMPS_FONT_SIZE = 53  # Font size for voltage and amps (40 * 1.33 = 53.2, rounded to 53)
+VOLTAGE_AMPS_LINE_SPACING = 12  # Space between voltage and amps lines (increased from 8 to make widget taller)
 BACKGROUND_PADDING = 15  # Padding around widget for background box
 BACKGROUND_ROUNDNESS = 0.3  # Roundness for background box
 
@@ -235,9 +235,9 @@ class HybridBatteryGauge(Widget):
         TEXT_COLOR
       )
       
-      # Draw voltage and amps below battery on separate lines
-      voltage_text = f"{voltage:.1f}V"
-      amps_text = f"{amps:+.1f}A"  # + sign for positive, - for negative
+      # Draw voltage and amps below battery on separate lines (truncated to whole numbers)
+      voltage_text = f"{int(voltage)}V"
+      amps_text = f"{int(amps):+d}A"  # + sign for positive, - for negative
       
       voltage_text_size = measure_text_cached(self._font_medium, voltage_text, VOLTAGE_AMPS_FONT_SIZE)
       amps_text_size = measure_text_cached(self._font_medium, amps_text, VOLTAGE_AMPS_FONT_SIZE)

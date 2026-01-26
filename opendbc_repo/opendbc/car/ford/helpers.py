@@ -132,7 +132,7 @@ def get_hev_power_flow_text(mode_value):
     8: "Charge Complete",
     9: "Fast Charge Complete",
     10: "Fast Charging",
-    11: "Regenerative Charging",
+    11: "Regen Braking",
     12: "Not Used",
     13: "Not Used",
     14: "Not Used",

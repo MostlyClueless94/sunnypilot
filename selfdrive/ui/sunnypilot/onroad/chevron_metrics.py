@@ -52,16 +52,23 @@ class ChevronMetrics:
     if not lead_vehicle.chevron or len(lead_vehicle.chevron) < 3:
       return
 
-    # Deadband logic: switch to close mode at 50ft (15.24m), switch back at 60ft (18.29m)
-    # dRel is in meters, so convert feet to meters: 1 ft = 0.3048 m
-    CLOSE_MODE_THRESHOLD_M = 50.0 * 0.3048  # 50 feet = 15.24 meters
-    NORMAL_MODE_THRESHOLD_M = 60.0 * 0.3048  # 60 feet = 18.29 meters
+    # Check if powerflow meter is enabled - if so, always use upper position
+    powerflow_enabled = self._params.get_bool("FordPrefHybridPowerFlow")
     
-    if d_rel < CLOSE_MODE_THRESHOLD_M:
+    if powerflow_enabled:
+      # Powerflow meter is enabled - always use upper position to avoid overlap
       self._close_mode = True
-    elif d_rel > NORMAL_MODE_THRESHOLD_M:
-      self._close_mode = False
-    # Otherwise keep current state (deadband between thresholds)
+    else:
+      # Deadband logic: switch to close mode at 50ft (15.24m), switch back at 60ft (18.29m)
+      # dRel is in meters, so convert feet to meters: 1 ft = 0.3048 m
+      CLOSE_MODE_THRESHOLD_M = 50.0 * 0.3048  # 50 feet = 15.24 meters
+      NORMAL_MODE_THRESHOLD_M = 60.0 * 0.3048  # 60 feet = 18.29 meters
+      
+      if d_rel < CLOSE_MODE_THRESHOLD_M:
+        self._close_mode = True
+      elif d_rel > NORMAL_MODE_THRESHOLD_M:
+        self._close_mode = False
+      # Otherwise keep current state (deadband between thresholds)
 
     # Extract chevron points
     # Normal: [bottom_right, top, bottom_left] - chevron[1] is top point (smaller y)

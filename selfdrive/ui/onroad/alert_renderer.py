@@ -252,7 +252,6 @@ class AlertRenderer(Widget):
 
     # Position: right-aligned, between center and wheel
     # Move 7% further to the right (toward center) by increasing spacing from wheel
-    spacing_adjustment = available_width * 0.07
     pill_x = center_x + (wheel_x - center_x) / 2 - pill_width / 2
     pill_y = rect.y + PILL_TOP_MARGIN
 

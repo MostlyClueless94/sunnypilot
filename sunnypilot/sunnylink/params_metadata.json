@@ -1150,6 +1150,14 @@
     "title": "BluePilot: Enable Hands-Free UI",
     "description": "Enables hands-free (BlueCruise icon) on the gauge cluster for supported vehicles."
 	},
+  "FordPrefHybridBatteryStatus": {
+    "title": "BluePilot: Show Hybrid/EV Battery Status",
+    "description": "Displays hybrid/EV battery status including state of charge (SOC), voltage, and current (amps) on the UI."
+  },
+  "FordPrefHybridPowerFlow": {
+    "title": "BluePilot: Show Hybrid/EV Power Flow",
+    "description": "Displays an arch-shaped power flow meter showing regenerative braking (green) and throttle demand (blue) with engine on reason and power flow mode text."
+  },
   "enable_human_turn_detection": {
     "title": "BluePilot: Enable Human Turn Detection",
     "description": "If enabled, steering will reset so you don't fight the wheel making manual turns."

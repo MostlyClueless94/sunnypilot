@@ -27,6 +27,7 @@ class BluePilotLayoutMici(NavWidget):
     self.show_web_routes_qr.set_click_callback(self._show_qr_dialog)
     self.show_hands_free_ui = BigParamControl("show hands-free ui", "send_hands_free_cluster_msg")
     self.show_lead_vehicle = BigMultiParamToggle("Lower Right Display", "mici_complication", ["off", "lead car speed", "speed", "lead car distance", "time to lead car"])
+    self._show_hybrid_power_flow = BigParamControl("show hybrid/EV power flow", "FordPrefHybridPowerFlow")
     self.enable_human_turn_detection = BigParamControl("enable human turn detection", "enable_human_turn_detection")
     self.lane_change_factor_high = BigParamFloatControl("lane change factor high", "lane_change_factor_high", min=0.5, max=1.0)
     self.enable_lane_positioning = BigParamControl("enable lane positioning", "enable_lane_positioning", tint=rl.GREEN)
@@ -47,6 +48,7 @@ class BluePilotLayoutMici(NavWidget):
       self.show_web_routes_qr,
       self.show_hands_free_ui,
       self.show_lead_vehicle,
+      self._show_hybrid_power_flow,
       self.enable_human_turn_detection,
       self.lane_change_factor_high,
       self.enable_lane_positioning,
@@ -64,6 +66,7 @@ class BluePilotLayoutMici(NavWidget):
     self._refresh_toggles = (
       ("BPPortalEnabled", self.enable_web_routes),
       ("send_hands_free_cluster_msg", self.show_hands_free_ui),
+      ("FordPrefHybridPowerFlow", self._show_hybrid_power_flow),
       ("enable_human_turn_detection", self.enable_human_turn_detection),
       ("enable_lane_positioning", self.enable_lane_positioning),
       ("enable_lane_full_mode", self.enable_lane_full_mode),

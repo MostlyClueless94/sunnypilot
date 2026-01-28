@@ -10,7 +10,7 @@ from openpilot.selfdrive.ui.sunnypilot.mici.onroad.confidence_ball import Confid
 
 
 def draw_circle_gradient(center_x: float, center_y: float, radius: int,
-                         top: rl.Color, bottom: rl.Color) -> None:
+                         top: rl.Color, bottom: rl.Color, ring: rl.Color) -> None:
   # Draw a square with the gradient
   rl.draw_rectangle_gradient_v(int(center_x - radius), int(center_y - radius),
                                radius * 2, radius * 2,
@@ -20,7 +20,7 @@ def draw_circle_gradient(center_x: float, center_y: float, radius: int,
   outer_radius = math.ceil(radius * math.sqrt(2)) + 1
   rl.draw_ring(rl.Vector2(int(center_x), int(center_y)), radius, outer_radius,
                0.0, 360.0,
-               20, rl.BLACK)
+               20, ring)
 
 
 class ConfidenceBall(Widget, ConfidenceBallSP):
@@ -30,6 +30,7 @@ class ConfidenceBall(Widget, ConfidenceBallSP):
     self._demo = demo
     self._confidence_filter = FirstOrderFilter(-0.5, 0.5, 1 / gui_app.target_fps)
     self._status_dot_radius = radius
+    self._brakes_on = False
 
   def update_filter(self, value: float):
     self._confidence_filter.update(value)
@@ -46,6 +47,11 @@ class ConfidenceBall(Widget, ConfidenceBallSP):
     else:
       self._confidence_filter.update((1 - max(ui_state.sm['modelV2'].meta.disengagePredictions.brakeDisengageProbs or [1])) *
                                                         (1 - max(ui_state.sm['modelV2'].meta.disengagePredictions.steerOverrideProbs or [1])))
+
+    sm = ui_state.sm
+    car_state_bp = sm['carStateBP']
+    brake_light_status = car_state_bp.brakeLightStatus
+    self._brakes_on =  brake_light_status.dataAvailable and brake_light_status.brakeLightsOn
 
   def _render(self, _):
     content_rect = rl.Rectangle(
@@ -81,6 +87,10 @@ class ConfidenceBall(Widget, ConfidenceBallSP):
       top_dot_color = rl.Color(50, 50, 50, 255)
       bottom_dot_color = rl.Color(13, 13, 13, 255)
 
+    ring_color = rl.BLACK
+    if self._brakes_on:
+      ring_color = rl.RED
+
     draw_circle_gradient(content_rect.x + content_rect.width - self._status_dot_radius,
                          dot_height, self._status_dot_radius,
-                         top_dot_color, bottom_dot_color)
+                         top_dot_color, bottom_dot_color, ring_color)

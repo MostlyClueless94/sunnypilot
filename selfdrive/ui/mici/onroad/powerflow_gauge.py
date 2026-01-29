@@ -11,6 +11,7 @@ from openpilot.common.filter_simple import FirstOrderFilter
 
 SEGMENTS = 50
 SMOOTHING = 0.12
+DEMO = False
 
 # Angles (radians)
 BOTTOM = math.radians(90)
@@ -20,6 +21,7 @@ POWERFLOW_DEMAND_COLOR = rl.Color(100, 150, 255, 255)
 
 class MiciPowerflowGauge(Widget):
   """Widget to display powerflow gauge as an arch above the torque bar"""
+  RADIUS = 20
 
   def __init__(self):
     super().__init__()
@@ -29,6 +31,9 @@ class MiciPowerflowGauge(Widget):
     self._power_flow_mode_value = 0
     self._engine_on_reason_value = 0
     self._top_angle = -90
+    if DEMO:
+       self._demo_value = 0.0
+       self._demo_inc = 0.01
 
   def _update_state(self):
     """Update power flow state and animate changes"""
@@ -76,18 +81,26 @@ class MiciPowerflowGauge(Widget):
 
   def _render(self, rect: rl.Rectangle) -> None:
     """Render the powerflow gauge arch"""
-    if not self._should_render():
+    if not self._should_render() and not DEMO:
       return
+
+    if DEMO:
+      self._demo_value += self._demo_inc
+      if self._demo_value > 1.0 or self._demo_value < -1.0:
+        self._demo_inc *= -1
 
     self._center = rl.Vector2(rect.x + rect.width // 2, rect.y + rect.height // 2)
     self._outer_radius = rect.width // 2
-    self._inner_radius = self._outer_radius - 10
+    self._inner_radius = self._outer_radius - self.RADIUS * 1.1
 
     self._value += self._inc
     if self._value > 1.0 or self._value < -1.0:
         self._inc *= -1
 
-    self.draw_circular_gauge(self._powerflow_filter.x)
+    if DEMO:
+      self.draw_circular_gauge(self._demo_value)
+    else:
+      self.draw_circular_gauge(self._powerflow_filter.x)
 
   def draw_arc_segment(self, angle, color):
     x1 = self._center.x + math.cos(angle) * self._inner_radius

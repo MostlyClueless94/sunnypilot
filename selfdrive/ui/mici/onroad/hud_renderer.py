@@ -213,9 +213,6 @@ class HudRenderer(Widget):
     dest_rect = rl.Rectangle(pos_x, pos_y, wheel_txt.width, wheel_txt.height)
     origin = (wheel_txt.width / 2, wheel_txt.height / 2)
 
-    power_rect = rl.Rectangle(pos_x - wheel_txt.width / 2 - 10, pos_y - wheel_txt.height / 2 - 10 , wheel_txt.width + 20, wheel_txt.height + 20)
-    self._power_flow.render(power_rect)
-
     # color and draw
     color = rl.Color(255, 255, 255, int(self._wheel_alpha_filter.x))
     rl.draw_texture_pro(wheel_txt, src_rect, dest_rect, origin, rotation, color)
@@ -227,7 +224,13 @@ class HudRenderer(Widget):
       exclamation_pos_y = pos_y - self._txt_exclamation_point.height / 2
       rl.draw_texture(self._txt_exclamation_point, int(exclamation_pos_x), int(exclamation_pos_y), rl.WHITE)
 
-
+    power_flow_radius = self._power_flow.RADIUS
+    power_rect = rl.Rectangle(
+      int(rect.x + 21) - power_flow_radius,
+      int(rect.y + rect.height - wheel_txt.height - 14) - power_flow_radius,
+      wheel_txt.width + power_flow_radius * 2,
+      wheel_txt.height + power_flow_radius * 2)
+    self._power_flow.render(power_rect)
 
   def _draw_set_speed(self, rect: rl.Rectangle) -> None:
     """Draw the MAX speed indicator box."""

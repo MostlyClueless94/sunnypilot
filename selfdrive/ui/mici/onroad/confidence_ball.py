@@ -30,7 +30,6 @@ class ConfidenceBall(Widget, ConfidenceBallSP):
     self._demo = demo
     self._confidence_filter = FirstOrderFilter(-0.5, 0.5, 1 / gui_app.target_fps)
     self._status_dot_radius = radius
-    self._brakes_on = False
 
   def update_filter(self, value: float):
     self._confidence_filter.update(value)
@@ -47,11 +46,6 @@ class ConfidenceBall(Widget, ConfidenceBallSP):
     else:
       self._confidence_filter.update((1 - max(ui_state.sm['modelV2'].meta.disengagePredictions.brakeDisengageProbs or [1])) *
                                                         (1 - max(ui_state.sm['modelV2'].meta.disengagePredictions.steerOverrideProbs or [1])))
-
-    sm = ui_state.sm
-    car_state_bp = sm['carStateBP']
-    brake_light_status = car_state_bp.brakeLightStatus
-    self._brakes_on =  brake_light_status.dataAvailable and brake_light_status.brakeLightsOn
 
   def _render(self, _):
     content_rect = rl.Rectangle(
@@ -88,9 +82,6 @@ class ConfidenceBall(Widget, ConfidenceBallSP):
       bottom_dot_color = rl.Color(13, 13, 13, 255)
 
     ring_color = rl.BLACK
-    if self._brakes_on:
-      ring_color = rl.RED
-
     draw_circle_gradient(content_rect.x + content_rect.width - self._status_dot_radius,
                          dot_height, self._status_dot_radius,
                          top_dot_color, bottom_dot_color, ring_color)

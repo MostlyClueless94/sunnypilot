@@ -107,6 +107,7 @@ class HudRenderer(Widget):
     self.speed: float = 0.0
     self.v_ego_cluster_seen: bool = False
     self._engaged: bool = False
+    self._brakes_on = False
 
     self._can_draw_top_icons = True
     self._show_wheel_critical = False
@@ -171,6 +172,11 @@ class HudRenderer(Widget):
     speed_conversion = CV.MS_TO_KPH if ui_state.is_metric else CV.MS_TO_MPH
     self.speed = max(0.0, v_ego * speed_conversion)
 
+    sm = ui_state.sm
+    car_state_bp = sm['carStateBP']
+    brake_light_status = car_state_bp.brakeLightStatus
+    self._brakes_on =  brake_light_status.dataAvailable and brake_light_status.brakeLightsOn
+
   def _render(self, rect: rl.Rectangle) -> None:
     """Render HUD elements to the screen."""
 
@@ -214,7 +220,10 @@ class HudRenderer(Widget):
     origin = (wheel_txt.width / 2, wheel_txt.height / 2)
 
     # color and draw
-    color = rl.Color(255, 255, 255, int(self._wheel_alpha_filter.x))
+    if self._brakes_on:
+      color = rl.Color(255, 60, 60, int(self._wheel_alpha_filter.x))
+    else:
+      color = rl.Color(255, 255, 255, int(self._wheel_alpha_filter.x))
     rl.draw_texture_pro(wheel_txt, src_rect, dest_rect, origin, rotation, color)
 
     if self._show_wheel_critical:
@@ -230,7 +239,8 @@ class HudRenderer(Widget):
       int(rect.y + rect.height - wheel_txt.height - 14) - power_flow_radius,
       wheel_txt.width + power_flow_radius * 2,
       wheel_txt.height + power_flow_radius * 2)
-    self._power_flow.render(power_rect)
+    self._power_flow.set_wheel_rect(power_rect)
+    self._power_flow.render(rect)
 
   def _draw_set_speed(self, rect: rl.Rectangle) -> None:
     """Draw the MAX speed indicator box."""

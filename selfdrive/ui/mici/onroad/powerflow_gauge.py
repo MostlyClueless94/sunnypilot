@@ -10,7 +10,10 @@ from opendbc.car.ford.helpers import get_hev_power_flow_text, get_hev_engine_on_
 from openpilot.common.filter_simple import FirstOrderFilter
 
 SEGMENTS = 50
+LINES = 20
 SMOOTHING = 0.12
+BAR_W = 20
+
 DEMO = False
 
 # Angles (radians)
@@ -31,6 +34,7 @@ class MiciPowerflowGauge(Widget):
     self._power_flow_mode_value = 0
     self._engine_on_reason_value = 0
     self._top_angle = -90
+    self._use_bar = True
     if DEMO:
        self._demo_value = 0.0
        self._demo_inc = 0.01
@@ -79,6 +83,9 @@ class MiciPowerflowGauge(Widget):
     except (KeyError, AttributeError, TypeError):
       return False
 
+  def set_wheel_rect(self, rect: rl.Rectangle):
+     self._wheel_rect = rect
+
   def _render(self, rect: rl.Rectangle) -> None:
     """Render the powerflow gauge arch"""
     if not self._should_render() and not DEMO:
@@ -89,18 +96,17 @@ class MiciPowerflowGauge(Widget):
       if self._demo_value > 1.0 or self._demo_value < -1.0:
         self._demo_inc *= -1
 
-    self._center = rl.Vector2(rect.x + rect.width // 2, rect.y + rect.height // 2)
-    self._outer_radius = rect.width // 2
-    self._inner_radius = self._outer_radius - self.RADIUS * 1.1
+    if not self._use_bar:
+      if DEMO:
+        self.draw_circular_gauge(self._demo_value)
+      else:
+        self.draw_circular_gauge(self._powerflow_filter.x)
 
-    self._value += self._inc
-    if self._value > 1.0 or self._value < -1.0:
-        self._inc *= -1
-
-    if DEMO:
-      self.draw_circular_gauge(self._demo_value)
     else:
-      self.draw_circular_gauge(self._powerflow_filter.x)
+      if DEMO:
+        self.draw_vertical_gauge(rect, self._demo_value)
+      else:
+        self.draw_vertical_gauge(rect, self._powerflow_filter.x)
 
   def draw_arc_segment(self, angle, color):
     x1 = self._center.x + math.cos(angle) * self._inner_radius
@@ -116,6 +122,10 @@ class MiciPowerflowGauge(Widget):
     )
 
   def draw_circular_gauge(self, value):
+    self._center = rl.Vector2(self._wheel_rect.x + self._wheel_rect.width // 2, self._wheel_rect.y + self._wheel_rect.height // 2)
+    self._outer_radius = self._wheel_rect.width // 2
+    self._inner_radius = self._outer_radius - self.RADIUS * 1.1
+
     # --- Regen (left side) ---
     if value < 0:
         active = abs(value)
@@ -137,3 +147,87 @@ class MiciPowerflowGauge(Widget):
 
             angle = BOTTOM + t * (TOP - BOTTOM)
             self.draw_arc_segment(angle, POWERFLOW_DEMAND_COLOR)
+
+  def lerp(a, b, t):
+    return a + (b - a) * t
+
+  def draw_vertical_gauge(self, rect: rl.Rectangle, value):
+      bar_x = int(rect.x)
+      bar_y = int(rect.y)
+      bar_h = int(rect.height)
+
+      segment_h = bar_h / LINES
+      mid = bar_h * 0.6
+
+      rl.draw_rectangle(
+          bar_x,
+          bar_y,
+          BAR_W,
+          bar_h,
+          rl.Color(0,0,0,100)
+      )
+
+      demand_h = mid * abs(value)
+      regen_h = (bar_h - mid) * abs(value)
+      # --- Throttle side (above center) ---
+      if value > 0:
+          rl.draw_rectangle(
+              bar_x,
+              int(mid - demand_h),
+              BAR_W,
+              int(demand_h),
+              POWERFLOW_DEMAND_COLOR
+          )
+
+      # --- Regen side (below center) ---
+      elif value < 0:
+          rl.draw_rectangle(
+              bar_x,
+              int(mid),
+              BAR_W,
+              int(regen_h),
+              POWERFLOW_REGEN_COLOR
+          )
+
+      line_color = rl.Color(255,255,255,150)
+      line_shadow = rl.Color(0,0,0,150)
+
+      for i in range(LINES):
+          y = int(segment_h * i)
+          rl.draw_line(
+              bar_x,
+              y,
+              bar_x + 5,
+              y,
+              line_color
+          )
+          rl.draw_line(
+              bar_x,
+              int(y-1),
+              bar_x + 5,
+              int(y-1),
+              line_shadow
+          )
+
+          rl.draw_line(
+              bar_x + BAR_W - 5,
+              y,
+              bar_x + BAR_W,
+              y,
+              line_color
+          )
+          rl.draw_line(
+              bar_x + BAR_W - 5,
+              int(y-1),
+              bar_x + BAR_W,
+              int(y-1),
+              line_shadow
+          )
+
+      rl.draw_line(
+          bar_x,
+          int(mid+1),
+          bar_x + BAR_W,
+          int(mid + 1),
+          rl.WHITE
+      )

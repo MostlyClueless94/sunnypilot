@@ -224,10 +224,18 @@ class MiciPowerflowGauge(Widget):
               line_shadow
           )
 
+      rl.draw_rectangle(
+          bar_x,
+          int(mid),
+          BAR_W,
+          2,
+          rl.WHITE
+      )
+
       rl.draw_line(
           bar_x,
-          int(mid+1),
+          int(mid + 2),
           bar_x + BAR_W,
-          int(mid + 1),
-          rl.WHITE
+          int(mid + 2),
+          line_shadow
       )

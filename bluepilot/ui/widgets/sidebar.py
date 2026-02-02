@@ -211,17 +211,17 @@ class SidebarBP(Widget):
       # Get carrier/SSID
       net_type = device_state.networkType
       if net_type == NetworkType.wifi:
-        # Try to get SSID from networkInfo
+        # Try to get SSID from networkInfo.state (for WiFi) or use network type
         try:
-          if hasattr(device_state, 'networkInfo') and device_state.networkInfo:
-            ssid = getattr(device_state.networkInfo, 'ssid', None)
-            if ssid:
-              self._net_carrier_ssid = str(ssid)
-            else:
-              self._net_carrier_ssid = "WiFi Connected"
+          net_info = device_state.networkInfo
+          if net_info and hasattr(net_info, 'state') and net_info.state and net_info.state != "":
+            self._net_carrier_ssid = str(net_info.state)
+          elif net_info and hasattr(net_info, 'technology') and net_info.technology and net_info.technology != "":
+            self._net_carrier_ssid = str(net_info.technology)
           else:
             self._net_carrier_ssid = "WiFi Connected"
-        except Exception:
+        except (AttributeError, ValueError, TypeError):
+          # Fallback if network info is unavailable
           self._net_carrier_ssid = "WiFi Connected"
       elif net_type in (NetworkType.cell2G, NetworkType.cell3G, NetworkType.cell4G, NetworkType.cell5G):
         # Try to get carrier name from network info

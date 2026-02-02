@@ -99,22 +99,18 @@ class SidebarBP(Widget):
     self._connect_card = MetricCard(compact=False)
     self._sunnylink_card = MetricCard(compact=False)
 
-    # Buttons - use correct icon paths
-    self._settings_btn = IconButton("images/button_settings.png")
+    # Buttons
+    self._settings_btn = IconButton("../assets/offroad/icon_settings.png")
     self._settings_btn.set_on_click(self._handle_settings_click)
     self._settings_btn.set_scale(0.55)
 
-    self._flag_btn = IconButton("images/button_flag.png")
+    self._flag_btn = IconButton("../assets/offroad/icon_flag.png")
     self._flag_btn.set_on_click(self._handle_flag_click)
     self._flag_btn.set_scale(0.45)
 
-    # Debug button - try to find or skip if not available
-    try:
-      self._debug_btn = IconButton("icons_mici/settings/developer_icon.png")
-      self._debug_btn.set_on_click(self._handle_debug_click)
-      self._debug_btn.set_scale(0.65)
-    except:
-      self._debug_btn = None
+    self._debug_btn = IconButton("../assets/offroad/icon_debug.png")
+    self._debug_btn.set_on_click(self._handle_debug_click)
+    self._debug_btn.set_scale(0.65)
 
     # Fan widget - rotates continuously based on fan speed
     self._fan_widget = FanWidget()

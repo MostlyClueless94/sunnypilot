@@ -291,6 +291,8 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"FordPrefHevDataAvailable", {CLEAR_ON_MANAGER_START, BOOL, "0"}},
     {"FordPrefHevBattDataAvailable", {CLEAR_ON_MANAGER_START, BOOL, "0"}},
     {"mici_complication", {PERSISTENT | BACKUP, INT, "1"}},
+    {"ShowBrakeStatus", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"FordPrefHybridPowerFlowAlternate", {PERSISTENT | BACKUP, BOOL, "0"}},
 
     // BluePilot Portal (Web Routes Server)
     {"BPPortalEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},

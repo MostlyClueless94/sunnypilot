@@ -34,7 +34,6 @@ class MiciPowerflowGauge(Widget):
     self._power_flow_mode_value = 0
     self._engine_on_reason_value = 0
     self._top_angle = -90
-    self._use_bar = True
     if DEMO:
        self._demo_value = 0.0
        self._demo_inc = 0.01
@@ -65,6 +64,7 @@ class MiciPowerflowGauge(Widget):
     from openpilot.common.params import Params
     params = Params()
     power_flow_enabled = params.get_bool("FordPrefHybridPowerFlow")
+    self._power_flow_use_alternate = params.get_bool("FordPrefHybridPowerFlowAlternate")
     if not power_flow_enabled:
       return False
 
@@ -96,7 +96,7 @@ class MiciPowerflowGauge(Widget):
       if self._demo_value > 1.0 or self._demo_value < -1.0:
         self._demo_inc *= -1
 
-    if not self._use_bar:
+    if self._power_flow_use_alternate:
       if DEMO:
         self.draw_circular_gauge(self._demo_value)
       else:

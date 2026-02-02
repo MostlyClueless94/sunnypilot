@@ -116,9 +116,8 @@ class SidebarBP(Widget):
     except:
       self._debug_btn = None
 
-    # Fan widget - start animation on initial load (like Qt version)
+    # Fan widget - rotates continuously based on fan speed
     self._fan_widget = FanWidget()
-    self._fan_widget.start_animation()
 
     # State tracking - frame counters for throttled updates
     self._metrics_counter = 0
@@ -177,10 +176,6 @@ class SidebarBP(Widget):
   def _update_state(self):
     """Update state from ui_state.sm (SubMaster) and local params"""
     sm = ui_state.sm
-
-    # Always animate fan if visible
-    if self._fan_widget._is_animating:
-      self._fan_widget.animate_step(2.0)
 
     # Only update on deviceState changes for most metrics
     if sm.updated.get('deviceState'):
@@ -309,10 +304,10 @@ class SidebarBP(Widget):
       mem_usage = device_state.memoryUsagePercent
       self._memory_usage = f"{mem_usage:.0f}%"
 
-      # Fan
+      # Fan - update both string and numeric speed
       fan_demand = device_state.fanSpeedPercentDesired
       self._fan_demand = f"{fan_demand:.0f}%"
-      self._fan_widget.set_demand(self._fan_demand)
+      self._fan_widget.set_fan_speed(int(fan_demand))
     except Exception:
       # Gracefully handle missing data
       pass
@@ -517,9 +512,7 @@ class SidebarBP(Widget):
   def show_event(self):
     """Called when sidebar becomes visible"""
     super().show_event()
-    self._fan_widget.start_animation()
 
   def hide_event(self):
     """Called when sidebar is hidden"""
     super().hide_event()
-    self._fan_widget.stop_animation()

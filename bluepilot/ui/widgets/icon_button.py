@@ -89,20 +89,15 @@ class IconButton(Widget):
 class FanWidget(Widget):
   """
   Animated fan widget with rotation and percentage display.
-  Like Qt version, spins briefly when sidebar appears then stops.
+  Rotates continuously based on fan speed percentage.
   """
-
-  # Animation: spin for ~1.5 rotations (540 degrees) then stop
-  SPIN_DURATION_DEGREES = 540.0
-  SPIN_SPEED = 6.0  # degrees per frame
 
   def __init__(self):
     super().__init__()
     self._fan_texture = None
     self._rotation = 0.0
+    self._fan_speed = 0  # Fan speed percentage (0-100)
     self._demand_percent = "0%"
-    self._is_animating = False
-    self._spin_remaining = 0.0  # Degrees left to spin
     self._font = gui_app.font()
 
     self._load_fan_icon()
@@ -115,41 +110,30 @@ class FanWidget(Widget):
       self._fan_texture = None
 
   def set_demand(self, demand_percent: str):
-    """Update fan demand percentage"""
+    """Update fan demand percentage (string format like "50%")"""
     self._demand_percent = demand_percent
+    # Extract numeric value from string
+    try:
+      self._fan_speed = int(demand_percent.replace("%", ""))
+    except (ValueError, AttributeError):
+      self._fan_speed = 0
 
-  def set_rotation(self, angle: float):
-    """Set fan rotation angle"""
-    self._rotation = angle % 360.0
-
-  def animate_step(self, delta: float = None):
-    """Advance animation by delta degrees (uses SPIN_SPEED if not specified)"""
-    if not self._is_animating:
-      return
-
-    if delta is None:
-      delta = self.SPIN_SPEED
-
-    if self._spin_remaining > 0:
-      self._rotation = (self._rotation + delta) % 360.0
-      self._spin_remaining -= delta
-      if self._spin_remaining <= 0:
-        self._is_animating = False
-        self._spin_remaining = 0
-
-  def start_animation(self):
-    """Start brief fan animation (like Qt version - spins briefly then stops)"""
-    self._is_animating = True
-    self._spin_remaining = self.SPIN_DURATION_DEGREES
-
-  def stop_animation(self):
-    """Stop fan animation immediately"""
-    self._is_animating = False
-    self._spin_remaining = 0
+  def set_fan_speed(self, speed: int):
+    """Update fan speed directly (0-100)"""
+    self._fan_speed = max(0, min(100, speed))
+    self._demand_percent = f"{self._fan_speed}%"
 
   def _render(self, rect: rl.Rectangle) -> None:
     if not self._fan_texture:
       return
+
+    # Update fan rotation based on speed
+    if self._fan_speed > 0:
+      self._rotation += self._fan_speed * 0.1
+      if self._rotation >= 360:
+        self._rotation -= 360
+    else:
+      self._rotation = 0
 
     # Draw rotating fan
     center_x = rect.x + rect.width / 2

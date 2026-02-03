@@ -1266,5 +1266,13 @@
         "label": "Time to Lead Car"
       }
     ]
+  },
+  "mici_hide_onroad_fade": {
+    "title": "BluePilot: Hide Comma 4 onroad fade",
+    "description": "remove the fade at the bottom of the screen"
+  },
+  "mici_hide_onroad_border": {
+    "title": "BluePilot: Hide Comma 4 onroad border",
+    "description": "remove the from the screen"
   }
 }

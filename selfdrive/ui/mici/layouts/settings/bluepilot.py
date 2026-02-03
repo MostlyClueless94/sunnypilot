@@ -37,6 +37,8 @@ class BluePilotLayoutMici(NavWidget):
     self.pc_blend_ratio_high_C = BigParamFloatControl("predicted curvature blend ratio high", "pc_blend_ratio_high_C_UI", is_active_param="custom_profile", min=0.0, max=1.0, tint=rl.BLUE)
     self.pc_blend_ratio_low_C = BigParamFloatControl("predicted curvature blend ratio low", "pc_blend_ratio_low_C_UI", is_active_param="custom_profile", min=0.0, max=1.0, tint=rl.BLUE)
     self.LC_PID_gain = BigParamFloatControl("low curvature PID gain", "LC_PID_gain_UI", is_active_param="custom_profile", min=0.0, max=5.0, tint=rl.BLUE)
+    self.hide_fade = BigParamControl("hide onroad fade", "mici_hide_onroad_fade")
+    self.hide_border = BigParamControl("hide screen border", "mici_hide_onroad_border")
     self.disable_BP_lat = BigParamControl("disable BP lateral control", "disable_BP_lat_UI")
     self.vbatt_pause_charging = BigParamFloatControl("12V battery limit", "vbatt_pause_charging", min=11.0, max=14.0, step=0.1)
 
@@ -72,6 +74,8 @@ class BluePilotLayoutMici(NavWidget):
       self.pc_blend_ratio_high_C,
       self.pc_blend_ratio_low_C,
       self.LC_PID_gain,
+      self.hide_fade,
+      self.hide_border,
       self.vbatt_pause_charging,
       self.disable_BP_lat,
     ], snap_items=False)
@@ -87,6 +91,8 @@ class BluePilotLayoutMici(NavWidget):
       ("enable_lane_full_mode", self.enable_lane_full_mode),
       ("custom_profile", self.custom_profile),
       ("disable_BP_lat_UI", self.disable_BP_lat),
+      ("mici_hide_onroad_fade", self.hide_fade),
+      ("mici_hide_onroad_border", self.hide_border),
     )
 
     ui_state.add_offroad_transition_callback(self._update_toggles)

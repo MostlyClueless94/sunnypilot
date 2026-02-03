@@ -18,6 +18,7 @@ from openpilot.system.ui.widgets import Widget
 from openpilot.common.filter_simple import BounceFilter
 from openpilot.common.transformations.camera import DEVICE_CAMERAS, DeviceCameraConfig, view_frame_from_device_frame
 from openpilot.common.transformations.orientation import rot_from_euler
+from openpilot.common.params import Params
 from enum import IntEnum
 
 OpState = log.SelfdriveState.OpenpilotState
@@ -162,6 +163,10 @@ class AugmentedRoadView(CameraView):
                                        alignment_vertical=rl.GuiTextAlignmentVertical.TEXT_ALIGN_MIDDLE)
 
     self._fade_texture = gui_app.texture("icons_mici/onroad/onroad_fade.png")
+    self._hide_fade = False
+    self._hide_border = False
+
+    self.params = Params()
 
     # debug
     self._pm = messaging.PubMaster(['uiDebug'])
@@ -178,6 +183,10 @@ class AugmentedRoadView(CameraView):
       self._offroad_label.set_text("system booting")
     else:
       self._offroad_label.set_text("start the car to\nuse sunnypilot")
+
+    self._hide_fade = self.params.get_bool("mici_hide_onroad_fade")
+    self._hide_border = self.params.get_bool("mici_hide_onroad_border")
+
 
   def _handle_mouse_release(self, mouse_pos: MousePos):
     # Don't trigger click callback if bookmark was triggered
@@ -215,7 +224,8 @@ class AugmentedRoadView(CameraView):
     self._model_renderer.render(self._content_rect)
 
     # Fade out bottom of overlays for looks
-    rl.draw_texture_ex(self._fade_texture, rl.Vector2(self._content_rect.x, self._content_rect.y), 0.0, 1.0, rl.WHITE)
+    if not self._hide_fade:
+      rl.draw_texture_ex(self._fade_texture, rl.Vector2(self._content_rect.x, self._content_rect.y), 0.0, 1.0, rl.WHITE)
 
     alert_to_render, not_animating_out = self._alert_renderer.will_render()
 
@@ -238,7 +248,8 @@ class AugmentedRoadView(CameraView):
     self._hud_renderer.render(self._content_rect)
 
     # Draw fake rounded border
-    rl.draw_rectangle_rounded_lines_ex(self._content_rect, 0.2 * 1.02, 10, 50, rl.BLACK)
+    if not self._hide_border:
+      rl.draw_rectangle_rounded_lines_ex(self._content_rect, 0.2 * 1.02, 10, 50, rl.BLACK)
 
     # End clipping region
     rl.end_scissor_mode()

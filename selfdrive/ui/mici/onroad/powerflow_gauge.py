@@ -68,6 +68,9 @@ class MiciPowerflowGauge(Widget):
     if not power_flow_enabled:
       return False
 
+    if DEMO:
+       return True
+
     sm = ui_state.sm
     try:
       # Check if message exists and is recent enough
@@ -88,7 +91,7 @@ class MiciPowerflowGauge(Widget):
 
   def _render(self, rect: rl.Rectangle) -> None:
     """Render the powerflow gauge arch"""
-    if not self._should_render() and not DEMO:
+    if not self._should_render():
       return
 
     if DEMO:

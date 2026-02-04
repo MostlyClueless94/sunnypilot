@@ -10,7 +10,7 @@ from openpilot.selfdrive.ui.sunnypilot.mici.onroad.confidence_ball import Confid
 
 
 def draw_circle_gradient(center_x: float, center_y: float, radius: int,
-                         top: rl.Color, bottom: rl.Color) -> None:
+                         top: rl.Color, bottom: rl.Color, ring: rl.Color) -> None:
   # Draw a square with the gradient
   rl.draw_rectangle_gradient_v(int(center_x - radius), int(center_y - radius),
                                radius * 2, radius * 2,
@@ -20,7 +20,7 @@ def draw_circle_gradient(center_x: float, center_y: float, radius: int,
   outer_radius = math.ceil(radius * math.sqrt(2)) + 1
   rl.draw_ring(rl.Vector2(int(center_x), int(center_y)), radius, outer_radius,
                0.0, 360.0,
-               20, rl.BLACK)
+               20, ring)
 
 
 class ConfidenceBall(Widget, ConfidenceBallSP):
@@ -81,6 +81,7 @@ class ConfidenceBall(Widget, ConfidenceBallSP):
       top_dot_color = rl.Color(50, 50, 50, 255)
       bottom_dot_color = rl.Color(13, 13, 13, 255)
 
+    ring_color = rl.BLACK
     draw_circle_gradient(content_rect.x + content_rect.width - self._status_dot_radius,
                          dot_height, self._status_dot_radius,
-                         top_dot_color, bottom_dot_color)
+                         top_dot_color, bottom_dot_color, ring_color)

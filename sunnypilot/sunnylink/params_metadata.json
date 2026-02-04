@@ -1158,6 +1158,14 @@
     "title": "BluePilot: Show Hybrid/EV Power Flow",
     "description": "Displays an arch-shaped power flow meter showing regenerative braking (green) and throttle demand (blue) with engine on reason and power flow mode text."
   },
+  "FordPrefHybridPowerFlowAlternate": {
+    "title": "BluePilot: Use Altername Hybrid/EV Power Flow",
+    "description": "Displays Hybrid/EV Power Flow around the steering wheel indicator"
+  },
+  "ShowBrakeStatus": {
+    "title": "BluePilot: Show Brake light status",
+    "description": "Displays Brake light indication"
+  },
   "enable_human_turn_detection": {
     "title": "BluePilot: Enable Human Turn Detection",
     "description": "If enabled, steering will reset so you don't fight the wheel making manual turns."
@@ -1258,5 +1266,13 @@
         "label": "Time to Lead Car"
       }
     ]
+  },
+  "mici_hide_onroad_fade": {
+    "title": "BluePilot: Hide Comma 4 onroad fade",
+    "description": "remove the fade at the bottom of the screen"
+  },
+  "mici_hide_onroad_border": {
+    "title": "BluePilot: Hide Comma 4 onroad border",
+    "description": "remove the from the screen"
   }
 }

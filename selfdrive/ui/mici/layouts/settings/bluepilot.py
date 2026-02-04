@@ -3,7 +3,7 @@ from collections.abc import Callable
 
 from openpilot.common.time_helpers import system_time_valid
 from openpilot.system.ui.widgets.scroller import Scroller
-from openpilot.selfdrive.ui.mici.widgets.button import BigButton, BigToggle, BigParamControl, BigMultiParamToggle
+from openpilot.selfdrive.ui.mici.widgets.button import BigButton, BigParamControl, BigMultiParamToggle, BigMultiToggle
 from openpilot.system.ui.widgets.label import gui_label, MiciLabel, UnifiedLabel
 from openpilot.selfdrive.ui.mici.widgets.floatbutton import BigParamFloatControl
 from openpilot.selfdrive.ui.mici.widgets.dialog import BigDialogBase
@@ -27,6 +27,7 @@ class BluePilotLayoutMici(NavWidget):
     self.show_web_routes_qr.set_click_callback(self._show_qr_dialog)
     self.show_hands_free_ui = BigParamControl("show hands-free ui", "send_hands_free_cluster_msg")
     self.show_lead_vehicle = BigMultiParamToggle("Lower Right Display", "mici_complication", ["off", "lead car speed", "speed", "lead car distance", "time to lead car"])
+    self._show_brake_status = BigParamControl("show brake status", "ShowBrakeStatus")
     self.enable_human_turn_detection = BigParamControl("enable human turn detection", "enable_human_turn_detection")
     self.lane_change_factor_high = BigParamFloatControl("lane change factor high", "lane_change_factor_high", min=0.5, max=1.0)
     self.enable_lane_positioning = BigParamControl("enable lane positioning", "enable_lane_positioning", tint=rl.GREEN)
@@ -36,8 +37,24 @@ class BluePilotLayoutMici(NavWidget):
     self.pc_blend_ratio_high_C = BigParamFloatControl("predicted curvature blend ratio high", "pc_blend_ratio_high_C_UI", is_active_param="custom_profile", min=0.0, max=1.0, tint=rl.BLUE)
     self.pc_blend_ratio_low_C = BigParamFloatControl("predicted curvature blend ratio low", "pc_blend_ratio_low_C_UI", is_active_param="custom_profile", min=0.0, max=1.0, tint=rl.BLUE)
     self.LC_PID_gain = BigParamFloatControl("low curvature PID gain", "LC_PID_gain_UI", is_active_param="custom_profile", min=0.0, max=5.0, tint=rl.BLUE)
+    self.hide_fade = BigParamControl("hide onroad fade", "mici_hide_onroad_fade")
+    self.hide_border = BigParamControl("hide screen border", "mici_hide_onroad_border")
     self.disable_BP_lat = BigParamControl("disable BP lateral control", "disable_BP_lat_UI")
     self.vbatt_pause_charging = BigParamFloatControl("12V battery limit", "vbatt_pause_charging", min=11.0, max=14.0, step=0.1)
+
+    def power_flow_callback(value: str):
+      match value:
+        case "off":
+          self._params.put_bool("FordPrefHybridPowerFlow", False)
+          self._params.put_bool("FordPrefHybridPowerFlowAlternate", False)
+        case "bar":
+          self._params.put_bool("FordPrefHybridPowerFlow", True)
+          self._params.put_bool("FordPrefHybridPowerFlowAlternate", False)
+        case "circular":
+          self._params.put_bool("FordPrefHybridPowerFlow", True)
+          self._params.put_bool("FordPrefHybridPowerFlowAlternate", True)
+
+    self._show_hybrid_power_flow = BigMultiToggle("show hybrid/EV power flow", ["off", "bar", "circular"], select_callback=power_flow_callback)
 
     #self.charging_btn = BigButton("charging", "", "icons_mici/settings/charge_icon.png")
     #self.charging_btn.set_click_callback(lambda: self._show_charging_view())
@@ -47,6 +64,7 @@ class BluePilotLayoutMici(NavWidget):
       self.show_web_routes_qr,
       self.show_hands_free_ui,
       self.show_lead_vehicle,
+      self._show_hybrid_power_flow,
       self.enable_human_turn_detection,
       self.lane_change_factor_high,
       self.enable_lane_positioning,
@@ -56,6 +74,8 @@ class BluePilotLayoutMici(NavWidget):
       self.pc_blend_ratio_high_C,
       self.pc_blend_ratio_low_C,
       self.LC_PID_gain,
+      self.hide_fade,
+      self.hide_border,
       self.vbatt_pause_charging,
       self.disable_BP_lat,
     ], snap_items=False)
@@ -64,11 +84,15 @@ class BluePilotLayoutMici(NavWidget):
     self._refresh_toggles = (
       ("BPPortalEnabled", self.enable_web_routes),
       ("send_hands_free_cluster_msg", self.show_hands_free_ui),
+      ("FordPrefHybridPowerFlow", self._show_hybrid_power_flow),
+      ("ShowBrakeStatus", self._show_brake_status),
       ("enable_human_turn_detection", self.enable_human_turn_detection),
       ("enable_lane_positioning", self.enable_lane_positioning),
       ("enable_lane_full_mode", self.enable_lane_full_mode),
       ("custom_profile", self.custom_profile),
       ("disable_BP_lat_UI", self.disable_BP_lat),
+      ("mici_hide_onroad_fade", self.hide_fade),
+      ("mici_hide_onroad_border", self.hide_border),
     )
 
     ui_state.add_offroad_transition_callback(self._update_toggles)
@@ -103,6 +127,14 @@ class BluePilotLayoutMici(NavWidget):
     ui_state.update_params()
     server_enabled = ui_state.params.get_bool("BPPortalEnabled")
     self.show_web_routes_qr.set_enabled(server_enabled)
+
+    if self._params.get_bool("FordPrefHybridPowerFlow"):
+      if self._params.get_bool("FordPrefHybridPowerFlowAlternate"):
+        self._show_hybrid_power_flow.set_value("circular")
+      else:
+        self._show_hybrid_power_flow.set_value("bar")
+    else:
+      self._show_hybrid_power_flow.set_value("off")
 
   def _update_toggles(self):
     ui_state.update_params()

@@ -273,7 +273,7 @@ class AugmentedRoadView(CameraView):
     self._pm.send('uiDebug', msg)
 
   def _draw_blindspots(self, sm):
-    BLIND_SPOT_W = 40
+    BLIND_SPOT_W = 70
     edge_color = rl.Color(255, 0, 0, 180)
     inside_color = rl.Color(255, 0, 0, 0)
 

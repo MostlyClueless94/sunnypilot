@@ -2266,7 +2266,11 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                     self.send_json_response({'success': False, 'error': str(e)}, 500)
 
             elif path == '/api/drive-stats':
+                # Force flush and write to both log and stderr for debugging
+                import sys
+                print("=== /api/drive-stats endpoint called ===", file=sys.stderr, flush=True)
                 logger.info("=== /api/drive-stats endpoint called ===")
+                logger.handlers[0].flush() if logger.handlers else None
                 # Get aggregate drive statistics from ApiCache_DriveStats param
                 # This matches the Qt widget behavior which caches API responses in params
                 try:

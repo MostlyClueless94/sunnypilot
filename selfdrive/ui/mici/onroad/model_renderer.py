@@ -11,6 +11,7 @@ from openpilot.selfdrive.ui.mici.onroad import blend_colors
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.shader_polygon import draw_polygon, Gradient
 from openpilot.system.ui.widgets import Widget
+from openpilot.common.params import Params
 
 from openpilot.selfdrive.ui.sunnypilot.mici.onroad.model_renderer import LANE_LINE_COLORS_SP
 
@@ -62,6 +63,7 @@ class ModelRenderer(Widget):
     self._road_edge_stds = np.zeros(2, dtype=np.float32)
     self._lead_vehicles = [LeadVehicle(), LeadVehicle()]
     self._path_offset_z = HEIGHT_INIT[0]
+    self._rainbow_mode = False
 
     # Initialize ModelPoints objects
     self._path = ModelPoints()
@@ -87,8 +89,9 @@ class ModelRenderer(Widget):
       stops=[],
     )
 
+    self.params = Params()
     # Get longitudinal control setting from car parameters
-    if car_params := Params().get("CarParams"):
+    if car_params := self.params.get("CarParams"):
       cp = messaging.log_from_bytes(car_params, car.CarParams)
       self._longitudinal_control = cp.openpilotLongitudinalControl
 
@@ -98,6 +101,10 @@ class ModelRenderer(Widget):
 
   def _render(self, rect: rl.Rectangle):
     sm = ui_state.sm
+
+    self._rainbow_v = np.clip(sm['carState'].vEgo, 2.5, 30) / 30
+
+    self._rainbow_mode = self.params.get_bool("RainbowMode")
 
     self._torque_filter.update(-ui_state.sm['carOutput'].actuatorsOutput.torque)
 
@@ -338,9 +345,15 @@ class ModelRenderer(Widget):
       if ui_state.status == UIStatus.DISENGAGED:
         draw_polygon(self._rect, self._path.projected_points, rl.Color(0, 0, 0, 90))
       elif len(self._exp_gradient.colors) > 1:
-        draw_polygon(self._rect, self._path.projected_points, gradient=self._exp_gradient)
+        if self._rainbow_mode:
+          draw_polygon(self._rect, self._path.projected_points, rainbow=True, rainbow_v=self._rainbow_v),
+        else:
+          draw_polygon(self._rect, self._path.projected_points, gradient=self._exp_gradient)
       else:
-        draw_polygon(self._rect, self._path.projected_points, rl.Color(255, 255, 255, 30))
+        if self._rainbow_mode:
+          draw_polygon(self._rect, self._path.projected_points, rainbow=True)
+        else:
+          draw_polygon(self._rect, self._path.projected_points, rl.Color(255, 255, 255, 30))
     else:
       # Blend throttle/no throttle colors based on transition
       blend_factor = round(self._blend_filter.x * 100) / 100
@@ -355,7 +368,10 @@ class ModelRenderer(Widget):
       if ui_state.status == UIStatus.DISENGAGED:
         draw_polygon(self._rect, self._path.projected_points, rl.Color(0, 0, 0, 90))
       else:
-        draw_polygon(self._rect, self._path.projected_points, gradient=gradient)
+        if self._rainbow_mode:
+          draw_polygon(self._rect, self._path.projected_points, rainbow=True, rainbow_v=self._rainbow_v)
+        else:
+          draw_polygon(self._rect, self._path.projected_points, gradient=gradient)
 
   def _draw_lead_indicator(self):
     # Draw lead vehicles if available

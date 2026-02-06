@@ -1,7 +1,10 @@
 import pyray as rl
+from pyray import ffi
 import numpy as np
 from dataclasses import dataclass
 from typing import Any, Optional, cast
+
+from shapely import points
 from openpilot.system.ui.lib.application import gui_app, GL_VERSION
 
 MAX_GRADIENT_COLORS = 20  # includes stops as well
@@ -69,6 +72,40 @@ vec4 getGradientColor(vec2 p) {
 void main() {
   // TODO: do proper antialiasing
   finalColor = useGradient == 1 ? getGradientColor(gl_FragCoord.xy) : fillColor;
+}
+"""
+
+RAINBOW_SHADER = GL_VERSION + """
+out vec4 finalColor;
+
+uniform vec2 squarePos;
+uniform float squareSize;
+uniform float time;
+uniform float alpha;
+
+vec3 hsv2rgb(vec3 c)
+{
+    vec4 K = vec4(1.0, 2.0/3.0, 1.0/3.0, 3.0);
+    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
+
+void main()
+{
+    vec2 p = gl_FragCoord.xy;
+
+    // Clip to square
+    if (p.x < squarePos.x || p.x > squarePos.x + squareSize ||
+        p.y < squarePos.y || p.y > squarePos.y + squareSize)
+        discard;
+
+    float t = (p.y - squarePos.y) / squareSize;
+
+    // Animate
+    t = fract(t + time * 0.2);
+
+    vec3 col = hsv2rgb(vec3(t, 1.0, 1.0));
+    finalColor = vec4(col, alpha);
 }
 """
 
@@ -185,7 +222,6 @@ def _configure_shader_color(state: ShaderState, color: Optional[rl.Color],
     state.fill_color_ptr[0:4] = [color.r / 255.0, color.g / 255.0, color.b / 255.0, color.a / 255.0]
     rl.set_shader_value(state.shader, state.locations['fillColor'], state.fill_color_ptr, UNIFORM_VEC4)
 
-
 def triangulate(pts: np.ndarray) -> list[tuple[float, float]]:
   """Only supports simple polygons with two chains (ribbon)."""
 
@@ -204,7 +240,9 @@ def triangulate(pts: np.ndarray) -> list[tuple[float, float]]:
 
 
 def draw_polygon(origin_rect: rl.Rectangle, points: np.ndarray,
-                 color: Optional[rl.Color] = None, gradient: Gradient | None = None):
+                 color: Optional[rl.Color] = None,
+                 gradient: Gradient | None = None,
+                 rainbow: bool = False, rainbow_v: float = 1.0) -> None:
 
   """
   Draw a ribbon polygon (two chains) with a triangle strip and gradient.
@@ -221,14 +259,34 @@ def draw_polygon(origin_rect: rl.Rectangle, points: np.ndarray,
   pts = np.ascontiguousarray(points, dtype=np.float32)
   assert pts.ndim == 2 and pts.shape[1] == 2, "points must be (N,2)"
 
-  # Configure gradient shader
-  _configure_shader_color(state, color, gradient, origin_rect)
-
   # Triangulate via interleaving
   tri_strip = triangulate(pts)
 
+  if rainbow:
+    shader = rl.load_shader_from_memory(VERTEX_SHADER, RAINBOW_SHADER)
+    pos_loc = rl.get_shader_location(shader, "squarePos")
+    size_loc = rl.get_shader_location(shader, "squareSize")
+    time_loc = rl.get_shader_location(shader, "time")
+    alpha_loc = rl.get_shader_location(shader, "alpha")
+
+    square_pos = ffi.new("float[2]", [origin_rect.x, origin_rect.y])
+    square_size = ffi.new("float *", float(origin_rect.width))
+    time_val = ffi.new("float *", 0.0)
+    time_val[0] = rl.get_time() * rainbow_v
+    alpha_val = ffi.new("float *", 150.0 / 255.0)
+  else:
+    # Configure gradient shader
+    _configure_shader_color(state, color, gradient, origin_rect)
+    shader = state.shader
+
   # Draw strip, color here doesn't matter
-  rl.begin_shader_mode(state.shader)
+  rl.begin_shader_mode(shader)
+  if rainbow:
+    rl.set_shader_value(shader, pos_loc, square_pos, rl.SHADER_UNIFORM_VEC2)
+    rl.set_shader_value(shader, size_loc, square_size, rl.SHADER_UNIFORM_FLOAT)
+    rl.set_shader_value(shader, time_loc, time_val, rl.SHADER_UNIFORM_FLOAT)
+    rl.set_shader_value(shader, alpha_loc, alpha_val, rl.SHADER_UNIFORM_FLOAT)
+
   rl.draw_triangle_strip(tri_strip, len(tri_strip), rl.WHITE)
   rl.end_shader_mode()
 

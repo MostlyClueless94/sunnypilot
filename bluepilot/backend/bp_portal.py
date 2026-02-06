@@ -2380,7 +2380,18 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                                 if response.status_code == 200:
                                     api_data = response.json()
                                     # Cache the response in ApiCache_DriveStats param (same format as Qt widget expects)
-                                    params.put("ApiCache_DriveStats", json.dumps(api_data))
+                                    # ApiCache_DriveStats is a JSON type param, so pass the dict directly, not a string
+                                    try:
+                                        params.put("ApiCache_DriveStats", api_data)
+                                        logger.info(f"Successfully cached drive stats from Comma API: {api_data.get('all', {}).get('routes', 0)} routes")
+                                    except Exception as cache_error:
+                                        # If direct dict doesn't work, try JSON string (for older Params implementations)
+                                        logger.warning(f"Direct dict cache failed, trying JSON string: {cache_error}")
+                                        try:
+                                            params.put("ApiCache_DriveStats", json.dumps(api_data))
+                                            logger.info(f"Successfully cached drive stats (as JSON string): {api_data.get('all', {}).get('routes', 0)} routes")
+                                        except Exception as cache_error2:
+                                            logger.error(f"Failed to cache drive stats: {cache_error2}")
                                     logger.info(f"Successfully fetched drive stats from Comma API: {api_data.get('all', {}).get('routes', 0)} routes")
                                     
                                     # Parse and return the data

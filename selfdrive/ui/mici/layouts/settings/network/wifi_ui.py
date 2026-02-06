@@ -97,8 +97,17 @@ class FavoriteHeartButton(Widget):
     
   @property
   def is_favorite(self) -> bool:
-    favorite_ssid = self._params.get("WifiFavoriteSSID", encoding='utf8')
-    return favorite_ssid == self._ssid
+    try:
+      favorite_value = self._params.get("WifiFavoriteSSID")
+      if favorite_value:
+        if isinstance(favorite_value, bytes):
+          favorite_ssid = favorite_value.decode('utf-8', errors='replace').strip('\x00')
+        else:
+          favorite_ssid = str(favorite_value).strip('\x00')
+        return favorite_ssid == self._ssid
+    except Exception:
+      pass
+    return False
   
   def _handle_mouse_release(self, mouse_pos: MousePos):
     super()._handle_mouse_release(mouse_pos)
@@ -432,7 +441,16 @@ class WifiUIMici(BigMultiOptionDialog):
   def _toggle_favorite(self, ssid: str):
     """Toggle favorite status for a network"""
     params = Params()
-    current_favorite = params.get("WifiFavoriteSSID", encoding='utf8')
+    current_favorite = ""
+    try:
+      favorite_value = params.get("WifiFavoriteSSID")
+      if favorite_value:
+        if isinstance(favorite_value, bytes):
+          current_favorite = favorite_value.decode('utf-8', errors='replace').strip('\x00')
+        else:
+          current_favorite = str(favorite_value).strip('\x00')
+    except Exception:
+      pass
     
     if current_favorite == ssid:
       # Clear favorite

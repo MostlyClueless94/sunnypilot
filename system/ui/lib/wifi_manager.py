@@ -685,7 +685,13 @@ class WifiManager:
           continue
         
         params = Params()
-        favorite_ssid = params.get("WifiFavoriteSSID", encoding='utf8')
+        favorite_value = params.get("WifiFavoriteSSID")
+        favorite_ssid = ""
+        if favorite_value:
+          if isinstance(favorite_value, bytes):
+            favorite_ssid = favorite_value.decode('utf-8', errors='replace').strip('\x00')
+          else:
+            favorite_ssid = str(favorite_value).strip('\x00')
         
         if not favorite_ssid:
           # No favorite set, skip

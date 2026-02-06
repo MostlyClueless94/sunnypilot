@@ -188,11 +188,20 @@ class AdvancedNetworkSettings(Widget):
     
     # Update preferred network button text if current favorite is no longer saved
     if Params is not None:
-      current_favorite = self._params.get("WifiFavoriteSSID", encoding='utf8') or ""
-      if current_favorite and not any(n.ssid == current_favorite for n in self._saved_networks):
-        # Favorite network is no longer saved, clear it
-        self._params.put("WifiFavoriteSSID", "")
-        cloudlog.info(f"Cleared preferred network '{current_favorite}' - network no longer saved")
+      try:
+        favorite_value = self._params.get("WifiFavoriteSSID")
+        current_favorite = ""
+        if favorite_value:
+          if isinstance(favorite_value, bytes):
+            current_favorite = favorite_value.decode('utf-8', errors='replace').strip('\x00')
+          else:
+            current_favorite = str(favorite_value).strip('\x00')
+        if current_favorite and not any(n.ssid == current_favorite for n in self._saved_networks):
+          # Favorite network is no longer saved, clear it
+          self._params.put("WifiFavoriteSSID", "")
+          cloudlog.info(f"Cleared preferred network '{current_favorite}' - network no longer saved")
+      except Exception:
+        pass
 
     if self._wifi_manager.is_tethering_active() or self._wifi_manager.ipv4_address == "":
       self._wifi_metered_action.set_enabled(False)
@@ -247,12 +256,20 @@ class AdvancedNetworkSettings(Widget):
     """Get the display text for preferred network"""
     if Params is None:
       return tr("None")
-    favorite_ssid = self._params.get("WifiFavoriteSSID", encoding='utf8') or ""
-    if favorite_ssid:
-      # Truncate if too long
-      if len(favorite_ssid) > 20:
-        return favorite_ssid[:17] + "..."
-      return favorite_ssid
+    try:
+      favorite_value = self._params.get("WifiFavoriteSSID")
+      if favorite_value:
+        if isinstance(favorite_value, bytes):
+          favorite_ssid = favorite_value.decode('utf-8', errors='replace').strip('\x00')
+        else:
+          favorite_ssid = str(favorite_value).strip('\x00')
+        if favorite_ssid:
+          # Truncate if too long
+          if len(favorite_ssid) > 20:
+            return favorite_ssid[:17] + "..."
+          return favorite_ssid
+    except Exception:
+      pass
     return tr("None")
 
   def _select_preferred_network(self):
@@ -260,7 +277,17 @@ class AdvancedNetworkSettings(Widget):
     if Params is None or len(self._saved_networks) == 0:
       return
     
-    current_favorite = self._params.get("WifiFavoriteSSID", encoding='utf8') or ""
+    # Get current favorite
+    current_favorite = ""
+    try:
+      favorite_value = self._params.get("WifiFavoriteSSID")
+      if favorite_value:
+        if isinstance(favorite_value, bytes):
+          current_favorite = favorite_value.decode('utf-8', errors='replace').strip('\x00')
+        else:
+          current_favorite = str(favorite_value).strip('\x00')
+    except Exception:
+      pass
     
     # Find current index in saved networks list
     current_index = -1

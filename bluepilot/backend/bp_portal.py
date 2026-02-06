@@ -2325,43 +2325,43 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                                 logger.info(f"API response status: {response.status_code}")
                                 
                                 if response.status_code == 200:
-                                api_data = response.json()
-                                # Cache the response in ApiCache_DriveStats param (same format as Qt widget expects)
-                                params.put("ApiCache_DriveStats", json.dumps(api_data))
-                                logger.info(f"Successfully fetched drive stats from Comma API: {api_data.get('all', {}).get('routes', 0)} routes")
-                                
-                                # Parse and return the data
-                                def convert_api_stats(stats_data):
-                                    """Convert API stats to frontend format"""
-                                    distance_miles = stats_data.get('distance', 0)
-                                    distance_meters = distance_miles * 1609.34
-                                    duration_minutes = stats_data.get('minutes', 0)
-                                    duration_seconds = duration_minutes * 60
-                                    routes = stats_data.get('routes', 0)
+                                    api_data = response.json()
+                                    # Cache the response in ApiCache_DriveStats param (same format as Qt widget expects)
+                                    params.put("ApiCache_DriveStats", json.dumps(api_data))
+                                    logger.info(f"Successfully fetched drive stats from Comma API: {api_data.get('all', {}).get('routes', 0)} routes")
                                     
-                                    # Calculate average speed if we have both distance and duration
-                                    avg_speed_ms = distance_meters / duration_seconds if duration_seconds > 0 else 0
+                                    # Parse and return the data
+                                    def convert_api_stats(stats_data):
+                                        """Convert API stats to frontend format"""
+                                        distance_miles = stats_data.get('distance', 0)
+                                        distance_meters = distance_miles * 1609.34
+                                        duration_minutes = stats_data.get('minutes', 0)
+                                        duration_seconds = duration_minutes * 60
+                                        routes = stats_data.get('routes', 0)
+                                        
+                                        # Calculate average speed if we have both distance and duration
+                                        avg_speed_ms = distance_meters / duration_seconds if duration_seconds > 0 else 0
+                                        
+                                        return {
+                                            'routes': routes,
+                                            'distance': distance_meters,
+                                            'distanceMiles': distance_miles,
+                                            'duration': duration_seconds,
+                                            'durationMinutes': duration_minutes,
+                                            'averageSpeed': avg_speed_ms,  # m/s
+                                        }
                                     
-                                    return {
-                                        'routes': routes,
-                                        'distance': distance_meters,
-                                        'distanceMiles': distance_miles,
-                                        'duration': duration_seconds,
-                                        'durationMinutes': duration_minutes,
-                                        'averageSpeed': avg_speed_ms,  # m/s
+                                    all_stats = convert_api_stats(api_data.get('all', {}))
+                                    week_stats = convert_api_stats(api_data.get('week', {}))
+                                    
+                                    result = {
+                                        'success': True,
+                                        'all': all_stats,
+                                        'week': week_stats,
+                                        'source': 'comma_api',
+                                        'timestamp': datetime.now().isoformat()
                                     }
-                                
-                                all_stats = convert_api_stats(api_data.get('all', {}))
-                                week_stats = convert_api_stats(api_data.get('week', {}))
-                                
-                                result = {
-                                    'success': True,
-                                    'all': all_stats,
-                                    'week': week_stats,
-                                    'source': 'comma_api',
-                                    'timestamp': datetime.now().isoformat()
-                                }
-                                
+                                    
                                     self.send_json_response(result)
                                     return
                                 else:

@@ -2301,8 +2301,69 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                         self.send_json_response(result)
                         return
 
-                    # No cached data available - calculate from routes as fallback
-                    logger.info("No cached drive stats in ApiCache_DriveStats param, calculating from routes...")
+                    # No cached data available - try fetching from Comma API first, then calculate from routes as fallback
+                    logger.info("No cached drive stats in ApiCache_DriveStats param, attempting to fetch from Comma API...")
+                    
+                    # Try fetching from Comma API (same as Qt widget does)
+                    try:
+                        from openpilot.common.api import api_get
+                        from openpilot.selfdrive.ui.lib.api_helpers import get_token
+                        from openpilot.system.athena.registration import UNREGISTERED_DONGLE_ID
+                        
+                        dongle_id = params.get("DongleId")
+                        if dongle_id and dongle_id != UNREGISTERED_DONGLE_ID:
+                            identity_token = get_token(dongle_id)
+                            response = api_get(f"v1.1/devices/{dongle_id}/stats", access_token=identity_token, timeout=10)
+                            
+                            if response.status_code == 200:
+                                api_data = response.json()
+                                # Cache the response in ApiCache_DriveStats param (same format as Qt widget expects)
+                                params.put("ApiCache_DriveStats", json.dumps(api_data))
+                                logger.info(f"Successfully fetched drive stats from Comma API: {api_data.get('all', {}).get('routes', 0)} routes")
+                                
+                                # Parse and return the data
+                                def convert_api_stats(stats_data):
+                                    """Convert API stats to frontend format"""
+                                    distance_miles = stats_data.get('distance', 0)
+                                    distance_meters = distance_miles * 1609.34
+                                    duration_minutes = stats_data.get('minutes', 0)
+                                    duration_seconds = duration_minutes * 60
+                                    routes = stats_data.get('routes', 0)
+                                    
+                                    # Calculate average speed if we have both distance and duration
+                                    avg_speed_ms = distance_meters / duration_seconds if duration_seconds > 0 else 0
+                                    
+                                    return {
+                                        'routes': routes,
+                                        'distance': distance_meters,
+                                        'distanceMiles': distance_miles,
+                                        'duration': duration_seconds,
+                                        'durationMinutes': duration_minutes,
+                                        'averageSpeed': avg_speed_ms,  # m/s
+                                    }
+                                
+                                all_stats = convert_api_stats(api_data.get('all', {}))
+                                week_stats = convert_api_stats(api_data.get('week', {}))
+                                
+                                result = {
+                                    'success': True,
+                                    'all': all_stats,
+                                    'week': week_stats,
+                                    'source': 'comma_api',
+                                    'timestamp': datetime.now().isoformat()
+                                }
+                                
+                                self.send_json_response(result)
+                                return
+                            else:
+                                logger.warning(f"Comma API returned status {response.status_code} for drive stats")
+                    except ImportError as e:
+                        logger.debug(f"Could not import API helpers: {e}")
+                    except Exception as api_error:
+                        logger.warning(f"Error fetching drive stats from Comma API: {api_error}")
+                    
+                    # Fallback: calculate from routes
+                    logger.info("Comma API fetch failed or unavailable, calculating from routes...")
                     
                     try:
                         # Get all routes

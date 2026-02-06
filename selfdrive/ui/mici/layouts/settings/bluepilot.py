@@ -27,7 +27,7 @@ class BluePilotLayoutMici(NavWidget):
     self.show_web_routes_qr.set_click_callback(self._show_qr_dialog)
     self.show_hands_free_ui = BigParamControl("show hands-free ui", "send_hands_free_cluster_msg")
     self.show_lead_vehicle = BigMultiParamToggle("Lower Right Display", "mici_complication", ["off", "lead car speed", "speed", "lead car distance", "time to lead car"])
-    self._show_brake_status = BigParamControl("show brake status", "ShowBrakeStatus")
+    self.show_brake_status = BigParamControl("show brake status", "ShowBrakeStatus")
     self.show_blindspot_ui = BigParamControl("show blindspot warning", "Blindspot")
     self.enable_human_turn_detection = BigParamControl("enable human turn detection", "enable_human_turn_detection")
     self.lane_change_factor_high = BigParamFloatControl("lane change factor high", "lane_change_factor_high", min=0.5, max=1.0)
@@ -65,7 +65,7 @@ class BluePilotLayoutMici(NavWidget):
       self.show_web_routes_qr,
       self.show_hands_free_ui,
       self.show_lead_vehicle,
-      self._show_brake_status,
+      self.show_brake_status,
       self.show_blindspot_ui,
       self._show_hybrid_power_flow,
       self.enable_human_turn_detection,
@@ -88,7 +88,7 @@ class BluePilotLayoutMici(NavWidget):
       ("BPPortalEnabled", self.enable_web_routes),
       ("send_hands_free_cluster_msg", self.show_hands_free_ui),
       ("FordPrefHybridPowerFlow", self._show_hybrid_power_flow),
-      ("ShowBrakeStatus", self._show_brake_status),
+      ("ShowBrakeStatus", self.show_brake_status),
       ("Blindspot", self.show_blindspot_ui),
       ("enable_human_turn_detection", self.enable_human_turn_detection),
       ("enable_lane_positioning", self.enable_lane_positioning),

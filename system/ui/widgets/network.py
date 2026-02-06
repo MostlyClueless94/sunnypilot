@@ -368,27 +368,55 @@ class WifiManagerUI(Widget):
     """Toggle favorite status for a network"""
     if Params is None:
       return
-    params = Params()
-    current_favorite = params.get("WifiFavoriteSSID", encoding='utf8')
-    
-    if current_favorite == network.ssid:
-      # Clear favorite
-      params.put("WifiFavoriteSSID", "")
-      cloudlog.info(f"Cleared favorite network: {network.ssid}")
-    else:
-      # Set new favorite (clears previous)
-      params.put("WifiFavoriteSSID", network.ssid)
-      cloudlog.info(f"Set favorite network: {network.ssid}")
-    
-    # Update favorite buttons to reflect new status
-    self._on_network_updated(self._networks)
+    try:
+      params = Params()
+      current_favorite = params.get("WifiFavoriteSSID", encoding='utf8') or ""
+      
+      if current_favorite == network.ssid:
+        # Clear favorite
+        params.put("WifiFavoriteSSID", "")
+        cloudlog.info(f"Cleared favorite network: {network.ssid}")
+      else:
+        # Set new favorite (clears previous)
+        params.put("WifiFavoriteSSID", network.ssid)
+        cloudlog.info(f"Set favorite network: {network.ssid}")
+      
+      # Update favorite button text to reflect new status
+      if network.ssid in self._favorite_buttons and self._favorite_buttons[network.ssid] is not None:
+        new_favorite = params.get("WifiFavoriteSSID", encoding='utf8') or ""
+        heart_text = "❤️" if new_favorite == network.ssid else "🤍"
+        # Update button text by recreating it
+        self._favorite_buttons[network.ssid] = Button(heart_text, partial(self._toggle_favorite, network), font_size=40,
+                                                       button_style=ButtonStyle.TRANSPARENT_WHITE_TEXT)
+        self._favorite_buttons[network.ssid].set_touch_valid_callback(lambda: self.scroll_panel.is_touch_valid())
+    except Exception as e:
+      cloudlog.exception(f"Error toggling favorite for {network.ssid}: {e}")
 
   def _draw_network_item(self, rect, network: Network):
     spacing = 50
-    heart_button_size = 60
-    heart_button_spacing = 10
-    ssid_rect = rl.Rectangle(rect.x, rect.y, rect.width - self.btn_width * 2 - heart_button_size - heart_button_spacing, ITEM_HEIGHT)
-    heart_button_rect = rl.Rectangle(rect.x + rect.width - ICON_SIZE - heart_button_size - heart_button_spacing, rect.y + (ITEM_HEIGHT - heart_button_size) / 2, heart_button_size, heart_button_size)
+    
+    # Check if heart button exists for this network
+    has_heart_button = network.ssid in self._favorite_buttons and self._favorite_buttons[network.ssid] is not None
+    heart_button_size = 50 if has_heart_button else 0
+    heart_button_spacing = 10 if has_heart_button else 0
+    
+    # Original calculation: rect.width - self.btn_width * 2
+    # Add heart button space only if it exists, but ensure width is never too small
+    ssid_width = rect.width - self.btn_width * 2 - heart_button_size - heart_button_spacing
+    # Safety check: if width is too small, fall back to original calculation (ignore heart button)
+    if ssid_width < 100:
+      ssid_width = rect.width - self.btn_width * 2
+      has_heart_button = False  # Don't render heart button if we don't have space
+      heart_button_size = 0
+      heart_button_spacing = 0
+    
+    ssid_rect = rl.Rectangle(rect.x, rect.y, ssid_width, ITEM_HEIGHT)
+    
+    # Position heart button between SSID and security icon (only if it exists and we have space)
+    if has_heart_button:
+      heart_x = ssid_rect.x + ssid_rect.width + heart_button_spacing
+      heart_button_rect = rl.Rectangle(heart_x, rect.y + (ITEM_HEIGHT - heart_button_size) / 2, heart_button_size, heart_button_size)
+    
     signal_icon_rect = rl.Rectangle(rect.x + rect.width - ICON_SIZE, rect.y + (ITEM_HEIGHT - ICON_SIZE) / 2, ICON_SIZE, ICON_SIZE)
     security_icon_rect = rl.Rectangle(signal_icon_rect.x - spacing - ICON_SIZE, rect.y + (ITEM_HEIGHT - ICON_SIZE) / 2, ICON_SIZE, ICON_SIZE)
 
@@ -408,9 +436,12 @@ class WifiManagerUI(Widget):
 
     self._networks_buttons[network.ssid].render(ssid_rect)
 
-    # Draw heart button for favorite
-    if network.ssid in self._favorite_buttons:
-      self._favorite_buttons[network.ssid].render(heart_button_rect)
+    # Draw heart button for favorite (only if it exists and was created successfully)
+    if has_heart_button:
+      try:
+        self._favorite_buttons[network.ssid].render(heart_button_rect)
+      except Exception as e:
+        cloudlog.exception(f"Error rendering favorite button for {network.ssid}: {e}")
 
     if status_text:
       status_text_rect = rl.Rectangle(security_icon_rect.x - 410, rect.y, 410, ITEM_HEIGHT)
@@ -485,14 +516,20 @@ class WifiManagerUI(Widget):
       self._forget_networks_buttons[n.ssid] = Button(tr("Forget"), partial(self._forget_networks_buttons_callback, n), button_style=ButtonStyle.FORGET_WIFI,
                                                      font_size=45)
       self._forget_networks_buttons[n.ssid].set_touch_valid_callback(lambda: self.scroll_panel.is_touch_valid())
-      # Create favorite button with heart emoji
-      from openpilot.common.params import Params
-      params = Params()
-      favorite_ssid = params.get("WifiFavoriteSSID", encoding='utf8')
-      heart_text = "❤️" if favorite_ssid == n.ssid else "🤍"
-      self._favorite_buttons[n.ssid] = Button(heart_text, partial(self._toggle_favorite, n), font_size=40,
-                                               button_style=ButtonStyle.TRANSPARENT_WHITE_TEXT)
-      self._favorite_buttons[n.ssid].set_touch_valid_callback(lambda: self.scroll_panel.is_touch_valid())
+      # Create favorite button with heart emoji (optional - don't fail if this doesn't work)
+      if Params is not None:
+        try:
+          params = Params()
+          favorite_ssid = params.get("WifiFavoriteSSID", encoding='utf8') or ""
+          heart_text = "❤️" if favorite_ssid == n.ssid else "🤍"
+          self._favorite_buttons[n.ssid] = Button(heart_text, partial(self._toggle_favorite, n), font_size=40,
+                                                   button_style=ButtonStyle.TRANSPARENT_WHITE_TEXT)
+          self._favorite_buttons[n.ssid].set_touch_valid_callback(lambda: self.scroll_panel.is_touch_valid())
+        except Exception as e:
+          cloudlog.exception(f"Error creating favorite button for {n.ssid}: {e}")
+          # Don't add button if creation fails - UI will work without it
+          if n.ssid in self._favorite_buttons:
+            del self._favorite_buttons[n.ssid]
 
   def _on_need_auth(self, ssid):
     network = next((n for n in self._networks if n.ssid == ssid), None)

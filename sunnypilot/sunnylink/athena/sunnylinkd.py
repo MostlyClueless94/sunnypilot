@@ -37,10 +37,18 @@ try:
   from jeepney import DBusAddress, new_method_call
   from jeepney.io.threading import DBusRouter, open_dbus_connection as open_dbus_connection_threading
   from jeepney.low_level import MessageType
-  from openpilot.system.ui.lib.networkmanager import (NM, NM_SETTINGS_PATH, NM_SETTINGS_IFACE, NM_CONNECTION_IFACE)
+  # NetworkManager constants (defined locally to avoid importing UI modules)
+  NM = "org.freedesktop.NetworkManager"
+  NM_SETTINGS_PATH = '/org/freedesktop/NetworkManager/Settings'
+  NM_SETTINGS_IFACE = 'org.freedesktop.NetworkManager.Settings'
+  NM_CONNECTION_IFACE = 'org.freedesktop.NetworkManager.Settings.Connection'
   DBUS_AVAILABLE = True
 except ImportError:
   DBUS_AVAILABLE = False
+  NM = None
+  NM_SETTINGS_PATH = None
+  NM_SETTINGS_IFACE = None
+  NM_CONNECTION_IFACE = None
 
 SUNNYLINK_ATHENA_HOST = os.getenv('SUNNYLINK_ATHENA_HOST', 'wss://ws.stg.api.sunnypilot.ai')
 HANDLER_THREADS = int(os.getenv('HANDLER_THREADS', "4"))

@@ -2245,6 +2245,7 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                     self.send_json_response({'success': False, 'error': str(e)}, 500)
 
             elif path == '/api/drive-stats':
+                logger.info("=== /api/drive-stats endpoint called ===")
                 # Get aggregate drive statistics from ApiCache_DriveStats param
                 # This matches the Qt widget behavior which caches API responses in params
                 try:
@@ -2252,7 +2253,7 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                     cached_stats = None
                     try:
                         cached_stats_data = params.get("ApiCache_DriveStats")
-                        logger.info(f"ApiCache_DriveStats: type={type(cached_stats_data)}, len={len(cached_stats_data) if cached_stats_data else 0}")
+                        logger.info(f"ApiCache_DriveStats: type={type(cached_stats_data)}, exists={cached_stats_data is not None}, len={len(cached_stats_data) if cached_stats_data else 0}")
 
                         # Handle both cases: bytes (fallback Params) and dict (openpilot Params with auto-deserialization)
                         if isinstance(cached_stats_data, dict):

@@ -40,17 +40,38 @@ except ImportError:
 
 # Configure logging
 log_file = "/tmp/bp_portal.log"
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s %(levelname)s [%(name)s]: %(message)s',
-    handlers=[
-        logging.FileHandler(log_file),
-        logging.StreamHandler()  # Also log to stderr
-    ],
-    force=True
-)
-logger = logging.getLogger(__name__)
-logger.info(f"Logging to {log_file}")
+try:
+    # Remove any existing handlers to avoid duplicates
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+    
+    # Create file handler
+    file_handler = logging.FileHandler(log_file, mode='a')
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s [%(name)s]: %(message)s'))
+    
+    # Create console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(logging.Formatter('%(levelname)s [%(name)s]: %(message)s'))
+    
+    # Configure root logger
+    root_logger.setLevel(logging.INFO)
+    root_logger.addHandler(file_handler)
+    root_logger.addHandler(console_handler)
+    
+    logger = logging.getLogger(__name__)
+    logger.info(f"Logging configured - file: {log_file}")
+except Exception as e:
+    # Fallback to basic config if file logging fails
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(levelname)s [%(name)s]: %(message)s',
+        force=True
+    )
+    logger = logging.getLogger(__name__)
+    logger.error(f"Failed to configure file logging: {e}")
 
 # Add parent directory to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))

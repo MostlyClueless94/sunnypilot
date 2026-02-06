@@ -3,6 +3,7 @@ from functools import partial
 from typing import cast
 
 import pyray as rl
+from openpilot.common.swaglog import cloudlog
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.lib.scroll_panel import GuiScrollPanel
@@ -290,6 +291,7 @@ class WifiManagerUI(Widget):
     self._networks: list[Network] = []
     self._networks_buttons: dict[str, Button] = {}
     self._forget_networks_buttons: dict[str, Button] = {}
+    self._favorite_buttons: dict[str, Button] = {}
 
     self._wifi_manager.add_callbacks(need_auth=self._on_need_auth,
                                      activated=self._on_activated,
@@ -362,9 +364,31 @@ class WifiManagerUI(Widget):
 
     rl.end_scissor_mode()
 
+  def _toggle_favorite(self, network: Network):
+    """Toggle favorite status for a network"""
+    if Params is None:
+      return
+    params = Params()
+    current_favorite = params.get("WifiFavoriteSSID", encoding='utf8')
+    
+    if current_favorite == network.ssid:
+      # Clear favorite
+      params.put("WifiFavoriteSSID", "")
+      cloudlog.info(f"Cleared favorite network: {network.ssid}")
+    else:
+      # Set new favorite (clears previous)
+      params.put("WifiFavoriteSSID", network.ssid)
+      cloudlog.info(f"Set favorite network: {network.ssid}")
+    
+    # Update favorite buttons to reflect new status
+    self._on_network_updated(self._networks)
+
   def _draw_network_item(self, rect, network: Network):
     spacing = 50
-    ssid_rect = rl.Rectangle(rect.x, rect.y, rect.width - self.btn_width * 2, ITEM_HEIGHT)
+    heart_button_size = 60
+    heart_button_spacing = 10
+    ssid_rect = rl.Rectangle(rect.x, rect.y, rect.width - self.btn_width * 2 - heart_button_size - heart_button_spacing, ITEM_HEIGHT)
+    heart_button_rect = rl.Rectangle(rect.x + rect.width - ICON_SIZE - heart_button_size - heart_button_spacing, rect.y + (ITEM_HEIGHT - heart_button_size) / 2, heart_button_size, heart_button_size)
     signal_icon_rect = rl.Rectangle(rect.x + rect.width - ICON_SIZE, rect.y + (ITEM_HEIGHT - ICON_SIZE) / 2, ICON_SIZE, ICON_SIZE)
     security_icon_rect = rl.Rectangle(signal_icon_rect.x - spacing - ICON_SIZE, rect.y + (ITEM_HEIGHT - ICON_SIZE) / 2, ICON_SIZE, ICON_SIZE)
 
@@ -383,6 +407,10 @@ class WifiManagerUI(Widget):
       self._networks_buttons[network.ssid].set_enabled(True)
 
     self._networks_buttons[network.ssid].render(ssid_rect)
+
+    # Draw heart button for favorite
+    if network.ssid in self._favorite_buttons:
+      self._favorite_buttons[network.ssid].render(heart_button_rect)
 
     if status_text:
       status_text_rect = rl.Rectangle(security_icon_rect.x - 410, rect.y, 410, ITEM_HEIGHT)
@@ -457,6 +485,14 @@ class WifiManagerUI(Widget):
       self._forget_networks_buttons[n.ssid] = Button(tr("Forget"), partial(self._forget_networks_buttons_callback, n), button_style=ButtonStyle.FORGET_WIFI,
                                                      font_size=45)
       self._forget_networks_buttons[n.ssid].set_touch_valid_callback(lambda: self.scroll_panel.is_touch_valid())
+      # Create favorite button with heart emoji
+      from openpilot.common.params import Params
+      params = Params()
+      favorite_ssid = params.get("WifiFavoriteSSID", encoding='utf8')
+      heart_text = "❤️" if favorite_ssid == n.ssid else "🤍"
+      self._favorite_buttons[n.ssid] = Button(heart_text, partial(self._toggle_favorite, n), font_size=40,
+                                               button_style=ButtonStyle.TRANSPARENT_WHITE_TEXT)
+      self._favorite_buttons[n.ssid].set_touch_valid_callback(lambda: self.scroll_panel.is_touch_valid())
 
   def _on_need_auth(self, ssid):
     network = next((n for n in self._networks if n.ssid == ssid), None)

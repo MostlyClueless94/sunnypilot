@@ -446,6 +446,14 @@
       "flags": ["PERSISTENT", "BACKUP"],
       "create_default": false,
       "enabled": true
+    },
+    {
+      "name": "WifiFavoriteSSID",
+      "default": "",
+      "type": "string",
+      "flags": ["PERSISTENT", "BACKUP"],
+      "create_default": false,
+      "enabled": true
     }
   ]
 }

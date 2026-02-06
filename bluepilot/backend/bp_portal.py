@@ -2531,24 +2531,8 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                         logger.error(f"Error calculating drive stats from routes: {calc_error}", exc_info=True)
                         # Fall through to return zeros if calculation fails
                     
-                    # If calculation failed or no routes found, return zeros with debug info
+                    # If calculation failed or no routes found, return zeros
                     logger.debug("Could not calculate stats from routes, returning zeros")
-                    
-                    # Collect debug info
-                    debug_info = {
-                        'cached_stats_exists': cached_stats is not None,
-                        'api_fetch_attempted': api_fetch_attempted,
-                        'api_fetch_error': api_fetch_error,
-                        'dongle_id': dongle_id_debug[:10] + '...' if dongle_id_debug and len(dongle_id_debug) > 10 else dongle_id_debug,
-                        'routes_count': 0,
-                    }
-                    
-                    try:
-                        all_routes_debug = scan_routes()
-                        debug_info['routes_count'] = len(all_routes_debug)
-                    except:
-                        pass
-                    
                     zero_stats = {
                         'routes': 0,
                         'distance': 0,
@@ -2562,8 +2546,7 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                         'all': zero_stats,
                         'week': zero_stats.copy(),
                         'source': 'no_data',
-                        'info': 'No cached data available and could not calculate from routes.',
-                        'debug': debug_info
+                        'info': 'No cached data available and could not calculate from routes.'
                     })
 
                 except Exception as e:

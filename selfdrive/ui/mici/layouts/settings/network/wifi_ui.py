@@ -82,60 +82,10 @@ class WifiIcon(Widget):
       rl.draw_texture_ex(self._lock_txt, (lock_x, lock_y), 0.0, lock_scale, rl.WHITE)
 
 
-class FavoriteHeartButton(Widget):
-  """Small heart button for marking WiFi networks as favorite"""
-  SIZE = 48
-  HEART_CHAR = "❤️"
-  
-  def __init__(self, ssid: str, favorite_callback: Callable[[str], None]):
-    super().__init__()
-    self._ssid = ssid
-    self._favorite_callback = favorite_callback
-    self.set_rect(rl.Rectangle(0, 0, self.SIZE, self.SIZE))
-    self._params = Params()
-    self._font = gui_app.font(FontWeight.DISPLAY)
-    
-  @property
-  def is_favorite(self) -> bool:
-    try:
-      favorite_value = self._params.get("WifiFavoriteSSID")
-      if favorite_value:
-        if isinstance(favorite_value, bytes):
-          favorite_ssid = favorite_value.decode('utf-8', errors='replace').strip('\x00')
-        else:
-          favorite_ssid = str(favorite_value).strip('\x00')
-        return favorite_ssid == self._ssid
-    except Exception:
-      pass
-    return False
-  
-  def _handle_mouse_release(self, mouse_pos: MousePos):
-    super()._handle_mouse_release(mouse_pos)
-    if self.is_pressed and self.enabled:
-      self._favorite_callback(self._ssid)
-  
-  def _render(self, _):
-    if self.is_favorite:
-      # Draw filled heart (red)
-      heart_color = rl.Color(255, 0, 0, 255) if self.enabled else rl.Color(128, 128, 128, 255)
-    else:
-      # Draw outline heart (grey)
-      heart_color = rl.Color(128, 128, 128, 200) if self.enabled else rl.Color(64, 64, 64, 128)
-    
-    # Draw heart emoji
-    font_size = int(self.SIZE * 0.7)
-    text_size = rl.measure_text_ex(self._font, self.HEART_CHAR, font_size, 0)
-    x = int(self._rect.x + (self._rect.width - text_size.x) / 2)
-    y = int(self._rect.y + (self._rect.height - text_size.y) / 2)
-    rl.draw_text_ex(self._font, self.HEART_CHAR, rl.Vector2(x, y), font_size, 0, heart_color)
-
-
 class WifiItem(BigDialogOptionButton):
   LEFT_MARGIN = 20
-  HEART_BUTTON_SIZE = 48
-  HEART_BUTTON_SPACING = 10
 
-  def __init__(self, network: Network, favorite_callback: Callable[[str], None] = None):
+  def __init__(self, network: Network):
     super().__init__(network.ssid)
 
     self.set_rect(rl.Rectangle(0, 0, gui_app.width, self.HEIGHT))
@@ -145,14 +95,10 @@ class WifiItem(BigDialogOptionButton):
     self._network = network
     self._wifi_icon = WifiIcon()
     self._wifi_icon.set_current_network(network)
-    self._favorite_callback = favorite_callback
-    self._heart_button = FavoriteHeartButton(network.ssid, favorite_callback) if favorite_callback else None
 
   def set_current_network(self, network: Network):
     self._network = network
     self._wifi_icon.set_current_network(network)
-    if self._heart_button:
-      self._heart_button._ssid = network.ssid
 
   def _render(self, _):
     if self._network.is_connected:
@@ -177,20 +123,12 @@ class WifiItem(BigDialogOptionButton):
       self._label.set_color(rl.Color(255, 255, 255, int(255 * 0.58)))
       self._label.set_font_weight(FontWeight.DISPLAY_REGULAR)
 
-    # Calculate label area (leave space for heart button if present)
-    heart_button_width = (self.HEART_BUTTON_SIZE + self.HEART_BUTTON_SPACING) if self._heart_button else 0
+    # Calculate label area
     label_offset = self.LEFT_MARGIN + self._wifi_icon.rect.width + 20
-    label_width = self._rect.width - label_offset - heart_button_width
+    label_width = self._rect.width - label_offset
     label_rect = rl.Rectangle(self._rect.x + label_offset, self._rect.y, label_width, self._rect.height)
     self._label.set_text(normalize_ssid(self._network.ssid))
     self._label.render(label_rect)
-    
-    # Render heart button on the right side
-    if self._heart_button:
-      heart_x = self._rect.x + self._rect.width - self.HEART_BUTTON_SIZE - self.HEART_BUTTON_SPACING
-      heart_y = self._rect.y + (self._rect.height - self.HEART_BUTTON_SIZE) / 2
-      self._heart_button.set_rect(rl.Rectangle(heart_x, heart_y, self.HEART_BUTTON_SIZE, self.HEART_BUTTON_SIZE))
-      self._heart_button.render(_)
 
 
 class ConnectButton(Widget):
@@ -438,32 +376,6 @@ class WifiUIMici(BigMultiOptionDialog):
     self._update_buttons()
     self._network_info_page.update_networks(self._networks)
 
-  def _toggle_favorite(self, ssid: str):
-    """Toggle favorite status for a network"""
-    params = Params()
-    current_favorite = ""
-    try:
-      favorite_value = params.get("WifiFavoriteSSID")
-      if favorite_value:
-        if isinstance(favorite_value, bytes):
-          current_favorite = favorite_value.decode('utf-8', errors='replace').strip('\x00')
-        else:
-          current_favorite = str(favorite_value).strip('\x00')
-    except Exception:
-      pass
-    
-    if current_favorite == ssid:
-      # Clear favorite
-      params.put("WifiFavoriteSSID", "")
-      cloudlog.info(f"Cleared favorite network: {ssid}")
-    else:
-      # Set new favorite (clears previous)
-      params.put("WifiFavoriteSSID", ssid)
-      cloudlog.info(f"Set favorite network: {ssid}")
-    
-    # Update buttons to reflect new favorite status
-    self._update_buttons()
-
   def _update_buttons(self):
     # Don't update buttons while user is actively interacting
     if rl.get_time() - self._last_interaction_time < self.INACTIVITY_TIMEOUT:
@@ -477,7 +389,7 @@ class WifiUIMici(BigMultiOptionDialog):
         # Update network on existing button
         network_button.set_current_network(network)
       else:
-        network_button = WifiItem(network, self._toggle_favorite)
+        network_button = WifiItem(network)
 
       self.add_button(network_button)
 

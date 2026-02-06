@@ -123,23 +123,23 @@ class SettingsLayout(Widget):
     y = rect.y + 300
     mouse_pos = rl.get_mouse_position()
     mouse_down = rl.is_mouse_button_down(rl.MouseButton.MOUSE_BUTTON_LEFT)
-    
+
     for panel_type, panel_info in self._panels.items():
       button_rect = rl.Rectangle(rect.x + 50, y, rect.width - 150, NAV_BTN_HEIGHT)
 
       # Button styling - draw rounded rectangle background
       is_selected = panel_type == self._current_panel
       is_pressed = mouse_down and rl.check_collision_point_rec(mouse_pos, button_rect)
-      
+
       # Choose button background color
       if is_pressed:
         btn_bg_color = NAV_BTN_PRESSED
       else:
         btn_bg_color = NAV_BTN_COLOR
-      
+
       # Draw rounded rectangle button background
       rl.draw_rectangle_rounded(button_rect, 0.2, 10, btn_bg_color)
-      
+
       # Draw button text (right-aligned)
       text_color = TEXT_SELECTED if is_selected else TEXT_NORMAL
       panel_name = tr(panel_info.name)

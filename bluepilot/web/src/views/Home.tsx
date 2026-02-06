@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Header } from '@/components/layout/Header'
 import { Icon } from '@/components/common'
@@ -50,23 +50,13 @@ interface LastErrorResponse {
 export const Home = ({ deviceStatus = 'checking' }: HomeProps) => {
   const navigate = useNavigate()
   const { status, deviceInfo, metrics, diskSpace, fetchStatus, fetchDeviceInfo } = useSystemStore()
-  const { fetchRoutes } = useRoutesStore()
+  const { fetchRoutes, routes } = useRoutesStore()
   const { params, fetchParams } = useParamsStore()
   const [driveStats, setDriveStats] = useState<DriveStatsResponse | null>(null)
   const [driveStatsLoading, setDriveStatsLoading] = useState(true)
   const [lastError, setLastError] = useState<LastErrorEntry | null>(null)
 
-  useEffect(() => {
-    console.log('Home mounted, fetching data...')
-    fetchStatus()
-    fetchDeviceInfo()
-    fetchRoutes(1)
-    fetchParams()
-    fetchDriveStats()
-    fetchLastError()
-  }, [fetchStatus, fetchDeviceInfo, fetchRoutes, fetchParams])
-
-  const fetchDriveStats = async () => {
+  const fetchDriveStats = useCallback(async () => {
     setDriveStatsLoading(true)
     try {
       const response = await fetch('/api/drive-stats')
@@ -81,7 +71,35 @@ export const Home = ({ deviceStatus = 'checking' }: HomeProps) => {
     } finally {
       setDriveStatsLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    console.log('Home mounted, fetching data...')
+    fetchStatus()
+    fetchDeviceInfo()
+    fetchRoutes(1)
+    fetchParams()
+    fetchDriveStats()
+    fetchLastError()
+
+    // Set up polling for drive stats (refresh every 60 seconds)
+    const driveStatsInterval = setInterval(() => {
+      fetchDriveStats()
+    }, 60000)
+
+    // Cleanup interval on unmount
+    return () => {
+      clearInterval(driveStatsInterval)
+    }
+  }, [fetchStatus, fetchDeviceInfo, fetchRoutes, fetchParams, fetchDriveStats])
+
+  // Refresh drive stats when routes change (e.g., new route added, route deleted)
+  useEffect(() => {
+    // Only refresh if routes have been loaded (not on initial mount)
+    if (routes.length > 0) {
+      fetchDriveStats()
+    }
+  }, [routes.length, fetchDriveStats])
 
   const fetchLastError = async () => {
     try {

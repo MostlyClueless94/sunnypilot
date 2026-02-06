@@ -2372,6 +2372,14 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                         
                         if dongle_id and dongle_id != UNREGISTERED_DONGLE_ID:
                             try:
+                                # Check system time validity first
+                                from openpilot.common.time_helpers import system_time_valid
+                                if not system_time_valid():
+                                    import datetime
+                                    from openpilot.common.time_helpers import min_date
+                                    logger.error(f"System time validation failed - now: {datetime.datetime.now()}, min_date: {min_date()}")
+                                    raise RuntimeError(f"System time is not valid (now: {datetime.datetime.now()}, min: {min_date()}), cannot generate token")
+                                
                                 identity_token = get_token(dongle_id)
                                 logger.info(f"Got identity token, fetching stats from API...")
                                 response = api_get(f"v1.1/devices/{dongle_id}/stats", access_token=identity_token, timeout=10)

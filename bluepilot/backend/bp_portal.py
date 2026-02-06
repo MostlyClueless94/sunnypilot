@@ -2266,11 +2266,7 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                     self.send_json_response({'success': False, 'error': str(e)}, 500)
 
             elif path == '/api/drive-stats':
-                # Force flush and write to both log and stderr for debugging
-                import sys
-                print("=== /api/drive-stats endpoint called ===", file=sys.stderr, flush=True)
                 logger.info("=== /api/drive-stats endpoint called ===")
-                logger.handlers[0].flush() if logger.handlers else None
                 # Get aggregate drive statistics from ApiCache_DriveStats param
                 # This matches the Qt widget behavior which caches API responses in params
                 try:
@@ -2350,14 +2346,8 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                     # No cached data available - try fetching from Comma API first, then calculate from routes as fallback
                     logger.info("No cached drive stats in ApiCache_DriveStats param, attempting to fetch from Comma API...")
                     
-                    # Initialize debug tracking variables
-                    api_fetch_attempted = False
-                    api_fetch_error = None
-                    dongle_id_debug = None
-                    
                     # Try fetching from Comma API (same as Qt widget does)
                     try:
-                        api_fetch_attempted = True
                         from openpilot.common.api import api_get, Api
                         from openpilot.system.athena.registration import UNREGISTERED_DONGLE_ID
                         
@@ -2366,8 +2356,7 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                         if isinstance(dongle_id, bytes):
                             dongle_id = dongle_id.decode('utf-8').strip()
                         
-                        dongle_id_debug = dongle_id  # Store for debug info
-                        logger.info(f"Attempting API fetch - DongleId: {dongle_id}, Is registered: {dongle_id and dongle_id != UNREGISTERED_DONGLE_ID}")
+                        logger.info(f"Attempting API fetch - DongleId: {dongle_id[:10]}..., Is registered: {dongle_id and dongle_id != UNREGISTERED_DONGLE_ID}")
                         
                         if dongle_id and dongle_id != UNREGISTERED_DONGLE_ID:
                             try:
@@ -2434,23 +2423,13 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                                     error_text = response.text[:500] if hasattr(response, 'text') else str(response)
                                     logger.error(f"Comma API returned status {response.status_code} for drive stats: {error_text}")
                             except Exception as token_error:
-                                api_fetch_error = str(token_error)
                                 logger.error(f"Error getting token or fetching from API: {token_error}", exc_info=True)
-                                import traceback
-                                logger.error(f"Traceback: {traceback.format_exc()}")
                         else:
-                            api_fetch_error = f"DongleId missing or unregistered: {repr(dongle_id)}"
-                            logger.error(f"Cannot fetch from API - DongleId missing or unregistered. DongleId value: {repr(dongle_id)}")
+                            logger.warning(f"Cannot fetch from API - DongleId missing or unregistered. DongleId value: {repr(dongle_id)}")
                     except ImportError as e:
-                        api_fetch_error = f"Import error: {str(e)}"
                         logger.error(f"Could not import API helpers: {e}", exc_info=True)
-                        import traceback
-                        logger.error(f"Import traceback: {traceback.format_exc()}")
                     except Exception as api_error:
-                        api_fetch_error = str(api_error)
                         logger.error(f"Error fetching drive stats from Comma API: {api_error}", exc_info=True)
-                        import traceback
-                        logger.error(f"API error traceback: {traceback.format_exc()}")
                     
                     # Fallback: calculate from routes
                     logger.info("Comma API fetch failed or unavailable, calculating from routes...")
@@ -2542,14 +2521,7 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                             'all': all_stats,
                             'week': week_stats_formatted,
                             'source': 'calculated_from_routes',
-                            'timestamp': datetime.now().isoformat(),
-                            'debug': {
-                                'cached_stats_exists': cached_stats is not None,
-                                'api_fetch_attempted': api_fetch_attempted,
-                                'api_fetch_error': api_fetch_error,
-                                'dongle_id': dongle_id_debug[:10] + '...' if dongle_id_debug and len(dongle_id_debug) > 10 else dongle_id_debug,
-                                'routes_processed': len(all_routes),
-                            }
+                            'timestamp': datetime.now().isoformat()
                         }
                         
                         self.send_json_response(result)

@@ -2365,15 +2365,22 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                                     self.send_json_response(result)
                                     return
                                 else:
-                                    logger.warning(f"Comma API returned status {response.status_code} for drive stats: {response.text[:200]}")
+                                    error_text = response.text[:500] if hasattr(response, 'text') else str(response)
+                                    logger.error(f"Comma API returned status {response.status_code} for drive stats: {error_text}")
                             except Exception as token_error:
                                 logger.error(f"Error getting token or fetching from API: {token_error}", exc_info=True)
+                                import traceback
+                                logger.error(f"Traceback: {traceback.format_exc()}")
                         else:
-                            logger.warning(f"Cannot fetch from API - DongleId missing or unregistered: {dongle_id}")
+                            logger.error(f"Cannot fetch from API - DongleId missing or unregistered. DongleId value: {repr(dongle_id)}")
                     except ImportError as e:
                         logger.error(f"Could not import API helpers: {e}", exc_info=True)
+                        import traceback
+                        logger.error(f"Import traceback: {traceback.format_exc()}")
                     except Exception as api_error:
                         logger.error(f"Error fetching drive stats from Comma API: {api_error}", exc_info=True)
+                        import traceback
+                        logger.error(f"API error traceback: {traceback.format_exc()}")
                     
                     # Fallback: calculate from routes
                     logger.info("Comma API fetch failed or unavailable, calculating from routes...")

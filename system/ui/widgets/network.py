@@ -8,13 +8,14 @@ from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.lib.scroll_panel import GuiScrollPanel
 from openpilot.system.ui.lib.wifi_manager import WifiManager, SecurityType, Network, MeteredType
-from openpilot.system.ui.widgets import Widget
+from openpilot.system.ui.widgets import Widget, DialogResult
 from openpilot.system.ui.widgets.button import ButtonStyle, Button
 from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog
 from openpilot.system.ui.widgets.keyboard import Keyboard
 from openpilot.system.ui.widgets.label import gui_label
 from openpilot.system.ui.widgets.scroller_tici import Scroller
 from openpilot.system.ui.widgets.list_view import ButtonAction, ListItem, MultipleButtonAction, ToggleAction, button_item, text_item
+from openpilot.system.ui.widgets.option_dialog import MultiOptionDialog
 
 if gui_app.sunnypilot_ui():
   from openpilot.system.ui.sunnypilot.widgets.list_view import button_item_sp as button_item
@@ -152,12 +153,14 @@ class AdvancedNetworkSettings(Widget):
                                 action_item=self._wifi_metered_action)
 
     # Preferred Network selector
-    self._preferred_network_action = ButtonAction(lambda: self._get_preferred_network_display())
+    self._preferred_network_action = ButtonAction(lambda: tr("SELECT"))
+    self._preferred_network_action.set_value(lambda: self._get_preferred_network_display())
     self._preferred_network_btn = ListItem(lambda: tr("Preferred Network"), 
                                            description=lambda: tr("Automatically connect to this network when available"),
                                            action_item=self._preferred_network_action, 
                                            callback=self._select_preferred_network)
     self._saved_networks: list[Network] = []
+    self._preferred_network_dialog: MultiOptionDialog | None = None
 
     items: list[Widget] = [
       tethering_btn,
@@ -273,7 +276,7 @@ class AdvancedNetworkSettings(Widget):
     return tr("None")
 
   def _select_preferred_network(self):
-    """Cycle through saved networks to select preferred network"""
+    """Open dialog to select preferred network from saved networks"""
     if Params is None or len(self._saved_networks) == 0:
       return
     
@@ -289,34 +292,38 @@ class AdvancedNetworkSettings(Widget):
     except Exception:
       pass
     
-    # Find current index in saved networks list
-    current_index = -1
-    if current_favorite:
-      for i, network in enumerate(self._saved_networks):
-        if network.ssid == current_favorite:
-          current_index = i
-          break
+    # Build list of network names (add "None" option first)
+    network_options = [tr("None")]
+    network_options.extend([n.ssid for n in self._saved_networks])
     
-    # Cycle to next network (or "None" if at end)
-    if current_index == -1:
-      # Currently "None", select first network
-      next_ssid = self._saved_networks[0].ssid
-    elif current_index < len(self._saved_networks) - 1:
-      # Move to next network
-      next_ssid = self._saved_networks[current_index + 1].ssid
-    else:
-      # At last network, cycle back to "None"
-      next_ssid = ""
+    # Create dialog
+    self._preferred_network_dialog = MultiOptionDialog(
+      tr("Select Preferred Network"),
+      network_options,
+      current_favorite if current_favorite else tr("None")
+    )
     
-    # Save the selection
-    self._params.put("WifiFavoriteSSID", next_ssid)
-    if next_ssid:
-      cloudlog.info(f"Set preferred network: {next_ssid}")
-    else:
-      cloudlog.info("Cleared preferred network")
+    def handle_selection(result):
+      """Handle selection from dialog"""
+      if result == DialogResult.CONFIRM and self._preferred_network_dialog is not None:
+        selection = self._preferred_network_dialog.selection
+        # Convert "None" back to empty string
+        if selection == tr("None"):
+          selection = ""
+        
+        # Save the selection
+        self._params.put("WifiFavoriteSSID", selection)
+        if selection:
+          cloudlog.info(f"Set preferred network: {selection}")
+        else:
+          cloudlog.info("Cleared preferred network")
+        
+        # Update button value display
+        self._preferred_network_action.set_value(self._get_preferred_network_display())
+      
+      self._preferred_network_dialog = None
     
-    # Update button text
-    self._preferred_network_action.set_text(lambda: self._get_preferred_network_display())
+    gui_app.set_modal_overlay(self._preferred_network_dialog, callback=handle_selection)
 
   def _connect_to_hidden_network(self):
     def connect_hidden(result):

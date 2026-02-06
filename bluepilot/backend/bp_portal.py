@@ -2314,11 +2314,17 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                         # Handle bytes vs string
                         if isinstance(dongle_id, bytes):
                             dongle_id = dongle_id.decode('utf-8').strip()
+                        
+                        logger.info(f"Attempting API fetch - DongleId: {dongle_id}, Is registered: {dongle_id and dongle_id != UNREGISTERED_DONGLE_ID}")
+                        
                         if dongle_id and dongle_id != UNREGISTERED_DONGLE_ID:
-                            identity_token = get_token(dongle_id)
-                            response = api_get(f"v1.1/devices/{dongle_id}/stats", access_token=identity_token, timeout=10)
-                            
-                            if response.status_code == 200:
+                            try:
+                                identity_token = get_token(dongle_id)
+                                logger.info(f"Got identity token, fetching stats from API...")
+                                response = api_get(f"v1.1/devices/{dongle_id}/stats", access_token=identity_token, timeout=10)
+                                logger.info(f"API response status: {response.status_code}")
+                                
+                                if response.status_code == 200:
                                 api_data = response.json()
                                 # Cache the response in ApiCache_DriveStats param (same format as Qt widget expects)
                                 params.put("ApiCache_DriveStats", json.dumps(api_data))
@@ -2356,14 +2362,18 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                                     'timestamp': datetime.now().isoformat()
                                 }
                                 
-                                self.send_json_response(result)
-                                return
-                            else:
-                                logger.warning(f"Comma API returned status {response.status_code} for drive stats")
+                                    self.send_json_response(result)
+                                    return
+                                else:
+                                    logger.warning(f"Comma API returned status {response.status_code} for drive stats: {response.text[:200]}")
+                            except Exception as token_error:
+                                logger.error(f"Error getting token or fetching from API: {token_error}", exc_info=True)
+                        else:
+                            logger.warning(f"Cannot fetch from API - DongleId missing or unregistered: {dongle_id}")
                     except ImportError as e:
-                        logger.debug(f"Could not import API helpers: {e}")
+                        logger.error(f"Could not import API helpers: {e}", exc_info=True)
                     except Exception as api_error:
-                        logger.warning(f"Error fetching drive stats from Comma API: {api_error}")
+                        logger.error(f"Error fetching drive stats from Comma API: {api_error}", exc_info=True)
                     
                     # Fallback: calculate from routes
                     logger.info("Comma API fetch failed or unavailable, calculating from routes...")

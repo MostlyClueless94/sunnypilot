@@ -151,6 +151,14 @@ class AdvancedNetworkSettings(Widget):
     wifi_metered_btn = ListItem(lambda: tr("Wi-Fi Network Metered"), description=lambda: tr("Prevent large data uploads when on a metered Wi-Fi connection"),
                                 action_item=self._wifi_metered_action)
 
+    # Preferred Network selector
+    self._preferred_network_action = ButtonAction(lambda: self._get_preferred_network_display())
+    self._preferred_network_btn = ListItem(lambda: tr("Preferred Network"), 
+                                           description=lambda: tr("Automatically connect to this network when available"),
+                                           action_item=self._preferred_network_action, 
+                                           callback=self._select_preferred_network)
+    self._saved_networks: list[Network] = []
+
     items: list[Widget] = [
       tethering_btn,
       tethering_password_btn,
@@ -159,6 +167,7 @@ class AdvancedNetworkSettings(Widget):
       self._apn_btn,
       self._cellular_metered_btn,
       wifi_metered_btn,
+      self._preferred_network_btn,
       button_item(lambda: tr("Hidden Network"), lambda: tr("CONNECT"), callback=self._connect_to_hidden_network),
     ]
 
@@ -172,6 +181,18 @@ class AdvancedNetworkSettings(Widget):
     self._tethering_action.set_enabled(True)
     self._tethering_action.set_state(self._wifi_manager.is_tethering_active())
     self._tethering_password_action.set_enabled(True)
+
+    # Update saved networks list for preferred network selector
+    self._saved_networks = [n for n in networks if n.is_saved]
+    self._preferred_network_action.set_enabled(len(self._saved_networks) > 0)
+    
+    # Update preferred network button text if current favorite is no longer saved
+    if Params is not None:
+      current_favorite = self._params.get("WifiFavoriteSSID", encoding='utf8') or ""
+      if current_favorite and not any(n.ssid == current_favorite for n in self._saved_networks):
+        # Favorite network is no longer saved, clear it
+        self._params.put("WifiFavoriteSSID", "")
+        cloudlog.info(f"Cleared preferred network '{current_favorite}' - network no longer saved")
 
     if self._wifi_manager.is_tethering_active() or self._wifi_manager.ipv4_address == "":
       self._wifi_metered_action.set_enabled(False)
@@ -221,6 +242,54 @@ class AdvancedNetworkSettings(Widget):
     metered_type = {0: MeteredType.UNKNOWN, 1: MeteredType.YES, 2: MeteredType.NO}.get(metered, MeteredType.UNKNOWN)
     self._wifi_metered_action.set_enabled(False)
     self._wifi_manager.set_current_network_metered(metered_type)
+
+  def _get_preferred_network_display(self) -> str:
+    """Get the display text for preferred network"""
+    if Params is None:
+      return tr("None")
+    favorite_ssid = self._params.get("WifiFavoriteSSID", encoding='utf8') or ""
+    if favorite_ssid:
+      # Truncate if too long
+      if len(favorite_ssid) > 20:
+        return favorite_ssid[:17] + "..."
+      return favorite_ssid
+    return tr("None")
+
+  def _select_preferred_network(self):
+    """Cycle through saved networks to select preferred network"""
+    if Params is None or len(self._saved_networks) == 0:
+      return
+    
+    current_favorite = self._params.get("WifiFavoriteSSID", encoding='utf8') or ""
+    
+    # Find current index in saved networks list
+    current_index = -1
+    if current_favorite:
+      for i, network in enumerate(self._saved_networks):
+        if network.ssid == current_favorite:
+          current_index = i
+          break
+    
+    # Cycle to next network (or "None" if at end)
+    if current_index == -1:
+      # Currently "None", select first network
+      next_ssid = self._saved_networks[0].ssid
+    elif current_index < len(self._saved_networks) - 1:
+      # Move to next network
+      next_ssid = self._saved_networks[current_index + 1].ssid
+    else:
+      # At last network, cycle back to "None"
+      next_ssid = ""
+    
+    # Save the selection
+    self._params.put("WifiFavoriteSSID", next_ssid)
+    if next_ssid:
+      cloudlog.info(f"Set preferred network: {next_ssid}")
+    else:
+      cloudlog.info("Cleared preferred network")
+    
+    # Update button text
+    self._preferred_network_action.set_text(lambda: self._get_preferred_network_display())
 
   def _connect_to_hidden_network(self):
     def connect_hidden(result):
@@ -291,7 +360,6 @@ class WifiManagerUI(Widget):
     self._networks: list[Network] = []
     self._networks_buttons: dict[str, Button] = {}
     self._forget_networks_buttons: dict[str, Button] = {}
-    self._favorite_buttons: dict[str, Button] = {}
 
     self._wifi_manager.add_callbacks(need_auth=self._on_need_auth,
                                      activated=self._on_activated,
@@ -364,59 +432,9 @@ class WifiManagerUI(Widget):
 
     rl.end_scissor_mode()
 
-  def _toggle_favorite(self, network: Network):
-    """Toggle favorite status for a network"""
-    if Params is None:
-      return
-    try:
-      params = Params()
-      current_favorite = params.get("WifiFavoriteSSID", encoding='utf8') or ""
-      
-      if current_favorite == network.ssid:
-        # Clear favorite
-        params.put("WifiFavoriteSSID", "")
-        cloudlog.info(f"Cleared favorite network: {network.ssid}")
-      else:
-        # Set new favorite (clears previous)
-        params.put("WifiFavoriteSSID", network.ssid)
-        cloudlog.info(f"Set favorite network: {network.ssid}")
-      
-      # Update favorite button text to reflect new status
-      if network.ssid in self._favorite_buttons and self._favorite_buttons[network.ssid] is not None:
-        new_favorite = params.get("WifiFavoriteSSID", encoding='utf8') or ""
-        heart_text = "❤️" if new_favorite == network.ssid else "🤍"
-        # Update button text by recreating it
-        self._favorite_buttons[network.ssid] = Button(heart_text, partial(self._toggle_favorite, network), font_size=40,
-                                                       button_style=ButtonStyle.TRANSPARENT_WHITE_TEXT)
-        self._favorite_buttons[network.ssid].set_touch_valid_callback(lambda: self.scroll_panel.is_touch_valid())
-    except Exception as e:
-      cloudlog.exception(f"Error toggling favorite for {network.ssid}: {e}")
-
   def _draw_network_item(self, rect, network: Network):
     spacing = 50
-    
-    # Check if heart button exists for this network
-    has_heart_button = network.ssid in self._favorite_buttons and self._favorite_buttons[network.ssid] is not None
-    heart_button_size = 50 if has_heart_button else 0
-    heart_button_spacing = 10 if has_heart_button else 0
-    
-    # Original calculation: rect.width - self.btn_width * 2
-    # Add heart button space only if it exists, but ensure width is never too small
-    ssid_width = rect.width - self.btn_width * 2 - heart_button_size - heart_button_spacing
-    # Safety check: if width is too small, fall back to original calculation (ignore heart button)
-    if ssid_width < 100:
-      ssid_width = rect.width - self.btn_width * 2
-      has_heart_button = False  # Don't render heart button if we don't have space
-      heart_button_size = 0
-      heart_button_spacing = 0
-    
-    ssid_rect = rl.Rectangle(rect.x, rect.y, ssid_width, ITEM_HEIGHT)
-    
-    # Position heart button between SSID and security icon (only if it exists and we have space)
-    if has_heart_button:
-      heart_x = ssid_rect.x + ssid_rect.width + heart_button_spacing
-      heart_button_rect = rl.Rectangle(heart_x, rect.y + (ITEM_HEIGHT - heart_button_size) / 2, heart_button_size, heart_button_size)
-    
+    ssid_rect = rl.Rectangle(rect.x, rect.y, rect.width - self.btn_width * 2, ITEM_HEIGHT)
     signal_icon_rect = rl.Rectangle(rect.x + rect.width - ICON_SIZE, rect.y + (ITEM_HEIGHT - ICON_SIZE) / 2, ICON_SIZE, ICON_SIZE)
     security_icon_rect = rl.Rectangle(signal_icon_rect.x - spacing - ICON_SIZE, rect.y + (ITEM_HEIGHT - ICON_SIZE) / 2, ICON_SIZE, ICON_SIZE)
 
@@ -435,13 +453,6 @@ class WifiManagerUI(Widget):
       self._networks_buttons[network.ssid].set_enabled(True)
 
     self._networks_buttons[network.ssid].render(ssid_rect)
-
-    # Draw heart button for favorite (only if it exists and was created successfully)
-    if has_heart_button:
-      try:
-        self._favorite_buttons[network.ssid].render(heart_button_rect)
-      except Exception as e:
-        cloudlog.exception(f"Error rendering favorite button for {network.ssid}: {e}")
 
     if status_text:
       status_text_rect = rl.Rectangle(security_icon_rect.x - 410, rect.y, 410, ITEM_HEIGHT)
@@ -516,20 +527,6 @@ class WifiManagerUI(Widget):
       self._forget_networks_buttons[n.ssid] = Button(tr("Forget"), partial(self._forget_networks_buttons_callback, n), button_style=ButtonStyle.FORGET_WIFI,
                                                      font_size=45)
       self._forget_networks_buttons[n.ssid].set_touch_valid_callback(lambda: self.scroll_panel.is_touch_valid())
-      # Create favorite button with heart emoji (optional - don't fail if this doesn't work)
-      if Params is not None:
-        try:
-          params = Params()
-          favorite_ssid = params.get("WifiFavoriteSSID", encoding='utf8') or ""
-          heart_text = "❤️" if favorite_ssid == n.ssid else "🤍"
-          self._favorite_buttons[n.ssid] = Button(heart_text, partial(self._toggle_favorite, n), font_size=40,
-                                                   button_style=ButtonStyle.TRANSPARENT_WHITE_TEXT)
-          self._favorite_buttons[n.ssid].set_touch_valid_callback(lambda: self.scroll_panel.is_touch_valid())
-        except Exception as e:
-          cloudlog.exception(f"Error creating favorite button for {n.ssid}: {e}")
-          # Don't add button if creation fails - UI will work without it
-          if n.ssid in self._favorite_buttons:
-            del self._favorite_buttons[n.ssid]
 
   def _on_need_auth(self, ssid):
     network = next((n for n in self._networks if n.ssid == ssid), None)

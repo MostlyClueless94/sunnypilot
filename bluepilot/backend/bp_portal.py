@@ -2311,6 +2311,9 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                         from openpilot.system.athena.registration import UNREGISTERED_DONGLE_ID
                         
                         dongle_id = params.get("DongleId")
+                        # Handle bytes vs string
+                        if isinstance(dongle_id, bytes):
+                            dongle_id = dongle_id.decode('utf-8').strip()
                         if dongle_id and dongle_id != UNREGISTERED_DONGLE_ID:
                             identity_token = get_token(dongle_id)
                             response = api_get(f"v1.1/devices/{dongle_id}/stats", access_token=identity_token, timeout=10)

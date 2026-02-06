@@ -2350,8 +2350,12 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                     # No cached data available - try fetching from Comma API first, then calculate from routes as fallback
                     logger.info("No cached drive stats in ApiCache_DriveStats param, attempting to fetch from Comma API...")
                     
+                    api_fetch_attempted = False
+                    api_fetch_error = None
+                    
                     # Try fetching from Comma API (same as Qt widget does)
                     try:
+                        api_fetch_attempted = True
                         from openpilot.common.api import api_get
                         from openpilot.selfdrive.ui.lib.api_helpers import get_token
                         from openpilot.system.athena.registration import UNREGISTERED_DONGLE_ID
@@ -2414,16 +2418,20 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                                     error_text = response.text[:500] if hasattr(response, 'text') else str(response)
                                     logger.error(f"Comma API returned status {response.status_code} for drive stats: {error_text}")
                             except Exception as token_error:
+                                api_fetch_error = str(token_error)
                                 logger.error(f"Error getting token or fetching from API: {token_error}", exc_info=True)
                                 import traceback
                                 logger.error(f"Traceback: {traceback.format_exc()}")
                         else:
+                            api_fetch_error = f"DongleId missing or unregistered: {repr(dongle_id)}"
                             logger.error(f"Cannot fetch from API - DongleId missing or unregistered. DongleId value: {repr(dongle_id)}")
                     except ImportError as e:
+                        api_fetch_error = f"Import error: {str(e)}"
                         logger.error(f"Could not import API helpers: {e}", exc_info=True)
                         import traceback
                         logger.error(f"Import traceback: {traceback.format_exc()}")
                     except Exception as api_error:
+                        api_fetch_error = str(api_error)
                         logger.error(f"Error fetching drive stats from Comma API: {api_error}", exc_info=True)
                         import traceback
                         logger.error(f"API error traceback: {traceback.format_exc()}")
@@ -2528,8 +2536,33 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                         logger.error(f"Error calculating drive stats from routes: {calc_error}", exc_info=True)
                         # Fall through to return zeros if calculation fails
                     
-                    # If calculation failed or no routes found, return zeros
+                    # If calculation failed or no routes found, return zeros with debug info
                     logger.debug("Could not calculate stats from routes, returning zeros")
+                    
+                    # Collect debug info
+                    debug_info = {
+                        'cached_stats_exists': cached_stats is not None,
+                        'api_fetch_attempted': api_fetch_attempted,
+                        'api_fetch_error': api_fetch_error,
+                        'dongle_id': None,
+                        'routes_count': 0,
+                    }
+                    
+                    # Try to get dongle_id for debug info
+                    try:
+                        dongle_id_debug = params.get("DongleId")
+                        if isinstance(dongle_id_debug, bytes):
+                            dongle_id_debug = dongle_id_debug.decode('utf-8').strip()
+                        debug_info['dongle_id'] = dongle_id_debug[:10] + '...' if dongle_id_debug and len(dongle_id_debug) > 10 else dongle_id_debug
+                    except:
+                        pass
+                    
+                    try:
+                        all_routes_debug = scan_routes()
+                        debug_info['routes_count'] = len(all_routes_debug)
+                    except:
+                        pass
+                    
                     zero_stats = {
                         'routes': 0,
                         'distance': 0,
@@ -2543,7 +2576,8 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                         'all': zero_stats,
                         'week': zero_stats.copy(),
                         'source': 'no_data',
-                        'info': 'No cached data available and could not calculate from routes.'
+                        'info': 'No cached data available and could not calculate from routes.',
+                        'debug': debug_info
                     })
 
                 except Exception as e:

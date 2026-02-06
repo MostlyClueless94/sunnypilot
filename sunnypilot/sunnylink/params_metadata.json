@@ -1274,5 +1274,10 @@
   "mici_hide_onroad_border": {
     "title": "BluePilot: Hide Comma 4 onroad border",
     "description": "remove the from the screen"
+  },
+  "WifiFavoriteSSID": {
+    "title": "BluePilot: Preferred WiFi Network",
+    "description": "Automatically connect to this WiFi network when available. Select from saved networks, or leave empty to disable auto-connect. The device will check every 30 seconds and connect to this network even if currently connected to another network.",
+    "optionsEndpoint": "getSavedWifiNetworks"
   }
 }

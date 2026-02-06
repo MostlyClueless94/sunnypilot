@@ -2350,8 +2350,10 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                     # No cached data available - try fetching from Comma API first, then calculate from routes as fallback
                     logger.info("No cached drive stats in ApiCache_DriveStats param, attempting to fetch from Comma API...")
                     
+                    # Initialize debug tracking variables
                     api_fetch_attempted = False
                     api_fetch_error = None
+                    dongle_id_debug = None
                     
                     # Try fetching from Comma API (same as Qt widget does)
                     try:
@@ -2365,6 +2367,7 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                         if isinstance(dongle_id, bytes):
                             dongle_id = dongle_id.decode('utf-8').strip()
                         
+                        dongle_id_debug = dongle_id  # Store for debug info
                         logger.info(f"Attempting API fetch - DongleId: {dongle_id}, Is registered: {dongle_id and dongle_id != UNREGISTERED_DONGLE_ID}")
                         
                         if dongle_id and dongle_id != UNREGISTERED_DONGLE_ID:
@@ -2526,7 +2529,14 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                             'all': all_stats,
                             'week': week_stats_formatted,
                             'source': 'calculated_from_routes',
-                            'timestamp': datetime.now().isoformat()
+                            'timestamp': datetime.now().isoformat(),
+                            'debug': {
+                                'cached_stats_exists': cached_stats is not None,
+                                'api_fetch_attempted': api_fetch_attempted,
+                                'api_fetch_error': api_fetch_error,
+                                'dongle_id': dongle_id_debug[:10] + '...' if dongle_id_debug and len(dongle_id_debug) > 10 else dongle_id_debug,
+                                'routes_processed': len(all_routes),
+                            }
                         }
                         
                         self.send_json_response(result)
@@ -2544,18 +2554,9 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                         'cached_stats_exists': cached_stats is not None,
                         'api_fetch_attempted': api_fetch_attempted,
                         'api_fetch_error': api_fetch_error,
-                        'dongle_id': None,
+                        'dongle_id': dongle_id_debug[:10] + '...' if dongle_id_debug and len(dongle_id_debug) > 10 else dongle_id_debug,
                         'routes_count': 0,
                     }
-                    
-                    # Try to get dongle_id for debug info
-                    try:
-                        dongle_id_debug = params.get("DongleId")
-                        if isinstance(dongle_id_debug, bytes):
-                            dongle_id_debug = dongle_id_debug.decode('utf-8').strip()
-                        debug_info['dongle_id'] = dongle_id_debug[:10] + '...' if dongle_id_debug and len(dongle_id_debug) > 10 else dongle_id_debug
-                    except:
-                        pass
                     
                     try:
                         all_routes_debug = scan_routes()

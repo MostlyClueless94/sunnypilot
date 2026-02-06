@@ -3,8 +3,6 @@ from pyray import ffi
 import numpy as np
 from dataclasses import dataclass
 from typing import Any, Optional, cast
-
-from shapely import points
 from openpilot.system.ui.lib.application import gui_app, GL_VERSION
 
 MAX_GRADIENT_COLORS = 20  # includes stops as well

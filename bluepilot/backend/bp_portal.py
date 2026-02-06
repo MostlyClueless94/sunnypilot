@@ -39,12 +39,18 @@ except ImportError:
     psutil = None
 
 # Configure logging
+log_file = "/tmp/bp_portal.log"
 logging.basicConfig(
     level=logging.INFO,
-    format='%(levelname)s [%(name)s]: %(message)s',
+    format='%(asctime)s %(levelname)s [%(name)s]: %(message)s',
+    handlers=[
+        logging.FileHandler(log_file),
+        logging.StreamHandler()  # Also log to stderr
+    ],
     force=True
 )
 logger = logging.getLogger(__name__)
+logger.info(f"Logging to {log_file}")
 
 # Add parent directory to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))

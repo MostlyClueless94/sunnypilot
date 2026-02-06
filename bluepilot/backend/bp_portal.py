@@ -94,6 +94,8 @@ from bluepilot.backend.routes import (
     scan_routes,
     # Metadata builder
     build_route_metadata,
+    # Drive stats
+    get_route_drive_stats_cached_only,
 )
 
 # Video processing
@@ -2299,8 +2301,108 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                         self.send_json_response(result)
                         return
 
-                    # No cached data available, return zeros
-                    logger.debug("No cached drive stats available in ApiCache_DriveStats param")
+                    # No cached data available - calculate from routes as fallback
+                    logger.info("No cached drive stats in ApiCache_DriveStats param, calculating from routes...")
+                    
+                    try:
+                        # Get all routes
+                        all_routes = scan_routes()
+                        logger.info(f"Found {len(all_routes)} routes to aggregate")
+                        
+                        # Calculate cutoff for "week" stats (7 days ago)
+                        week_cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+                        
+                        # Aggregate stats
+                        all_time_stats = {
+                            'routes': 0,
+                            'distance': 0.0,  # miles
+                            'duration': 0.0,  # seconds
+                        }
+                        week_stats = {
+                            'routes': 0,
+                            'distance': 0.0,  # miles
+                            'duration': 0.0,  # seconds
+                        }
+                        
+                        for route in all_routes:
+                            route_base = route.get('baseName')
+                            if not route_base:
+                                continue
+                            
+                            # Get cached drive stats for this route
+                            route_stats = get_route_drive_stats_cached_only(route_base)
+                            if not route_stats:
+                                # Skip routes without cached stats
+                                continue
+                            
+                            # Extract distance and duration from route stats
+                            # route_stats format: {distance: miles, duration: seconds, ...}
+                            route_distance = route_stats.get('distance', 0)  # miles
+                            route_duration = route_stats.get('duration', 0)  # seconds
+                            
+                            # Add to all-time stats
+                            all_time_stats['routes'] += 1
+                            all_time_stats['distance'] += route_distance
+                            all_time_stats['duration'] += route_duration
+                            
+                            # Check if route is within last week
+                            route_timestamp = route.get('timestamp')
+                            if route_timestamp:
+                                try:
+                                    # Parse timestamp (ISO format)
+                                    route_dt = datetime.fromisoformat(route_timestamp.replace('Z', '+00:00'))
+                                    if route_dt >= week_cutoff:
+                                        week_stats['routes'] += 1
+                                        week_stats['distance'] += route_distance
+                                        week_stats['duration'] += route_duration
+                                except (ValueError, AttributeError) as e:
+                                    logger.debug(f"Could not parse route timestamp {route_timestamp}: {e}")
+                        
+                        # Convert to frontend format
+                        def convert_calculated_stats(stats_data):
+                            """Convert calculated stats to frontend format"""
+                            distance_miles = stats_data.get('distance', 0)
+                            distance_meters = distance_miles * 1609.34
+                            duration_seconds = stats_data.get('duration', 0)
+                            duration_minutes = duration_seconds / 60
+                            routes = stats_data.get('routes', 0)
+                            
+                            # Calculate average speed if we have both distance and duration
+                            avg_speed_ms = distance_meters / duration_seconds if duration_seconds > 0 else 0
+                            
+                            return {
+                                'routes': routes,
+                                'distance': distance_meters,
+                                'distanceMiles': distance_miles,
+                                'duration': duration_seconds,
+                                'durationMinutes': duration_minutes,
+                                'averageSpeed': avg_speed_ms,  # m/s
+                            }
+                        
+                        all_stats = convert_calculated_stats(all_time_stats)
+                        week_stats_formatted = convert_calculated_stats(week_stats)
+                        
+                        logger.info(f"Calculated aggregate stats: {all_time_stats['routes']} routes, "
+                                  f"{round(all_time_stats['distance'], 1)} miles, "
+                                  f"{round(all_time_stats['duration'] / 3600, 1)} hours")
+                        
+                        result = {
+                            'success': True,
+                            'all': all_stats,
+                            'week': week_stats_formatted,
+                            'source': 'calculated_from_routes',
+                            'timestamp': datetime.now().isoformat()
+                        }
+                        
+                        self.send_json_response(result)
+                        return
+                        
+                    except Exception as calc_error:
+                        logger.error(f"Error calculating drive stats from routes: {calc_error}", exc_info=True)
+                        # Fall through to return zeros if calculation fails
+                    
+                    # If calculation failed or no routes found, return zeros
+                    logger.debug("Could not calculate stats from routes, returning zeros")
                     zero_stats = {
                         'routes': 0,
                         'distance': 0,
@@ -2313,8 +2415,8 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                         'success': True,
                         'all': zero_stats,
                         'week': zero_stats.copy(),
-                        'source': 'no_cache',
-                        'info': 'No cached data available. Stats will populate when Qt UI fetches them.'
+                        'source': 'no_data',
+                        'info': 'No cached data available and could not calculate from routes.'
                     })
 
                 except Exception as e:

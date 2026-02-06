@@ -2264,42 +2264,56 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                         logger.error(f"Error reading ApiCache_DriveStats param: {e}", exc_info=True)
                         cached_stats = None
 
+                    # Only use cached stats if they contain actual data (not zeros)
                     if cached_stats:
-                        # Parse response (format: {all: {routes, distance, minutes}, week: {...}})
-                        # Convert both "all" and "week" stats to frontend format
-                        def convert_stats(stats_data):
-                            """Convert API stats to frontend format"""
-                            distance_miles = stats_data.get('distance', 0)
-                            distance_meters = distance_miles * 1609.34
-                            duration_minutes = stats_data.get('minutes', 0)
-                            duration_seconds = duration_minutes * 60
-                            routes = stats_data.get('routes', 0)
+                        all_routes = cached_stats.get('all', {}).get('routes', 0)
+                        all_distance = cached_stats.get('all', {}).get('distance', 0)
+                        all_minutes = cached_stats.get('all', {}).get('minutes', 0)
+                        
+                        # Check if cached stats have actual data (not all zeros)
+                        has_data = (all_routes > 0) or (all_distance > 0) or (all_minutes > 0)
+                        
+                        if has_data:
+                            logger.info(f"Using cached drive stats: {all_routes} routes, {all_distance} miles, {all_minutes} minutes")
+                            # Parse response (format: {all: {routes, distance, minutes}, week: {...}})
+                            # Convert both "all" and "week" stats to frontend format
+                            def convert_stats(stats_data):
+                                """Convert API stats to frontend format"""
+                                distance_miles = stats_data.get('distance', 0)
+                                distance_meters = distance_miles * 1609.34
+                                duration_minutes = stats_data.get('minutes', 0)
+                                duration_seconds = duration_minutes * 60
+                                routes = stats_data.get('routes', 0)
 
-                            # Calculate average speed if we have both distance and duration
-                            avg_speed_ms = distance_meters / duration_seconds if duration_seconds > 0 else 0
+                                # Calculate average speed if we have both distance and duration
+                                avg_speed_ms = distance_meters / duration_seconds if duration_seconds > 0 else 0
 
-                            return {
-                                'routes': routes,
-                                'distance': distance_meters,
-                                'distanceMiles': distance_miles,  # Keep original for reference
-                                'duration': duration_seconds,
-                                'durationMinutes': duration_minutes,  # Keep original for reference
-                                'averageSpeed': avg_speed_ms,  # m/s
+                                return {
+                                    'routes': routes,
+                                    'distance': distance_meters,
+                                    'distanceMiles': distance_miles,  # Keep original for reference
+                                    'duration': duration_seconds,
+                                    'durationMinutes': duration_minutes,  # Keep original for reference
+                                    'averageSpeed': avg_speed_ms,  # m/s
+                                }
+
+                            all_stats = convert_stats(cached_stats.get('all', {}))
+                            week_stats = convert_stats(cached_stats.get('week', {}))
+
+                            result = {
+                                'success': True,
+                                'all': all_stats,
+                                'week': week_stats,
+                                'source': 'param_cache',
+                                'timestamp': datetime.now().isoformat()
                             }
 
-                        all_stats = convert_stats(cached_stats.get('all', {}))
-                        week_stats = convert_stats(cached_stats.get('week', {}))
-
-                        result = {
-                            'success': True,
-                            'all': all_stats,
-                            'week': week_stats,
-                            'source': 'param_cache',
-                            'timestamp': datetime.now().isoformat()
-                        }
-
-                        self.send_json_response(result)
-                        return
+                            self.send_json_response(result)
+                            return
+                        else:
+                            logger.info(f"Cached stats exist but are empty (all zeros), will fetch from API")
+                    else:
+                        logger.info("No cached stats found, will fetch from API")
 
                     # No cached data available - try fetching from Comma API first, then calculate from routes as fallback
                     logger.info("No cached drive stats in ApiCache_DriveStats param, attempting to fetch from Comma API...")

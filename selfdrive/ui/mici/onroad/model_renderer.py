@@ -11,8 +11,6 @@ from openpilot.selfdrive.ui.mici.onroad import blend_colors
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.shader_polygon import draw_polygon, Gradient
 from openpilot.system.ui.widgets import Widget
-from openpilot.common.params import Params
-
 from openpilot.selfdrive.ui.sunnypilot.mici.onroad.model_renderer import LANE_LINE_COLORS_SP
 
 CLIP_MARGIN = 500

@@ -181,7 +181,8 @@ class ShaderState:
     self.exp_shader = rl.load_shader_from_memory(VERTEX_SHADER, FRAGMENT_SHADER)
     self.rainbow_shader = rl.load_shader_from_memory(VERTEX_SHADER, RAINBOW_SHADER)
 
-    alpha_val = ffi.new("float *", 150.0 / 255.0)
+    #set an alpha of 60%
+    alpha_val = ffi.new("float *", 0.6)
     alpha_loc = rl.get_shader_location(self.rainbow_shader, "alpha")
     rl.set_shader_value(self.rainbow_shader, alpha_loc, alpha_val, rl.SHADER_UNIFORM_FLOAT)
 

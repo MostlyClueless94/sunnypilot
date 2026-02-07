@@ -351,7 +351,7 @@ class ModelRenderer(Widget):
           draw_polygon(self._rect, self._path.projected_points, gradient=self._exp_gradient)
       else:
         if self._rainbow_mode:
-          draw_polygon(self._rect, self._path.projected_points, rainbow=True)
+          draw_polygon(self._rect, self._path.projected_points, rainbow=True, rainbow_v=self._rainbow_v)
         else:
           draw_polygon(self._rect, self._path.projected_points, rl.Color(255, 255, 255, 30))
     else:

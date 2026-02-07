@@ -60,6 +60,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     self._lead_vehicles = [LeadVehicle(), LeadVehicle()]
     self._path_offset_z = HEIGHT_INIT[0]
     self._params = Params()
+    self._rainbow_mode = False
 
     # Initialize ModelPoints objects
     self._path = ModelPoints()
@@ -95,6 +96,11 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
   def _render(self, rect: rl.Rectangle):
     sm = ui_state.sm
 
+    self._rainbow_mode = self._params.get_bool("RainbowMode")
+    if self._rainbow_mode:
+      #basis about 70MPH, range ~5.6-78MPH, normalized for shader
+      self._rainbow_v = np.clip(sm['carState'].vEgo, 2.5, 35) / 30
+
     # Check if data is up-to-date
     if (sm.recv_frame["liveCalibration"] < ui_state.started_frame or
         sm.recv_frame["modelV2"] < ui_state.started_frame):
@@ -114,7 +120,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     # Get carParams - try message stream first (works in device), fallback to params (works in replay)
     # Similar pattern to how controllerStateBP/lateralUncertainty is accessed
     car_params = None
-    
+
     # Try to get from message stream (published by card.py every 50 seconds)
     if sm.valid['carParams']:
       try:
@@ -122,7 +128,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
         self._longitudinal_control = car_params.openpilotLongitudinalControl
       except (KeyError, AttributeError):
         pass
-    
+
     # Fallback to params-based CarParams (replay writes to params, ui_state updates every 5 seconds)
     if car_params is None:
       # Always check ui_state.CP as fallback (replay writes CarParams to params)
@@ -196,12 +202,12 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
       if lead_data and lead_data.status:
         d_rel, y_rel, v_rel = lead_data.dRel, lead_data.yRel, lead_data.vRel
         is_radar = lead_data.radar if hasattr(lead_data, 'radar') else False
-        
+
         # Deadband logic: move text above chevron at 50ft (15.24m), move back below at 60ft (18.29m)
         # dRel is in meters, so convert feet to meters: 1 ft = 0.3048 m
         CLOSE_MODE_THRESHOLD_M = 50.0 * 0.3048  # 50 feet = 15.24 meters
         NORMAL_MODE_THRESHOLD_M = 60.0 * 0.3048  # 60 feet = 18.29 meters
-        
+
         # Update ChevronMetrics state (ModelRenderer inherits from ChevronMetrics)
         if d_rel < CLOSE_MODE_THRESHOLD_M:
           self._close_mode = True
@@ -209,7 +215,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
           self._close_mode = False
         # Otherwise keep current state (deadband between thresholds)
         flip_chevron = False  # Don't flip chevron, just move text
-        
+
         idx = self._get_path_length_idx(path_x_array, d_rel)
 
         # Get z-coordinate from path at the lead vehicle position
@@ -295,30 +301,30 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
 
   def _apply_smooth_path(self):
     """Apply path smoothing to reduce swaying - ported from bp-dev QT UI
-    
+
     Uses Gaussian-weighted spatial smoothing on Y-axis (lateral movement) combined
     with temporal damping to reduce path oscillation and swaying.
     """
     if self._path.projected_points.size == 0:
       return
-    
+
     # Need at least 4 points for smoothing
     if len(self._path.projected_points) < 4:
       self._previous_path_projected_points = self._path.projected_points.copy()
       return
-    
+
     n = len(self._path.projected_points)
     smoothed = np.zeros_like(self._path.projected_points)
-    
+
     # Apply Gaussian-weighted spatial smoothing to Y-axis (lateral movement)
     for i in range(n):
       pt = self._path.projected_points[i].copy()
-      
+
       # Apply Gaussian smoothing to Y coordinate for points not at edges
       if i > 1 and i < n - 1:
         y_smooth = 0.0
         weight_sum = 0.0
-        
+
         # Gaussian weights for nearby points (±2 points)
         for j in range(-2, 3):
           idx = i + j
@@ -326,15 +332,15 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
             weight = np.exp(-0.5 * j * j)  # Gaussian weight
             y_smooth += self._path.projected_points[idx][1] * weight
             weight_sum += weight
-        
+
         if weight_sum > 0:
           pt[1] = y_smooth / weight_sum
-      
+
       smoothed[i] = pt
-    
+
     # Apply temporal damping to reduce oscillation
     # Only apply if previous path has same number of points (path structure unchanged)
-    if (self._previous_path_projected_points.size > 0 and 
+    if (self._previous_path_projected_points.size > 0 and
         len(self._previous_path_projected_points) == len(smoothed)):
       damping = self._path_smoothing_damping
       for i in range(len(smoothed)):
@@ -343,7 +349,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     else:
       # Path structure changed, reset temporal smoothing
       self._previous_path_projected_points = smoothed.copy()
-    
+
     # Store smoothed path for next frame
     self._previous_path_projected_points = smoothed.copy()
     self._path.projected_points = smoothed
@@ -404,7 +410,8 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     self._blend_filter.update(int(allow_throttle))
 
     if ui_state.rainbow_path:
-      self.rainbow_path.draw_rainbow_path(self._rect, self._path)
+      #self.rainbow_path.draw_rainbow_path(self._rect, self._path)
+      draw_polygon(self._rect, self._path.projected_points, rainbow=True, rainbow_v=self._rainbow_v)
       return
 
     if self._experimental_mode:

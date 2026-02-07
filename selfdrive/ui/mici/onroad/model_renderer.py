@@ -100,9 +100,11 @@ class ModelRenderer(Widget):
   def _render(self, rect: rl.Rectangle):
     sm = ui_state.sm
 
-    self._rainbow_v = np.clip(sm['carState'].vEgo, 2.5, 30) / 30
-
     self._rainbow_mode = self.params.get_bool("RainbowMode")
+    if self._rainbow_mode:
+      #basis about 70MPH, range ~5.6-78MPH, normalized for shader
+      self._rainbow_v = np.clip(sm['carState'].vEgo, 2.5, 35) / 30
+
 
     self._torque_filter.update(-ui_state.sm['carOutput'].actuatorsOutput.torque)
 

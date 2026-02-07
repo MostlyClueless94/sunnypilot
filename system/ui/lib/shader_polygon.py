@@ -141,8 +141,8 @@ class ShaderState:
 
     self.initialized = False
     self.shader = None
-    self.time = rl.get_time()
-    self.last_time = self.time
+    self.rainbow_shader_time = 0.0
+    self.last_time = rl.get_time()
 
     # Shader uniform locations
     self.locations = {
@@ -183,8 +183,8 @@ class ShaderState:
     time = rl.get_time()
     delta = time - self.last_time
     self.last_time = time
-    self.time += delta * v
-    return self.time
+    self.rainbow_shader_time += delta * v
+    return self.rainbow_shader_time
 
   def cleanup(self):
     if not self.initialized:

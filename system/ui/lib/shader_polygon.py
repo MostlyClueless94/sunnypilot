@@ -79,7 +79,6 @@ out vec4 finalColor;
 uniform vec2 squarePos;
 uniform float squareSize;
 uniform float offset;
-uniform float alpha;
 
 vec3 hsv2rgb(vec3 c)
 {
@@ -103,7 +102,8 @@ void main()
     t = fract(t + offset * 0.2);
 
     vec3 col = hsv2rgb(vec3(t, 1.0, 1.0));
-    finalColor = vec4(col, alpha);
+    //alpha 60%
+    finalColor = vec4(col, 0.6);
 }
 """
 
@@ -180,11 +180,6 @@ class ShaderState:
 
     self.exp_shader = rl.load_shader_from_memory(VERTEX_SHADER, FRAGMENT_SHADER)
     self.rainbow_shader = rl.load_shader_from_memory(VERTEX_SHADER, RAINBOW_SHADER)
-
-    #set an alpha of 60%
-    alpha_val = ffi.new("float *", 0.6)
-    alpha_loc = rl.get_shader_location(self.rainbow_shader, "alpha")
-    rl.set_shader_value(self.rainbow_shader, alpha_loc, alpha_val, rl.SHADER_UNIFORM_FLOAT)
 
     # Cache all uniform locations
     for uniform in self.locations.keys():

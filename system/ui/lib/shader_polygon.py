@@ -125,7 +125,6 @@ UNIFORM_FLOAT = rl.ShaderUniformDataType.SHADER_UNIFORM_FLOAT
 UNIFORM_VEC2 = rl.ShaderUniformDataType.SHADER_UNIFORM_VEC2
 UNIFORM_VEC4 = rl.ShaderUniformDataType.SHADER_UNIFORM_VEC4
 
-
 class ShaderState:
   _instance: Any = None
 
@@ -141,6 +140,8 @@ class ShaderState:
 
     self.initialized = False
     self.shader = None
+    self.exp_shader = None
+    self.rainbow_shader = None
     self.rainbow_shader_offset = 0.0
     self.last_time = rl.get_time()
 
@@ -156,6 +157,12 @@ class ShaderState:
       'mvp': None,
     }
 
+    self.rainbow_locations = {
+      'squarePos': None,
+      'squareSize': None,
+      'offset': None,
+    }
+
     # Pre-allocated FFI objects
     self.fill_color_ptr = rl.ffi.new("float[]", [0.0, 0.0, 0.0, 0.0])
     self.use_gradient_ptr = rl.ffi.new("int[]", [0])
@@ -163,19 +170,31 @@ class ShaderState:
     self.gradient_colors_ptr = rl.ffi.new("float[]", MAX_GRADIENT_COLORS * 4)
     self.gradient_stops_ptr = rl.ffi.new("float[]", MAX_GRADIENT_COLORS)
 
+    self.square_pos = ffi.new("float[2]", [0, 0])
+    self.square_size = ffi.new("float *", 0.0)
+    self.offset_val = ffi.new("float *", 0.0)
+
   def initialize(self):
     if self.initialized:
       return
 
-    self.shader = rl.load_shader_from_memory(VERTEX_SHADER, FRAGMENT_SHADER)
+    self.exp_shader = rl.load_shader_from_memory(VERTEX_SHADER, FRAGMENT_SHADER)
+    self.rainbow_shader = rl.load_shader_from_memory(VERTEX_SHADER, RAINBOW_SHADER)
+
+    alpha_val = ffi.new("float *", 150.0 / 255.0)
+    alpha_loc = rl.get_shader_location(self.rainbow_shader, "alpha")
+    rl.set_shader_value(self.rainbow_shader, alpha_loc, alpha_val, rl.SHADER_UNIFORM_FLOAT)
 
     # Cache all uniform locations
     for uniform in self.locations.keys():
-      self.locations[uniform] = rl.get_shader_location(self.shader, uniform)
+      self.locations[uniform] = rl.get_shader_location(self.exp_shader, uniform)
+
+    for uniform in self.rainbow_locations.keys():
+      self.rainbow_locations[uniform] = rl.get_shader_location(self.rainbow_shader, uniform)
 
     # Orthographic MVP (origin top-left)
     proj = rl.matrix_ortho(0, gui_app.width, gui_app.height, 0, -1, 1)
-    rl.set_shader_value_matrix(self.shader, self.locations['mvp'], proj)
+    rl.set_shader_value_matrix(self.exp_shader, self.locations['mvp'], proj)
 
     self.initialized = True
 
@@ -197,12 +216,13 @@ class ShaderState:
 
 
 def _configure_shader_color(state: ShaderState, color: Optional[rl.Color],
-                            gradient: Gradient | None, origin_rect: rl.Rectangle):
-  assert (color is not None) != (gradient is not None), "Either color or gradient must be provided"
+                            gradient: Gradient | None, origin_rect: rl.Rectangle,
+                            rainbow: bool = False, rainbow_v: float = 1.0):
+  assert (color is not None) or (gradient is not None) or rainbow, "Either color, gradient, or rainbow must be provided"
 
   use_gradient = 1 if (gradient is not None and len(gradient.colors) >= 1) else 0
   state.use_gradient_ptr[0] = use_gradient
-  rl.set_shader_value(state.shader, state.locations['useGradient'], state.use_gradient_ptr, UNIFORM_INT)
+  rl.set_shader_value(state.exp_shader, state.locations['useGradient'], state.use_gradient_ptr, UNIFORM_INT)
 
   if use_gradient:
     gradient = cast(Gradient, gradient)
@@ -211,23 +231,35 @@ def _configure_shader_color(state: ShaderState, color: Optional[rl.Color],
       c = gradient.colors[i]
       base = i * 4
       state.gradient_colors_ptr[base:base + 4] = [c.r / 255.0, c.g / 255.0, c.b / 255.0, c.a / 255.0]
-    rl.set_shader_value_v(state.shader, state.locations['gradientColors'], state.gradient_colors_ptr, UNIFORM_VEC4, len(gradient.colors))
+    rl.set_shader_value_v(state.exp_shader, state.locations['gradientColors'], state.gradient_colors_ptr, UNIFORM_VEC4, len(gradient.colors))
 
     for i in range(len(gradient.stops)):
       s = float(gradient.stops[i])
       state.gradient_stops_ptr[i] = 0.0 if s < 0.0 else 1.0 if s > 1.0 else s
-    rl.set_shader_value_v(state.shader, state.locations['gradientStops'], state.gradient_stops_ptr, UNIFORM_FLOAT, len(gradient.stops))
-    rl.set_shader_value(state.shader, state.locations['gradientColorCount'], state.color_count_ptr, UNIFORM_INT)
+    rl.set_shader_value_v(state.exp_shader, state.locations['gradientStops'], state.gradient_stops_ptr, UNIFORM_FLOAT, len(gradient.stops))
+    rl.set_shader_value(state.exp_shader, state.locations['gradientColorCount'], state.color_count_ptr, UNIFORM_INT)
 
     # Map normalized start/end to screen pixels
     start_vec = rl.Vector2(origin_rect.x + gradient.start[0] * origin_rect.width, origin_rect.y + gradient.start[1] * origin_rect.height)
     end_vec = rl.Vector2(origin_rect.x + gradient.end[0] * origin_rect.width, origin_rect.y + gradient.end[1] * origin_rect.height)
-    rl.set_shader_value(state.shader, state.locations['gradientStart'], start_vec, UNIFORM_VEC2)
-    rl.set_shader_value(state.shader, state.locations['gradientEnd'], end_vec, UNIFORM_VEC2)
+    rl.set_shader_value(state.exp_shader, state.locations['gradientStart'], start_vec, UNIFORM_VEC2)
+    rl.set_shader_value(state.exp_shader, state.locations['gradientEnd'], end_vec, UNIFORM_VEC2)
+    state.shader = state.exp_shader
+  elif rainbow:
+    state.square_pos[0] = origin_rect.x
+    state.square_pos[1] = origin_rect.y
+    state.square_size[0] = float(origin_rect.width)
+    state.offset_val[0] = state.IncrementOffset(rainbow_v)
+
+    rl.set_shader_value(state.rainbow_shader, state.rainbow_locations['squarePos'], state.square_pos, rl.SHADER_UNIFORM_VEC2)
+    rl.set_shader_value(state.rainbow_shader, state.rainbow_locations['squareSize'], state.square_size, rl.SHADER_UNIFORM_FLOAT)
+    rl.set_shader_value(state.rainbow_shader, state.rainbow_locations['offset'], state.offset_val, rl.SHADER_UNIFORM_FLOAT)
+    state.shader = state.rainbow_shader
   else:
     color = color or rl.WHITE
     state.fill_color_ptr[0:4] = [color.r / 255.0, color.g / 255.0, color.b / 255.0, color.a / 255.0]
-    rl.set_shader_value(state.shader, state.locations['fillColor'], state.fill_color_ptr, UNIFORM_VEC4)
+    rl.set_shader_value(state.exp_shader, state.locations['fillColor'], state.fill_color_ptr, UNIFORM_VEC4)
+    state.shader = state.exp_shader
 
 def triangulate(pts: np.ndarray) -> list[tuple[float, float]]:
   """Only supports simple polygons with two chains (ribbon)."""
@@ -269,31 +301,11 @@ def draw_polygon(origin_rect: rl.Rectangle, points: np.ndarray,
   # Triangulate via interleaving
   tri_strip = triangulate(pts)
 
-  if rainbow:
-    shader = rl.load_shader_from_memory(VERTEX_SHADER, RAINBOW_SHADER)
-    pos_loc = rl.get_shader_location(shader, "squarePos")
-    size_loc = rl.get_shader_location(shader, "squareSize")
-    offset_loc = rl.get_shader_location(shader, "offset")
-    alpha_loc = rl.get_shader_location(shader, "alpha")
-
-    square_pos = ffi.new("float[2]", [origin_rect.x, origin_rect.y])
-    square_size = ffi.new("float *", float(origin_rect.width))
-    offset_val = ffi.new("float *", 0.0)
-    offset_val[0] = state.IncrementOffset(rainbow_v)
-    alpha_val = ffi.new("float *", 150.0 / 255.0)
-  else:
-    # Configure gradient shader
-    _configure_shader_color(state, color, gradient, origin_rect)
-    shader = state.shader
+  # Configure gradient shader
+  _configure_shader_color(state, color, gradient, origin_rect, rainbow, rainbow_v)
 
   # Draw strip, color here doesn't matter
-  rl.begin_shader_mode(shader)
-  if rainbow:
-    rl.set_shader_value(shader, pos_loc, square_pos, rl.SHADER_UNIFORM_VEC2)
-    rl.set_shader_value(shader, size_loc, square_size, rl.SHADER_UNIFORM_FLOAT)
-    rl.set_shader_value(shader, offset_loc, offset_val, rl.SHADER_UNIFORM_FLOAT)
-    rl.set_shader_value(shader, alpha_loc, alpha_val, rl.SHADER_UNIFORM_FLOAT)
-
+  rl.begin_shader_mode(state.shader)
   rl.draw_triangle_strip(tri_strip, len(tri_strip), rl.WHITE)
   rl.end_shader_mode()
 

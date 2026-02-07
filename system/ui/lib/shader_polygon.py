@@ -141,6 +141,8 @@ class ShaderState:
 
     self.initialized = False
     self.shader = None
+    self.time = rl.get_time()
+    self.last_time = self.time
 
     # Shader uniform locations
     self.locations = {
@@ -176,6 +178,13 @@ class ShaderState:
     rl.set_shader_value_matrix(self.shader, self.locations['mvp'], proj)
 
     self.initialized = True
+
+  def IncrementTime(self, v: float = 1.0) -> float:
+    time = rl.get_time()
+    delta = time - self.last_time
+    self.last_time = time
+    self.time += delta * v
+    return self.time
 
   def cleanup(self):
     if not self.initialized:
@@ -270,7 +279,7 @@ def draw_polygon(origin_rect: rl.Rectangle, points: np.ndarray,
     square_pos = ffi.new("float[2]", [origin_rect.x, origin_rect.y])
     square_size = ffi.new("float *", float(origin_rect.width))
     time_val = ffi.new("float *", 0.0)
-    time_val[0] = rl.get_time() * rainbow_v
+    time_val[0] = state.IncrementTime(rainbow_v)
     alpha_val = ffi.new("float *", 150.0 / 255.0)
   else:
     # Configure gradient shader

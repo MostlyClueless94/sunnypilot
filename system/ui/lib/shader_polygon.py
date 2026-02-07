@@ -78,7 +78,7 @@ out vec4 finalColor;
 
 uniform vec2 squarePos;
 uniform float squareSize;
-uniform float time;
+uniform float offset;
 uniform float alpha;
 
 vec3 hsv2rgb(vec3 c)
@@ -100,7 +100,7 @@ void main()
     float t = (p.y - squarePos.y) / squareSize;
 
     // Animate
-    t = fract(t + time * 0.2);
+    t = fract(t + offset * 0.2);
 
     vec3 col = hsv2rgb(vec3(t, 1.0, 1.0));
     finalColor = vec4(col, alpha);
@@ -141,7 +141,7 @@ class ShaderState:
 
     self.initialized = False
     self.shader = None
-    self.rainbow_shader_time = 0.0
+    self.rainbow_shader_offset = 0.0
     self.last_time = rl.get_time()
 
     # Shader uniform locations
@@ -179,12 +179,12 @@ class ShaderState:
 
     self.initialized = True
 
-  def IncrementTime(self, v: float = 1.0) -> float:
+  def IncrementOffset(self, v: float = 1.0) -> float:
     time = rl.get_time()
     delta = time - self.last_time
     self.last_time = time
-    self.rainbow_shader_time += delta * v
-    return self.rainbow_shader_time
+    self.rainbow_shader_offset += delta * v
+    return self.rainbow_shader_offset
 
   def cleanup(self):
     if not self.initialized:
@@ -273,13 +273,13 @@ def draw_polygon(origin_rect: rl.Rectangle, points: np.ndarray,
     shader = rl.load_shader_from_memory(VERTEX_SHADER, RAINBOW_SHADER)
     pos_loc = rl.get_shader_location(shader, "squarePos")
     size_loc = rl.get_shader_location(shader, "squareSize")
-    time_loc = rl.get_shader_location(shader, "time")
+    offset_loc = rl.get_shader_location(shader, "offset")
     alpha_loc = rl.get_shader_location(shader, "alpha")
 
     square_pos = ffi.new("float[2]", [origin_rect.x, origin_rect.y])
     square_size = ffi.new("float *", float(origin_rect.width))
-    time_val = ffi.new("float *", 0.0)
-    time_val[0] = state.IncrementTime(rainbow_v)
+    offset_val = ffi.new("float *", 0.0)
+    offset_val[0] = state.IncrementOffset(rainbow_v)
     alpha_val = ffi.new("float *", 150.0 / 255.0)
   else:
     # Configure gradient shader
@@ -291,7 +291,7 @@ def draw_polygon(origin_rect: rl.Rectangle, points: np.ndarray,
   if rainbow:
     rl.set_shader_value(shader, pos_loc, square_pos, rl.SHADER_UNIFORM_VEC2)
     rl.set_shader_value(shader, size_loc, square_size, rl.SHADER_UNIFORM_FLOAT)
-    rl.set_shader_value(shader, time_loc, time_val, rl.SHADER_UNIFORM_FLOAT)
+    rl.set_shader_value(shader, offset_loc, offset_val, rl.SHADER_UNIFORM_FLOAT)
     rl.set_shader_value(shader, alpha_loc, alpha_val, rl.SHADER_UNIFORM_FLOAT)
 
   rl.draw_triangle_strip(tri_strip, len(tri_strip), rl.WHITE)

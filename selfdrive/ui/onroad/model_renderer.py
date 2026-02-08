@@ -60,7 +60,6 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     self._lead_vehicles = [LeadVehicle(), LeadVehicle()]
     self._path_offset_z = HEIGHT_INIT[0]
     self._params = Params()
-    self._rainbow_mode = False
 
     # Initialize ModelPoints objects
     self._path = ModelPoints()
@@ -96,8 +95,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
   def _render(self, rect: rl.Rectangle):
     sm = ui_state.sm
 
-    self._rainbow_mode = self._params.get_bool("RainbowMode")
-    if self._rainbow_mode:
+    if ui_state.rainbow_path:
       #basis about 70MPH, range ~5.6-78MPH, normalized for shader
       self._rainbow_v = np.clip(sm['carState'].vEgo, 2.5, 35) / 30
 

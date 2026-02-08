@@ -61,7 +61,6 @@ class ModelRenderer(Widget):
     self._road_edge_stds = np.zeros(2, dtype=np.float32)
     self._lead_vehicles = [LeadVehicle(), LeadVehicle()]
     self._path_offset_z = HEIGHT_INIT[0]
-    self._rainbow_mode = False
 
     # Initialize ModelPoints objects
     self._path = ModelPoints()
@@ -100,8 +99,7 @@ class ModelRenderer(Widget):
   def _render(self, rect: rl.Rectangle):
     sm = ui_state.sm
 
-    self._rainbow_mode = self.params.get_bool("RainbowMode")
-    if self._rainbow_mode:
+    if ui_state.rainbow_path:
       #basis about 70MPH, range ~5.6-78MPH, normalized for shader
       self._rainbow_v = np.clip(sm['carState'].vEgo, 2.5, 35) / 30
 
@@ -345,12 +343,12 @@ class ModelRenderer(Widget):
       if ui_state.status == UIStatus.DISENGAGED:
         draw_polygon(self._rect, self._path.projected_points, rl.Color(0, 0, 0, 90))
       elif len(self._exp_gradient.colors) > 1:
-        if self._rainbow_mode:
+        if ui_state.rainbow_path:
           draw_polygon(self._rect, self._path.projected_points, rainbow=True, rainbow_v=self._rainbow_v),
         else:
           draw_polygon(self._rect, self._path.projected_points, gradient=self._exp_gradient)
       else:
-        if self._rainbow_mode:
+        if ui_state.rainbow_path:
           draw_polygon(self._rect, self._path.projected_points, rainbow=True, rainbow_v=self._rainbow_v)
         else:
           draw_polygon(self._rect, self._path.projected_points, rl.Color(255, 255, 255, 30))
@@ -368,7 +366,7 @@ class ModelRenderer(Widget):
       if ui_state.status == UIStatus.DISENGAGED:
         draw_polygon(self._rect, self._path.projected_points, rl.Color(0, 0, 0, 90))
       else:
-        if self._rainbow_mode:
+        if ui_state.rainbow_path:
           draw_polygon(self._rect, self._path.projected_points, rainbow=True, rainbow_v=self._rainbow_v)
         else:
           draw_polygon(self._rect, self._path.projected_points, gradient=gradient)

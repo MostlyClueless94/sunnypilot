@@ -223,6 +223,8 @@ class AugmentedRoadView(CameraView):
     # Draw all UI overlays
     self._model_renderer.render(self._content_rect)
 
+    self._draw_blindspots(ui_state.sm)
+
     # Fade out bottom of overlays for looks
     if not self._hide_fade:
       rl.draw_texture_ex(self._fade_texture, rl.Vector2(self._content_rect.x, self._content_rect.y), 0.0, 1.0, rl.WHITE)
@@ -269,6 +271,38 @@ class AugmentedRoadView(CameraView):
     msg = messaging.new_message('uiDebug')
     msg.uiDebug.drawTimeMillis = (time.monotonic() - start_draw) * 1000
     self._pm.send('uiDebug', msg)
+
+  def _draw_blindspots(self, sm):
+    BLIND_SPOT_W = 70
+    edge_color = rl.Color(255, 0, 0, 180)
+    inside_color = rl.Color(255, 0, 0, 0)
+
+    x = int(self._content_rect.x)
+    y = int(self._content_rect.y)
+    w = int(self._content_rect.width)
+
+    #Left blindspot
+    if sm['carState'].leftBlindspot:
+      rl.draw_rectangle_gradient_h(
+          x,
+          y,
+          BLIND_SPOT_W,
+          w,
+          edge_color,
+          inside_color
+      )
+
+    #Right blindspot
+    if sm['carState'].rightBlindspot:
+      rl.draw_rectangle_gradient_h(
+          x + w - BLIND_SPOT_W,
+          y,
+          BLIND_SPOT_W,
+          w,
+          inside_color,
+          edge_color
+      )
+
 
   def _switch_stream_if_needed(self, sm):
     if sm['selfdriveState'].experimentalMode and WIDE_CAM in self.available_streams:

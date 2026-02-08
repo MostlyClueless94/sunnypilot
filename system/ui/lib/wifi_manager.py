@@ -666,7 +666,10 @@ class WifiManager:
   def _check_favorite_network(self):
     """Background thread that checks every 30 seconds for favorite network and auto-connects"""
     FAVORITE_CHECK_INTERVAL = 30.0  # Check every 30 seconds
+    INITIAL_CHECK_DELAY = 5.0  # Wait 5 seconds after startup for networks to be scanned
     last_check_time = 0.0
+    startup_time = time.monotonic()
+    initial_check_done = False
     
     while not self._exit:
       if not self._active:
@@ -674,7 +677,23 @@ class WifiManager:
         continue
       
       current_time = time.monotonic()
-      if current_time - last_check_time < FAVORITE_CHECK_INTERVAL:
+      
+      # Do an initial check after a short delay on startup
+      if not initial_check_done:
+        if current_time - startup_time < INITIAL_CHECK_DELAY:
+          time.sleep(1)
+          continue
+        initial_check_done = True
+        # Force immediate check on startup
+        last_check_time = 0.0
+        # Trigger a scan to ensure we have latest network list
+        try:
+          self._request_scan()
+        except Exception:
+          pass  # Scan will happen naturally via scanner thread
+      
+      # Regular interval checks after initial check
+      if initial_check_done and current_time - last_check_time < FAVORITE_CHECK_INTERVAL:
         time.sleep(1)
         continue
       
@@ -699,6 +718,45 @@ class WifiManager:
         
         # Check if favorite network is available
         with self._lock:
+          # Wait for networks to be scanned (at least one network should be available)
+          if len(self._networks) == 0:
+            # Networks not scanned yet, wait a bit longer
+            cloudlog.debug("Favorite check: Waiting for networks to be scanned...")
+            continue
+          
+          favorite_network = None
+          current_connected_ssid = None
+          
+          for network in self._networks:
+            if network.is_connected:
+              current_connected_ssid = network.ssid
+            if network.ssid == favorite_ssid:
+              favorite_network = network
+          
+          # If favorite is already connected, nothing to do
+          if current_connected_ssid == favorite_ssid:
+            continue
+          
+          # If we're connected to something else and favorite is not in scan results yet,
+          # trigger a scan and wait for next check
+          if current_connected_ssid and current_connected_ssid != favorite_ssid and not favorite_network:
+            # Favorite might not be in range yet, or scan hasn't picked it up
+            # Trigger a scan to refresh network list
+            should_scan = True
+          else:
+            should_scan = False
+          
+        # Release lock before scanning (if needed)
+        if should_scan:
+          try:
+            self._request_scan()
+          except Exception:
+            pass
+          continue
+          
+        # Re-acquire lock for connection logic
+        with self._lock:
+          # Re-check favorite network after potential scan
           favorite_network = None
           current_connected_ssid = None
           

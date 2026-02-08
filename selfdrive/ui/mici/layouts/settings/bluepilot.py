@@ -26,6 +26,7 @@ class BluePilotLayoutMici(NavWidget):
     self.show_web_routes_qr = BigButton("show QR code", "", "icons_mici/settings/network/wifi_strength_full.png")
     self.show_web_routes_qr.set_click_callback(self._show_qr_dialog)
     self.show_hands_free_ui = BigParamControl("show hands-free ui", "send_hands_free_cluster_msg")
+    self.show_blindspot = BigParamControl("show blindspot overlay", "BlindSpot")
     self.show_lead_vehicle = BigMultiParamToggle("Lower Right Display", "mici_complication", ["off", "lead car speed", "speed", "lead car distance", "time to lead car"])
     self.show_brake_status = BigParamControl("show brake status", "ShowBrakeStatus")
     self.rainbow_mode = BigParamControl("rainbow mode", "RainbowMode")
@@ -64,6 +65,7 @@ class BluePilotLayoutMici(NavWidget):
       self.enable_web_routes,
       self.show_web_routes_qr,
       self.show_hands_free_ui,
+      self.show_blindspot,
       self.show_lead_vehicle,
       self.show_hybrid_power_flow,
       self.rainbow_mode,
@@ -86,6 +88,7 @@ class BluePilotLayoutMici(NavWidget):
     self._refresh_toggles = (
       ("BPPortalEnabled", self.enable_web_routes),
       ("send_hands_free_cluster_msg", self.show_hands_free_ui),
+      ("BlindSpot", self.show_blindspot),
       ("ShowBrakeStatus", self.show_brake_status),
       ("RainbowMode", self.rainbow_mode),
       ("enable_human_turn_detection", self.enable_human_turn_detection),

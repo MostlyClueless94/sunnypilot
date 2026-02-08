@@ -292,7 +292,7 @@
       "enabled": true
     },
     {
-      "name": "Blindspot",
+      "name": "BlindSpot",
       "default": true,
       "type": "bool",
       "flags": ["PERSISTENT", "BACKUP"],

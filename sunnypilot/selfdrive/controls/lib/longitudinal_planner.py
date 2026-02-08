@@ -12,7 +12,7 @@ from openpilot.selfdrive.car.cruise import V_CRUISE_MAX
 from openpilot.sunnypilot.selfdrive.controls.lib.dec.dec import DynamicExperimentalController
 from openpilot.sunnypilot.selfdrive.controls.lib.e2e_alerts_helper import E2EAlertsHelper
 from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.smart_cruise_control import SmartCruiseControl
-from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.speed_limit_assist import SpeedLimitAssist
+from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.speed_limit_assist import SpeedLimitAssist, V_CRUISE_UNSET
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.speed_limit_resolver import SpeedLimitResolver
 from openpilot.sunnypilot.selfdrive.selfdrived.events import EventsSP
 from openpilot.sunnypilot.models.helpers import get_active_bundle
@@ -73,8 +73,27 @@ class LongitudinalPlannerSP:
       LongitudinalPlanSource.speedLimitAssist: (self.sla.output_v_target, self.sla.output_a_target),
     }
 
-    self.source = min(targets, key=lambda k: targets[k][0])
-    self.output_v_target, self.output_a_target = targets[self.source]
+    # When ICBM is active and SLA is providing a valid target, prioritize SLA's target
+    # by excluding the cruise source from minimum selection. This allows ICBM to see
+    # SLA's target and adjust the cluster speed accordingly.
+    icbm_active = (sm['selfdriveState'].intelligentCruiseButtonManagement.state !=
+                   custom.IntelligentCruiseButtonManagementState.inactive)
+    sla_providing_target = self.sla.output_v_target != V_CRUISE_UNSET
+    
+    if icbm_active and sla_providing_target:
+      # Exclude cruise source to allow SLA target to be selected
+      targets_for_selection = {k: v for k, v in targets.items() if k != LongitudinalPlanSource.cruise}
+      if targets_for_selection:
+        self.source = min(targets_for_selection, key=lambda k: targets_for_selection[k][0])
+        self.output_v_target, self.output_a_target = targets_for_selection[self.source]
+      else:
+        # Fallback to normal selection if no other targets available
+        self.source = min(targets, key=lambda k: targets[k][0])
+        self.output_v_target, self.output_a_target = targets[self.source]
+    else:
+      self.source = min(targets, key=lambda k: targets[k][0])
+      self.output_v_target, self.output_a_target = targets[self.source]
+    
     return self.output_v_target, self.output_a_target
 
   def update(self, sm: messaging.SubMaster) -> None:

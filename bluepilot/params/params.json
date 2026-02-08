@@ -292,7 +292,7 @@
       "enabled": true
     },
     {
-      "name": "Blindspot",
+      "name": "BlindSpot",
       "default": true,
       "type": "bool",
       "flags": ["PERSISTENT", "BACKUP"],
@@ -443,6 +443,14 @@
       "name": "EnableTethering",
       "default": false,
       "type": "bool",
+      "flags": ["PERSISTENT", "BACKUP"],
+      "create_default": false,
+      "enabled": true
+    },
+    {
+      "name": "WifiFavoriteSSID",
+      "default": "",
+      "type": "string",
       "flags": ["PERSISTENT", "BACKUP"],
       "create_default": false,
       "enabled": true

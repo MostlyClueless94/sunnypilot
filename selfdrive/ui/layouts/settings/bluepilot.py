@@ -27,6 +27,7 @@ class BluePilotLayout(Widget):
     self._refresh_toggles = (
       ("BPPortalEnabled", self._enable_web_routes),
       ("send_hands_free_cluster_msg", self._show_hands_free_ui),
+      ("BlindSpot", self._show_blindspot),
       ("FordPrefShowRadarLeadOverlay", self._show_ford_radar_overlay),
       ("FordPrefHybridBatteryStatus", self._show_hybrid_battery_status),
       ("FordPrefHybridPowerFlow", self._show_hybrid_power_flow),
@@ -67,6 +68,15 @@ class BluePilotLayout(Widget):
       initial_state=self._params.get_bool("send_hands_free_cluster_msg"),
       callback=lambda state: self._toggle_callback(state, "send_hands_free_cluster_msg"),
       icon="monitoring.png"
+    )
+
+    # Blindspot overlay toggle
+    self._show_blindspot = toggle_item(
+      lambda: tr("Show Blindspot Overlay"),
+      lambda: tr("Display red overlay when vehicle is detected in blindspot."),
+      initial_state=self._params.get_bool("BlindSpot"),
+      callback=lambda state: self._toggle_callback(state, "BlindSpot"),
+      icon="warning.png"
     )
 
     # Ford radar lead overlay toggle
@@ -217,6 +227,7 @@ class BluePilotLayout(Widget):
       self._enable_web_routes,
       self._show_web_routes_qr,
       self._show_hands_free_ui,
+      self._show_blindspot,
       self._show_ford_radar_overlay,
       self._show_hybrid_battery_status,
       self._show_hybrid_power_flow,

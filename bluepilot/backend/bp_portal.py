@@ -39,12 +39,39 @@ except ImportError:
     psutil = None
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(levelname)s [%(name)s]: %(message)s',
-    force=True
-)
-logger = logging.getLogger(__name__)
+log_file = "/tmp/bp_portal.log"
+try:
+    # Remove any existing handlers to avoid duplicates
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+    
+    # Create file handler
+    file_handler = logging.FileHandler(log_file, mode='a')
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s [%(name)s]: %(message)s'))
+    
+    # Create console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(logging.Formatter('%(levelname)s [%(name)s]: %(message)s'))
+    
+    # Configure root logger
+    root_logger.setLevel(logging.INFO)
+    root_logger.addHandler(file_handler)
+    root_logger.addHandler(console_handler)
+    
+    logger = logging.getLogger(__name__)
+    logger.info(f"Logging configured - file: {log_file}")
+except Exception as e:
+    # Fallback to basic config if file logging fails
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(levelname)s [%(name)s]: %(message)s',
+        force=True
+    )
+    logger = logging.getLogger(__name__)
+    logger.error(f"Failed to configure file logging: {e}")
 
 # Add parent directory to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
@@ -94,6 +121,8 @@ from bluepilot.backend.routes import (
     scan_routes,
     # Metadata builder
     build_route_metadata,
+    # Drive stats
+    get_route_drive_stats_cached_only,
 )
 
 # Video processing
@@ -2237,6 +2266,7 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                     self.send_json_response({'success': False, 'error': str(e)}, 500)
 
             elif path == '/api/drive-stats':
+                logger.info("=== /api/drive-stats endpoint called ===")
                 # Get aggregate drive statistics from ApiCache_DriveStats param
                 # This matches the Qt widget behavior which caches API responses in params
                 try:
@@ -2244,7 +2274,7 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                     cached_stats = None
                     try:
                         cached_stats_data = params.get("ApiCache_DriveStats")
-                        logger.info(f"ApiCache_DriveStats: type={type(cached_stats_data)}, len={len(cached_stats_data) if cached_stats_data else 0}")
+                        logger.info(f"ApiCache_DriveStats: type={type(cached_stats_data)}, exists={cached_stats_data is not None}, len={len(cached_stats_data) if cached_stats_data else 0}")
 
                         # Handle both cases: bytes (fallback Params) and dict (openpilot Params with auto-deserialization)
                         if isinstance(cached_stats_data, dict):
@@ -2262,45 +2292,247 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                         logger.error(f"Error reading ApiCache_DriveStats param: {e}", exc_info=True)
                         cached_stats = None
 
+                    # Only use cached stats if they contain actual data (not zeros)
                     if cached_stats:
-                        # Parse response (format: {all: {routes, distance, minutes}, week: {...}})
-                        # Convert both "all" and "week" stats to frontend format
-                        def convert_stats(stats_data):
-                            """Convert API stats to frontend format"""
+                        all_routes = cached_stats.get('all', {}).get('routes', 0)
+                        all_distance = cached_stats.get('all', {}).get('distance', 0)
+                        all_minutes = cached_stats.get('all', {}).get('minutes', 0)
+                        
+                        # Check if cached stats have actual data (not all zeros)
+                        has_data = (all_routes > 0) or (all_distance > 0) or (all_minutes > 0)
+                        
+                        if has_data:
+                            logger.info(f"Using cached drive stats: {all_routes} routes, {all_distance} miles, {all_minutes} minutes")
+                            # Parse response (format: {all: {routes, distance, minutes}, week: {...}})
+                            # Convert both "all" and "week" stats to frontend format
+                            def convert_stats(stats_data):
+                                """Convert API stats to frontend format"""
+                                distance_miles = stats_data.get('distance', 0)
+                                distance_meters = distance_miles * 1609.34
+                                duration_minutes = stats_data.get('minutes', 0)
+                                duration_seconds = duration_minutes * 60
+                                routes = stats_data.get('routes', 0)
+
+                                # Calculate average speed if we have both distance and duration
+                                avg_speed_ms = distance_meters / duration_seconds if duration_seconds > 0 else 0
+
+                                return {
+                                    'routes': routes,
+                                    'distance': distance_meters,
+                                    'distanceMiles': distance_miles,  # Keep original for reference
+                                    'duration': duration_seconds,
+                                    'durationMinutes': duration_minutes,  # Keep original for reference
+                                    'averageSpeed': avg_speed_ms,  # m/s
+                                }
+
+                            all_stats = convert_stats(cached_stats.get('all', {}))
+                            week_stats = convert_stats(cached_stats.get('week', {}))
+
+                            result = {
+                                'success': True,
+                                'all': all_stats,
+                                'week': week_stats,
+                                'source': 'param_cache',
+                                'timestamp': datetime.now().isoformat()
+                            }
+
+                            self.send_json_response(result)
+                            return
+                        else:
+                            logger.info(f"Cached stats exist but are empty (all zeros), will fetch from API")
+                    else:
+                        logger.info("No cached stats found, will fetch from API")
+
+                    # No cached data available - try fetching from Comma API first, then calculate from routes as fallback
+                    logger.info("No cached drive stats in ApiCache_DriveStats param, attempting to fetch from Comma API...")
+                    
+                    # Try fetching from Comma API (same as Qt widget does)
+                    try:
+                        from openpilot.common.api import api_get, Api
+                        from openpilot.system.athena.registration import UNREGISTERED_DONGLE_ID
+                        
+                        dongle_id = params.get("DongleId")
+                        # Handle bytes vs string
+                        if isinstance(dongle_id, bytes):
+                            dongle_id = dongle_id.decode('utf-8').strip()
+                        
+                        logger.info(f"Attempting API fetch - DongleId: {dongle_id[:10]}..., Is registered: {dongle_id and dongle_id != UNREGISTERED_DONGLE_ID}")
+                        
+                        if dongle_id and dongle_id != UNREGISTERED_DONGLE_ID:
+                            try:
+                                # Use Api directly instead of get_token helper to avoid cached time validation
+                                # The Api class will handle token generation internally
+                                api = Api(dongle_id)
+                                identity_token = api.get_token()
+                                logger.info(f"Got identity token, fetching stats from API...")
+                                response = api_get(f"v1.1/devices/{dongle_id}/stats", access_token=identity_token, timeout=10)
+                                logger.info(f"API response status: {response.status_code}")
+                                
+                                if response.status_code == 200:
+                                    api_data = response.json()
+                                    # Cache the response in ApiCache_DriveStats param (same format as Qt widget expects)
+                                    # ApiCache_DriveStats is a JSON type param, so pass the dict directly, not a string
+                                    try:
+                                        params.put("ApiCache_DriveStats", api_data)
+                                        logger.info(f"Successfully cached drive stats from Comma API: {api_data.get('all', {}).get('routes', 0)} routes")
+                                    except Exception as cache_error:
+                                        # If direct dict doesn't work, try JSON string (for older Params implementations)
+                                        logger.warning(f"Direct dict cache failed, trying JSON string: {cache_error}")
+                                        try:
+                                            params.put("ApiCache_DriveStats", json.dumps(api_data))
+                                            logger.info(f"Successfully cached drive stats (as JSON string): {api_data.get('all', {}).get('routes', 0)} routes")
+                                        except Exception as cache_error2:
+                                            logger.error(f"Failed to cache drive stats: {cache_error2}")
+                                    logger.info(f"Successfully fetched drive stats from Comma API: {api_data.get('all', {}).get('routes', 0)} routes")
+                                    
+                                    # Parse and return the data
+                                    def convert_api_stats(stats_data):
+                                        """Convert API stats to frontend format"""
+                                        distance_miles = stats_data.get('distance', 0)
+                                        distance_meters = distance_miles * 1609.34
+                                        duration_minutes = stats_data.get('minutes', 0)
+                                        duration_seconds = duration_minutes * 60
+                                        routes = stats_data.get('routes', 0)
+                                        
+                                        # Calculate average speed if we have both distance and duration
+                                        avg_speed_ms = distance_meters / duration_seconds if duration_seconds > 0 else 0
+                                        
+                                        return {
+                                            'routes': routes,
+                                            'distance': distance_meters,
+                                            'distanceMiles': distance_miles,
+                                            'duration': duration_seconds,
+                                            'durationMinutes': duration_minutes,
+                                            'averageSpeed': avg_speed_ms,  # m/s
+                                        }
+                                    
+                                    all_stats = convert_api_stats(api_data.get('all', {}))
+                                    week_stats = convert_api_stats(api_data.get('week', {}))
+                                    
+                                    result = {
+                                        'success': True,
+                                        'all': all_stats,
+                                        'week': week_stats,
+                                        'source': 'comma_api',
+                                        'timestamp': datetime.now().isoformat()
+                                    }
+                                    
+                                    self.send_json_response(result)
+                                    return
+                                else:
+                                    error_text = response.text[:500] if hasattr(response, 'text') else str(response)
+                                    logger.error(f"Comma API returned status {response.status_code} for drive stats: {error_text}")
+                            except Exception as token_error:
+                                logger.error(f"Error getting token or fetching from API: {token_error}", exc_info=True)
+                        else:
+                            logger.warning(f"Cannot fetch from API - DongleId missing or unregistered. DongleId value: {repr(dongle_id)}")
+                    except ImportError as e:
+                        logger.error(f"Could not import API helpers: {e}", exc_info=True)
+                    except Exception as api_error:
+                        logger.error(f"Error fetching drive stats from Comma API: {api_error}", exc_info=True)
+                    
+                    # Fallback: calculate from routes
+                    logger.info("Comma API fetch failed or unavailable, calculating from routes...")
+                    
+                    try:
+                        # Get all routes
+                        all_routes = scan_routes()
+                        logger.info(f"Found {len(all_routes)} routes to aggregate")
+                        
+                        # Calculate cutoff for "week" stats (7 days ago)
+                        week_cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+                        
+                        # Aggregate stats
+                        all_time_stats = {
+                            'routes': 0,
+                            'distance': 0.0,  # miles
+                            'duration': 0.0,  # seconds
+                        }
+                        week_stats = {
+                            'routes': 0,
+                            'distance': 0.0,  # miles
+                            'duration': 0.0,  # seconds
+                        }
+                        
+                        for route in all_routes:
+                            route_base = route.get('baseName')
+                            if not route_base:
+                                continue
+                            
+                            # Get cached drive stats for this route
+                            route_stats = get_route_drive_stats_cached_only(route_base)
+                            if not route_stats:
+                                # Skip routes without cached stats
+                                continue
+                            
+                            # Extract distance and duration from route stats
+                            # route_stats format: {distance: miles, duration: seconds, ...}
+                            route_distance = route_stats.get('distance', 0)  # miles
+                            route_duration = route_stats.get('duration', 0)  # seconds
+                            
+                            # Add to all-time stats
+                            all_time_stats['routes'] += 1
+                            all_time_stats['distance'] += route_distance
+                            all_time_stats['duration'] += route_duration
+                            
+                            # Check if route is within last week
+                            route_timestamp = route.get('timestamp')
+                            if route_timestamp:
+                                try:
+                                    # Parse timestamp (ISO format)
+                                    route_dt = datetime.fromisoformat(route_timestamp.replace('Z', '+00:00'))
+                                    if route_dt >= week_cutoff:
+                                        week_stats['routes'] += 1
+                                        week_stats['distance'] += route_distance
+                                        week_stats['duration'] += route_duration
+                                except (ValueError, AttributeError) as e:
+                                    logger.debug(f"Could not parse route timestamp {route_timestamp}: {e}")
+                        
+                        # Convert to frontend format
+                        def convert_calculated_stats(stats_data):
+                            """Convert calculated stats to frontend format"""
                             distance_miles = stats_data.get('distance', 0)
                             distance_meters = distance_miles * 1609.34
-                            duration_minutes = stats_data.get('minutes', 0)
-                            duration_seconds = duration_minutes * 60
+                            duration_seconds = stats_data.get('duration', 0)
+                            duration_minutes = duration_seconds / 60
                             routes = stats_data.get('routes', 0)
-
+                            
                             # Calculate average speed if we have both distance and duration
                             avg_speed_ms = distance_meters / duration_seconds if duration_seconds > 0 else 0
-
+                            
                             return {
                                 'routes': routes,
                                 'distance': distance_meters,
-                                'distanceMiles': distance_miles,  # Keep original for reference
+                                'distanceMiles': distance_miles,
                                 'duration': duration_seconds,
-                                'durationMinutes': duration_minutes,  # Keep original for reference
+                                'durationMinutes': duration_minutes,
                                 'averageSpeed': avg_speed_ms,  # m/s
                             }
-
-                        all_stats = convert_stats(cached_stats.get('all', {}))
-                        week_stats = convert_stats(cached_stats.get('week', {}))
-
+                        
+                        all_stats = convert_calculated_stats(all_time_stats)
+                        week_stats_formatted = convert_calculated_stats(week_stats)
+                        
+                        logger.info(f"Calculated aggregate stats: {all_time_stats['routes']} routes, "
+                                  f"{round(all_time_stats['distance'], 1)} miles, "
+                                  f"{round(all_time_stats['duration'] / 3600, 1)} hours")
+                        
                         result = {
                             'success': True,
                             'all': all_stats,
-                            'week': week_stats,
-                            'source': 'param_cache',
+                            'week': week_stats_formatted,
+                            'source': 'calculated_from_routes',
                             'timestamp': datetime.now().isoformat()
                         }
-
+                        
                         self.send_json_response(result)
                         return
-
-                    # No cached data available, return zeros
-                    logger.debug("No cached drive stats available in ApiCache_DriveStats param")
+                        
+                    except Exception as calc_error:
+                        logger.error(f"Error calculating drive stats from routes: {calc_error}", exc_info=True)
+                        # Fall through to return zeros if calculation fails
+                    
+                    # If calculation failed or no routes found, return zeros
+                    logger.debug("Could not calculate stats from routes, returning zeros")
                     zero_stats = {
                         'routes': 0,
                         'distance': 0,
@@ -2313,8 +2545,8 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                         'success': True,
                         'all': zero_stats,
                         'week': zero_stats.copy(),
-                        'source': 'no_cache',
-                        'info': 'No cached data available. Stats will populate when Qt UI fetches them.'
+                        'source': 'no_data',
+                        'info': 'No cached data available and could not calculate from routes.'
                     })
 
                 except Exception as e:

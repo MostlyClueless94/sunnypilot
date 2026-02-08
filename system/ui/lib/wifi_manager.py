@@ -171,6 +171,7 @@ class WifiManager:
     self._lock = threading.Lock()
     self._scan_thread = threading.Thread(target=self._network_scanner, daemon=True)
     self._state_thread = threading.Thread(target=self._monitor_state, daemon=True)
+    self._favorite_check_thread = threading.Thread(target=self._check_favorite_network, daemon=True)
     self._initialize()
     atexit.register(self.stop)
 
@@ -180,6 +181,7 @@ class WifiManager:
 
       self._scan_thread.start()
       self._state_thread.start()
+      self._favorite_check_thread.start()
 
       if Params is not None and self._tethering_ssid not in self._get_connections():
         self._add_tethering_connection()
@@ -660,6 +662,141 @@ class WifiManager:
             if 'address' in entry:
               self._ipv4_address = entry['address'][1]
               return
+
+  def _check_favorite_network(self):
+    """Background thread that checks every 30 seconds for favorite network and auto-connects"""
+    FAVORITE_CHECK_INTERVAL = 30.0  # Check every 30 seconds
+    INITIAL_CHECK_DELAY = 5.0  # Wait 5 seconds after startup for networks to be scanned
+    last_check_time = 0.0
+    startup_time = time.monotonic()
+    initial_check_done = False
+    
+    while not self._exit:
+      if not self._active:
+        time.sleep(1)
+        continue
+      
+      current_time = time.monotonic()
+      
+      # Do an initial check after a short delay on startup
+      if not initial_check_done:
+        if current_time - startup_time < INITIAL_CHECK_DELAY:
+          time.sleep(1)
+          continue
+        initial_check_done = True
+        # Force immediate check on startup
+        last_check_time = 0.0
+        # Trigger a scan to ensure we have latest network list
+        try:
+          self._request_scan()
+        except Exception:
+          pass  # Scan will happen naturally via scanner thread
+      
+      # Regular interval checks after initial check
+      if initial_check_done and current_time - last_check_time < FAVORITE_CHECK_INTERVAL:
+        time.sleep(1)
+        continue
+      
+      last_check_time = current_time
+      
+      try:
+        if Params is None:
+          continue
+        
+        params = Params()
+        favorite_value = params.get("WifiFavoriteSSID")
+        favorite_ssid = ""
+        if favorite_value:
+          if isinstance(favorite_value, bytes):
+            favorite_ssid = favorite_value.decode('utf-8', errors='replace').strip('\x00')
+          else:
+            favorite_ssid = str(favorite_value).strip('\x00')
+        
+        if not favorite_ssid:
+          # No favorite set, skip
+          continue
+        
+        # Check if favorite network is available
+        with self._lock:
+          # Wait for networks to be scanned (at least one network should be available)
+          if len(self._networks) == 0:
+            # Networks not scanned yet, wait a bit longer
+            cloudlog.debug("Favorite check: Waiting for networks to be scanned...")
+            continue
+          
+          favorite_network = None
+          current_connected_ssid = None
+          
+          for network in self._networks:
+            if network.is_connected:
+              current_connected_ssid = network.ssid
+            if network.ssid == favorite_ssid:
+              favorite_network = network
+          
+          # If favorite is already connected, nothing to do
+          if current_connected_ssid == favorite_ssid:
+            continue
+          
+          # If we're connected to something else and favorite is not in scan results yet,
+          # trigger a scan and wait for next check
+          if current_connected_ssid and current_connected_ssid != favorite_ssid and not favorite_network:
+            # Favorite might not be in range yet, or scan hasn't picked it up
+            # Trigger a scan to refresh network list
+            should_scan = True
+          else:
+            should_scan = False
+          
+        # Release lock before scanning (if needed)
+        if should_scan:
+          try:
+            self._request_scan()
+          except Exception:
+            pass
+          continue
+          
+        # Re-acquire lock for connection logic
+        with self._lock:
+          # Re-check favorite network after potential scan
+          favorite_network = None
+          current_connected_ssid = None
+          
+          for network in self._networks:
+            if network.is_connected:
+              current_connected_ssid = network.ssid
+            if network.ssid == favorite_ssid:
+              favorite_network = network
+          
+          # If favorite is already connected, nothing to do
+          if current_connected_ssid == favorite_ssid:
+            continue
+          
+          # If favorite network is available but not connected, connect to it
+          if favorite_network and not favorite_network.is_connected:
+            cloudlog.info(f"Favorite network '{favorite_ssid}' available, connecting...")
+            
+            # Disconnect from current network if connected to something else
+            if current_connected_ssid and current_connected_ssid != favorite_ssid:
+              cloudlog.info(f"Disconnecting from '{current_connected_ssid}' to connect to favorite '{favorite_ssid}'")
+              self._deactivate_connection(current_connected_ssid)
+              # Wait a bit for disconnection to complete
+              time.sleep(2)
+            
+            # Connect to favorite network
+            if favorite_network.is_saved:
+              # Network is saved, just activate it
+              self.activate_connection(favorite_ssid, block=False)
+            elif favorite_network.security_type == SecurityType.OPEN:
+              # Open network, connect without password
+              self.connect_to_network(favorite_ssid, "")
+            else:
+              # Secured network - we can't auto-connect without password
+              # User will need to connect manually
+              cloudlog.info(f"Favorite network '{favorite_ssid}' requires password, skipping auto-connect")
+      
+      except Exception as e:
+        cloudlog.exception(f"Error checking favorite network: {e}")
+      
+      time.sleep(1)  # Small sleep to prevent tight loop
 
   def __del__(self):
     self.stop()

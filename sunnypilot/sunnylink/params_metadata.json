@@ -1278,5 +1278,10 @@
     "Blindspot": {
     "title": "BluePilot: Show Blindspot warnings",
     "description": "Show a red indication is a car is in your blindspot"
+  },
+  "WifiFavoriteSSID": {
+    "title": "BluePilot: Preferred WiFi Network",
+    "description": "Automatically connect to this WiFi network when available. Select from saved networks, or leave empty to disable auto-connect. The device will check every 30 seconds and connect to this network even if currently connected to another network.",
+    "optionsEndpoint": "getSavedWifiNetworks"
   }
 }

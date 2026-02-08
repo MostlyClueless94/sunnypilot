@@ -29,6 +29,7 @@ class BluePilotLayoutMici(NavWidget):
     self.show_lead_vehicle = BigMultiParamToggle("Lower Right Display", "mici_complication", ["off", "lead car speed", "speed", "lead car distance", "time to lead car"])
     self.show_brake_status = BigParamControl("show brake status", "ShowBrakeStatus")
     self.show_blindspot_ui = BigParamControl("show blindspot warning", "Blindspot")
+    self.rainbow_mode = BigParamControl("rainbow mode", "RainbowMode")
     self.enable_human_turn_detection = BigParamControl("enable human turn detection", "enable_human_turn_detection")
     self.lane_change_factor_high = BigParamFloatControl("lane change factor high", "lane_change_factor_high", min=0.5, max=1.0)
     self.enable_lane_positioning = BigParamControl("enable lane positioning", "enable_lane_positioning", tint=rl.GREEN)
@@ -55,7 +56,7 @@ class BluePilotLayoutMici(NavWidget):
           self._params.put_bool("FordPrefHybridPowerFlow", True)
           self._params.put_bool("FordPrefHybridPowerFlowAlternate", True)
 
-    self._show_hybrid_power_flow = BigMultiToggle("show hybrid/EV power flow", ["off", "bar", "circular"], select_callback=power_flow_callback)
+    self.show_hybrid_power_flow = BigMultiToggle("show hybrid/EV power flow", ["off", "bar", "circular"], select_callback=power_flow_callback)
 
     #self.charging_btn = BigButton("charging", "", "icons_mici/settings/charge_icon.png")
     #self.charging_btn.set_click_callback(lambda: self._show_charging_view())
@@ -67,7 +68,8 @@ class BluePilotLayoutMici(NavWidget):
       self.show_lead_vehicle,
       self.show_brake_status,
       self.show_blindspot_ui,
-      self._show_hybrid_power_flow,
+      self.show_hybrid_power_flow,
+      self.rainbow_mode,
       self.enable_human_turn_detection,
       self.lane_change_factor_high,
       self.enable_lane_positioning,
@@ -90,6 +92,7 @@ class BluePilotLayoutMici(NavWidget):
       ("FordPrefHybridPowerFlow", self._show_hybrid_power_flow),
       ("ShowBrakeStatus", self.show_brake_status),
       ("Blindspot", self.show_blindspot_ui),
+      ("RainbowMode", self.rainbow_mode),
       ("enable_human_turn_detection", self.enable_human_turn_detection),
       ("enable_lane_positioning", self.enable_lane_positioning),
       ("enable_lane_full_mode", self.enable_lane_full_mode),
@@ -134,11 +137,11 @@ class BluePilotLayoutMici(NavWidget):
 
     if self._params.get_bool("FordPrefHybridPowerFlow"):
       if self._params.get_bool("FordPrefHybridPowerFlowAlternate"):
-        self._show_hybrid_power_flow.set_value("circular")
+        self.show_hybrid_power_flow.set_value("circular")
       else:
-        self._show_hybrid_power_flow.set_value("bar")
+        self.show_hybrid_power_flow.set_value("bar")
     else:
-      self._show_hybrid_power_flow.set_value("off")
+      self.show_hybrid_power_flow.set_value("off")
 
   def _update_toggles(self):
     ui_state.update_params()

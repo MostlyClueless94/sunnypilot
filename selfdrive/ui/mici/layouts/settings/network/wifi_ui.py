@@ -4,6 +4,7 @@ import pyray as rl
 from collections.abc import Callable
 
 from openpilot.common.swaglog import cloudlog
+from openpilot.common.params import Params
 from openpilot.system.ui.widgets.label import UnifiedLabel
 from openpilot.selfdrive.ui.mici.widgets.dialog import BigMultiOptionDialog, BigInputDialog, BigDialogOptionButton, BigConfirmationDialogV2
 from openpilot.system.ui.lib.application import gui_app, MousePos, FontWeight
@@ -122,8 +123,10 @@ class WifiItem(BigDialogOptionButton):
       self._label.set_color(rl.Color(255, 255, 255, int(255 * 0.58)))
       self._label.set_font_weight(FontWeight.DISPLAY_REGULAR)
 
+    # Calculate label area
     label_offset = self.LEFT_MARGIN + self._wifi_icon.rect.width + 20
-    label_rect = rl.Rectangle(self._rect.x + label_offset, self._rect.y, self._rect.width - label_offset, self._rect.height)
+    label_width = self._rect.width - label_offset
+    label_rect = rl.Rectangle(self._rect.x + label_offset, self._rect.y, label_width, self._rect.height)
     self._label.set_text(normalize_ssid(self._network.ssid))
     self._label.render(label_rect)
 

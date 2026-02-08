@@ -1,4 +1,5 @@
 import colorsys
+import math
 import time
 import numpy as np
 import pyray as rl
@@ -13,6 +14,9 @@ from openpilot.system.ui.lib.shader_polygon import draw_polygon, Gradient
 from openpilot.system.ui.widgets import Widget
 
 from openpilot.selfdrive.ui.sunnypilot.onroad.model_renderer import ChevronMetrics, ModelRendererSP
+
+# Blindspot enhancement constants
+BLINDSPOT_WIDTH = 1.0  # Width of blind spot indicator in meters
 
 CLIP_MARGIN = 500
 MIN_DRAW_DISTANCE = 10.0
@@ -71,6 +75,12 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     self._previous_path_projected_points = np.empty((0, 2), dtype=np.float32)
     self._path_smoothing_damping = 0.3  # Higher = more damping (0.0-1.0)
 
+    # Blindspot overlay state
+    self._left_blindspot_vertices = np.empty((0, 2), dtype=np.float32)
+    self._right_blindspot_vertices = np.empty((0, 2), dtype=np.float32)
+    self._blindspot_blink_counter = 0
+    self._blindspot_opacity = 0.25
+
     # Transform matrix (3x3 for car space to screen space)
     self._car_space_transform = np.zeros((3, 3), dtype=np.float32)
     self._transform_dirty = True
@@ -95,6 +105,10 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
   def _render(self, rect: rl.Rectangle):
     sm = ui_state.sm
 
+    if ui_state.rainbow_path:
+      #basis about 70MPH, range ~5.6-78MPH, normalized for shader
+      self._rainbow_v = np.clip(sm['carState'].vEgo, 2.5, 35) / 30
+
     # Check if data is up-to-date
     if (sm.recv_frame["liveCalibration"] < ui_state.started_frame or
         sm.recv_frame["modelV2"] < ui_state.started_frame):
@@ -114,7 +128,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     # Get carParams - try message stream first (works in device), fallback to params (works in replay)
     # Similar pattern to how controllerStateBP/lateralUncertainty is accessed
     car_params = None
-    
+
     # Try to get from message stream (published by card.py every 50 seconds)
     if sm.valid['carParams']:
       try:
@@ -122,7 +136,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
         self._longitudinal_control = car_params.openpilotLongitudinalControl
       except (KeyError, AttributeError):
         pass
-    
+
     # Fallback to params-based CarParams (replay writes to params, ui_state updates every 5 seconds)
     if car_params is None:
       # Always check ui_state.CP as fallback (replay writes CarParams to params)
@@ -162,11 +176,18 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
       self._update_model(lead_one, path_x_array)
       if render_lead_indicator:
         self._update_leads(radar_state, path_x_array, ford_overlay_enabled)
+      
+      # Update blindspot polygons when model updates
+      self._update_blindspot_polygons(model)
+      
       self._transform_dirty = False
 
     # Draw elements
     self._draw_lane_lines()
     self._draw_path(sm)
+
+    # Draw blindspot overlays (always enhanced when enabled)
+    self._draw_blindspot_overlays(sm)
 
     if render_lead_indicator and radar_state:
       # Always draw chevron first, then text overlay
@@ -196,12 +217,12 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
       if lead_data and lead_data.status:
         d_rel, y_rel, v_rel = lead_data.dRel, lead_data.yRel, lead_data.vRel
         is_radar = lead_data.radar if hasattr(lead_data, 'radar') else False
-        
+
         # Deadband logic: move text above chevron at 50ft (15.24m), move back below at 60ft (18.29m)
         # dRel is in meters, so convert feet to meters: 1 ft = 0.3048 m
         CLOSE_MODE_THRESHOLD_M = 50.0 * 0.3048  # 50 feet = 15.24 meters
         NORMAL_MODE_THRESHOLD_M = 60.0 * 0.3048  # 60 feet = 18.29 meters
-        
+
         # Update ChevronMetrics state (ModelRenderer inherits from ChevronMetrics)
         if d_rel < CLOSE_MODE_THRESHOLD_M:
           self._close_mode = True
@@ -209,7 +230,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
           self._close_mode = False
         # Otherwise keep current state (deadband between thresholds)
         flip_chevron = False  # Don't flip chevron, just move text
-        
+
         idx = self._get_path_length_idx(path_x_array, d_rel)
 
         # Get z-coordinate from path at the lead vehicle position
@@ -295,30 +316,30 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
 
   def _apply_smooth_path(self):
     """Apply path smoothing to reduce swaying - ported from bp-dev QT UI
-    
+
     Uses Gaussian-weighted spatial smoothing on Y-axis (lateral movement) combined
     with temporal damping to reduce path oscillation and swaying.
     """
     if self._path.projected_points.size == 0:
       return
-    
+
     # Need at least 4 points for smoothing
     if len(self._path.projected_points) < 4:
       self._previous_path_projected_points = self._path.projected_points.copy()
       return
-    
+
     n = len(self._path.projected_points)
     smoothed = np.zeros_like(self._path.projected_points)
-    
+
     # Apply Gaussian-weighted spatial smoothing to Y-axis (lateral movement)
     for i in range(n):
       pt = self._path.projected_points[i].copy()
-      
+
       # Apply Gaussian smoothing to Y coordinate for points not at edges
       if i > 1 and i < n - 1:
         y_smooth = 0.0
         weight_sum = 0.0
-        
+
         # Gaussian weights for nearby points (±2 points)
         for j in range(-2, 3):
           idx = i + j
@@ -326,15 +347,15 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
             weight = np.exp(-0.5 * j * j)  # Gaussian weight
             y_smooth += self._path.projected_points[idx][1] * weight
             weight_sum += weight
-        
+
         if weight_sum > 0:
           pt[1] = y_smooth / weight_sum
-      
+
       smoothed[i] = pt
-    
+
     # Apply temporal damping to reduce oscillation
     # Only apply if previous path has same number of points (path structure unchanged)
-    if (self._previous_path_projected_points.size > 0 and 
+    if (self._previous_path_projected_points.size > 0 and
         len(self._previous_path_projected_points) == len(smoothed)):
       damping = self._path_smoothing_damping
       for i in range(len(smoothed)):
@@ -343,7 +364,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     else:
       # Path structure changed, reset temporal smoothing
       self._previous_path_projected_points = smoothed.copy()
-    
+
     # Store smoothed path for next frame
     self._previous_path_projected_points = smoothed.copy()
     self._path.projected_points = smoothed
@@ -378,22 +399,265 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     return LeadVehicle(glow=glow, chevron=chevron, fill_alpha=int(fill_alpha), is_radar=is_radar, flip_chevron=flip_chevron)
 
   def _draw_lane_lines(self):
-    """Draw lane lines and road edges"""
+    """Draw lane lines and road edges - always use enhanced rendering"""
+    self._draw_enhanced_lane_lines()
+
+  def _draw_enhanced_lane_lines(self):
+    """Draw enhanced lane lines with glow effects - ported from bp-dev QT UI"""
+    # Draw wide lane line polygons with enhanced visibility
     for i, lane_line in enumerate(self._lane_lines):
-      if lane_line.projected_points.size == 0:
+      if lane_line.projected_points.size == 0 or self._lane_line_probs[i] < 0.4:
         continue
 
-      alpha = np.clip(self._lane_line_probs[i], 0.0, 0.7)
-      color = rl.Color(255, 255, 255, int(alpha * 255))
+      base_alpha = np.clip(self._lane_line_probs[i] * 0.8, 0.3, 0.8)
+      is_current_lane = (i == 1 or i == 2)
+      if not is_current_lane:
+        base_alpha *= 0.4  # Dim outer lanes
+
+      color = rl.Color(255, 255, 255, int(base_alpha * 255))
       draw_polygon(self._rect, lane_line.projected_points, color)
+
+    # Add horizontal glow effects for enhanced visibility
+    self._draw_lane_glow_effects()
+
+    # Draw road edges with enhanced red warning
+    for i, road_edge in enumerate(self._road_edges):
+      if road_edge.projected_points.size == 0:
+        continue
+
+      edge_alpha = np.clip(1.0 - self._road_edge_stds[i], 0.0, 1.0) * 0.6
+      color = rl.Color(255, 0, 0, int(edge_alpha * 255))
+      draw_polygon(self._rect, road_edge.projected_points, color)
+
+    # Add road edge glow effects
+    self._draw_road_edge_glow_effects()
+
+  def _draw_lane_glow_effects(self):
+    """Draw glow effects around lane lines - ported from bp-dev QT UI"""
+    # Three-layer glow for smooth falloff
+    glow_widths = [24.0, 16.0, 8.0]
+    glow_alphas = [0.08, 0.15, 0.3]
+
+    for i, lane_line in enumerate(self._lane_lines):
+      if lane_line.projected_points.size == 0 or self._lane_line_probs[i] < 0.4:
+        continue
+
+      base_alpha = np.clip(self._lane_line_probs[i] * 0.8, 0.3, 0.8)
+      is_current_lane = (i == 1 or i == 2)
+      if not is_current_lane:
+        base_alpha *= 0.4
+
+      # Draw glow layers (outer to inner)
+      for layer_idx, (glow_width, glow_alpha) in enumerate(zip(glow_widths, glow_alphas)):
+        # Expand polygon outward for glow effect
+        expanded_points = self._expand_polygon(lane_line.projected_points, glow_width)
+        if expanded_points.size > 0:
+          alpha = int(base_alpha * glow_alpha * 255)
+          color = rl.Color(255, 255, 255, alpha)
+          draw_polygon(self._rect, expanded_points, color)
+
+  def _draw_road_edge_glow_effects(self):
+    """Draw glow effects around road edges - ported from bp-dev QT UI"""
+    # Red warning glow with three layers
+    glow_widths = [36.0, 24.0, 12.0]
+    glow_alphas = [0.05, 0.1, 0.2]
 
     for i, road_edge in enumerate(self._road_edges):
       if road_edge.projected_points.size == 0:
         continue
 
-      alpha = np.clip(1.0 - self._road_edge_stds[i], 0.0, 1.0)
-      color = rl.Color(255, 0, 0, int(alpha * 255))
-      draw_polygon(self._rect, road_edge.projected_points, color)
+      edge_alpha = np.clip(1.0 - self._road_edge_stds[i], 0.0, 1.0)
+      if edge_alpha < 0.3:
+        continue
+
+      # Draw glow layers (outer to inner)
+      for layer_idx, (glow_width, glow_alpha) in enumerate(zip(glow_widths, glow_alphas)):
+        # Expand polygon outward for glow effect
+        expanded_points = self._expand_polygon(road_edge.projected_points, glow_width)
+        if expanded_points.size > 0:
+          alpha = int(edge_alpha * glow_alpha * 255)
+          color = rl.Color(255, 0, 0, alpha)
+          draw_polygon(self._rect, expanded_points, color)
+
+  def _update_blindspot_polygons(self, model):
+    """Update blindspot polygon vertices from lane lines - ported from bp-dev QT UI"""
+    if self._car_space_transform.size == 0 or np.allclose(self._car_space_transform, 0):
+      self._left_blindspot_vertices = np.empty((0, 2), dtype=np.float32)
+      self._right_blindspot_vertices = np.empty((0, 2), dtype=np.float32)
+      return
+
+    lane_lines = model.laneLines
+    if len(lane_lines) < 4:
+      self._left_blindspot_vertices = np.empty((0, 2), dtype=np.float32)
+      self._right_blindspot_vertices = np.empty((0, 2), dtype=np.float32)
+      return
+
+    # Get left and right lane lines (indices 1 and 2)
+    left_lane = lane_lines[1]
+    right_lane = lane_lines[2]
+
+    if len(left_lane.x) == 0 or len(right_lane.x) == 0:
+      self._left_blindspot_vertices = np.empty((0, 2), dtype=np.float32)
+      self._right_blindspot_vertices = np.empty((0, 2), dtype=np.float32)
+      return
+
+    # Limit to 50 points max for performance
+    max_distance = np.clip(self._path.raw_points[-1, 0] if self._path.raw_points.size > 0 else MAX_DRAW_DISTANCE, 
+                          MIN_DRAW_DISTANCE, MAX_DRAW_DISTANCE)
+    max_idx = min(self._get_path_length_idx(np.array(left_lane.x), max_distance), 50)
+    MAX_VERTICES = 40
+
+    # Build left blindspot polygon
+    # Polygon goes: forward along left lane with offset (outward), then backward along left lane (back to lane)
+    left_vertices_forward = []
+    left_vertices_backward = []
+    vertex_count = 0
+
+    # Forward pass along left lane with offset (outward) - these form the "left" side of polygon
+    for i in range(min(max_idx + 1, len(left_lane.x))):
+      if vertex_count >= MAX_VERTICES:
+        break
+      point = self._map_to_screen(left_lane.x[i], left_lane.y[i] - BLINDSPOT_WIDTH, left_lane.z[i])
+      if point:
+        left_vertices_forward.append(point)
+        vertex_count += 1
+
+    # Return pass along left lane without offset (back to lane line) - these form the "right" side (reversed)
+    for i in range(max_idx, -1, -1):
+      if vertex_count >= MAX_VERTICES or i >= len(left_lane.x):
+        break
+      point = self._map_to_screen(left_lane.x[i], left_lane.y[i], left_lane.z[i])
+      if point:
+        left_vertices_backward.append(point)
+        vertex_count += 1
+
+    # Combine: forward vertices + backward vertices (already reversed) = closed polygon
+    if left_vertices_forward and left_vertices_backward:
+      # Ensure we have at least 3 points for a valid polygon
+      left_vertices = left_vertices_forward + left_vertices_backward
+      self._left_blindspot_vertices = np.array(left_vertices, dtype=np.float32)
+    else:
+      self._left_blindspot_vertices = np.empty((0, 2), dtype=np.float32)
+
+    # Build right blindspot polygon
+    # Polygon goes: forward along right lane (lane line), then backward along right lane with offset (outward)
+    right_vertices_forward = []
+    right_vertices_backward = []
+    vertex_count = 0
+
+    # Forward pass along right lane without offset - these form the "left" side of polygon
+    for i in range(min(max_idx + 1, len(right_lane.x))):
+      if vertex_count >= MAX_VERTICES:
+        break
+      point = self._map_to_screen(right_lane.x[i], right_lane.y[i], right_lane.z[i])
+      if point:
+        right_vertices_forward.append(point)
+        vertex_count += 1
+
+    # Return pass along right lane with offset (outward) - these form the "right" side (reversed)
+    for i in range(max_idx, -1, -1):
+      if vertex_count >= MAX_VERTICES or i >= len(right_lane.x):
+        break
+      point = self._map_to_screen(right_lane.x[i], right_lane.y[i] + BLINDSPOT_WIDTH, right_lane.z[i])
+      if point:
+        right_vertices_backward.append(point)
+        vertex_count += 1
+
+    # Combine: forward vertices + backward vertices (already reversed) = closed polygon
+    if right_vertices_forward and right_vertices_backward:
+      # Ensure we have at least 3 points for a valid polygon
+      right_vertices = right_vertices_forward + right_vertices_backward
+      self._right_blindspot_vertices = np.array(right_vertices, dtype=np.float32)
+    else:
+      self._right_blindspot_vertices = np.empty((0, 2), dtype=np.float32)
+
+  def _draw_filled_polygon(self, vertices: np.ndarray, color: rl.Color):
+    """Draw a simple filled polygon using triangle fan"""
+    if vertices.size == 0 or len(vertices) < 3:
+      return
+    
+    # Convert to list of Vector2 for Raylib
+    points = [rl.Vector2(float(v[0]), float(v[1])) for v in vertices]
+    rl.draw_triangle_fan(points, len(points), color)
+
+  def _draw_blindspot_overlays(self, sm):
+    """Draw blindspot overlays with animated red gradient - ported from bp-dev QT UI"""
+    if not self._params.get_bool("BlindSpot"):
+      return
+
+    car_state = sm['carState']
+    left_blindspot = car_state.leftBlindspot
+    right_blindspot = car_state.rightBlindspot
+
+    # Update animation (20Hz UI, so 40 frames = 2 seconds per cycle)
+    self._blindspot_blink_counter = (self._blindspot_blink_counter + 1) % 40
+    pulse = 0.1 * math.sin(self._blindspot_blink_counter * math.pi / 20) + 0.25
+    self._blindspot_opacity = pulse
+
+      # Draw left blindspot with animated red gradient
+    if left_blindspot and self._left_blindspot_vertices.size >= 3:
+      # For simplicity, use a single color with animated opacity
+      # The gradient effect would require per-vertex colors which is complex
+      # Instead, use the pulsing opacity for the entire polygon
+      base_alpha = int(self._blindspot_opacity * 255)
+      color = rl.Color(255, 0, 0, base_alpha)
+      self._draw_filled_polygon(self._left_blindspot_vertices, color)
+
+    # Draw right blindspot with animated red gradient
+    if right_blindspot and self._right_blindspot_vertices.size >= 3:
+      # For simplicity, use a single color with animated opacity
+      base_alpha = int(self._blindspot_opacity * 255)
+      color = rl.Color(255, 0, 0, base_alpha)
+      self._draw_filled_polygon(self._right_blindspot_vertices, color)
+
+  def _expand_polygon(self, points: np.ndarray, width: float) -> np.ndarray:
+    """Expand polygon outward by width pixels for glow effect"""
+    if points.size == 0 or len(points) < 3:
+      return np.empty((0, 2), dtype=np.float32)
+
+    # For each point, calculate outward normal and expand
+    expanded = []
+    n = len(points)
+    
+    for i in range(n):
+      # Get previous and next points for normal calculation
+      prev_idx = (i - 1) % n
+      next_idx = (i + 1) % n
+      
+      p_prev = points[prev_idx]
+      p_curr = points[i]
+      p_next = points[next_idx]
+      
+      # Calculate edge vectors
+      edge1 = p_curr - p_prev
+      edge2 = p_next - p_curr
+      
+      # Normalize edge vectors
+      len1 = np.linalg.norm(edge1)
+      len2 = np.linalg.norm(edge2)
+      
+      if len1 > 1e-6:
+        edge1 = edge1 / len1
+      if len2 > 1e-6:
+        edge2 = edge2 / len2
+      
+      # Calculate outward normal (perpendicular to edge, pointing outward)
+      # For a polygon, we need to determine which side is "outward"
+      # Simple approach: use average of edge normals
+      normal1 = np.array([-edge1[1], edge1[0]])  # 90 degree rotation
+      normal2 = np.array([-edge2[1], edge2[0]])
+      
+      # Average normal
+      normal = (normal1 + normal2) / 2.0
+      normal_len = np.linalg.norm(normal)
+      if normal_len > 1e-6:
+        normal = normal / normal_len
+      
+      # Expand point outward
+      expanded_point = p_curr + normal * width
+      expanded.append(expanded_point)
+    
+    return np.array(expanded, dtype=np.float32)
 
   def _draw_path(self, sm):
     """Draw path with dynamic coloring based on mode and throttle state."""
@@ -404,7 +668,8 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     self._blend_filter.update(int(allow_throttle))
 
     if ui_state.rainbow_path:
-      self.rainbow_path.draw_rainbow_path(self._rect, self._path)
+      #self.rainbow_path.draw_rainbow_path(self._rect, self._path)
+      draw_polygon(self._rect, self._path.projected_points, rainbow=True, rainbow_v=self._rainbow_v)
       return
 
     if self._experimental_mode:

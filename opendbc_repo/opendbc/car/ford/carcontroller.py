@@ -13,7 +13,7 @@ from opendbc.car.ford.values import CarControllerParams, FordFlags, CAR
 from opendbc.car.interfaces import CarControllerBase, V_CRUISE_MAX
 from selfdrive.modeld.constants import ModelConstants  # for calculations
 from common.pid import PIDController # PID control of lateral
-from opendbc.car.ford.helpers import compute_dm_msg_values
+from opendbc.car.ford.helpers import compute_dm_msg_values, actuators_calc
 from openpilot.common.params import Params
 #from opendbc.sunnypilot.car.ford.icbm import IntelligentCruiseButtonManagementInterface
 
@@ -80,9 +80,10 @@ def apply_ford_curvature_limits(apply_curvature, apply_curvature_last, current_c
 
 
 def apply_creep_compensation(accel: float, v_ego: float) -> float:
-  creep_accel = np.interp(v_ego, [1., 3.], [0.6, 0.])
-  creep_accel = np.interp(accel, [0., 0.2], [creep_accel, 0.])
-  accel -= creep_accel
+  # Only compensate when decelerating; avoids fighting creep during coast and prevents binary feel
+  creep_accel = np.interp(v_ego, [2., 3.], [0.3, 0.])
+  if accel < 0.0:
+    accel -= creep_accel
   return float(accel)
 
 
@@ -114,6 +115,15 @@ class CarController(CarControllerBase): #, IntelligentCruiseButtonManagementInte
     self.steering_wheel_delta_adjusted = 0.0
     self.last_button_frame = 0  # Track last ICBM button press frame
     self.lateralUncertainty = 0.0
+
+    # Longitudinal: hysteresis for brake/precharge to avoid binary feel and gas+brake at once
+    self.brake_actuate_last = 0
+    self.precharge_actuate_last = 0
+    self.precharge_actuate_ts = 0
+    self.brake_actuator_activate = -0.14   # accel threshold to activate brake
+    self.brake_actuator_release_delta = 0.08  # hysteresis gap to release brake
+    self.precharge_actuator_target_delta = 0.02  # precharge engages slightly before brake
+    self.target_speed_multiplier = 1.0
 
     ################################## lateral control parameters ##############################################
 
@@ -741,44 +751,37 @@ class CarController(CarControllerBase): #, IntelligentCruiseButtonManagementInte
     ### longitudinal control ###
     # send acc msg at 50Hz
     if self.CP.openpilotLongitudinalControl and (self.frame % CarControllerParams.ACC_CONTROL_STEP) == 0:
+      # Single accel path (like old logic): one clipped value for both gas and brake
       accel = actuators.accel
-      gas = accel
-
       if CC.longActive:
-        # Compensate for engine creep at low speed.
-        # Either the ABS does not account for engine creep, or the correction is very slow
-        # TODO: verify this applies to EV/hybrid
         accel = apply_creep_compensation(accel, CS.out.vEgo)
-
-        # The stock system has been seen rate limiting the brake accel to 5 m/s^3,
-        # however even 3.5 m/s^3 causes some overshoot with a step response.
+        # Rate limit brake request to reduce jerk
         accel = max(accel, self.accel - (3.5 * CarControllerParams.ACC_CONTROL_STEP * DT_CTRL))
-
       accel = float(np.clip(accel, CarControllerParams.ACCEL_MIN, CarControllerParams.ACCEL_MAX))
-      gas = float(np.clip(gas, CarControllerParams.ACCEL_MIN, CarControllerParams.ACCEL_MAX))
 
-      # Both gas and accel are in m/s^2, accel is used solely for braking
+      gas = accel
       if not CC.longActive or gas < CarControllerParams.MIN_GAS:
         gas = CarControllerParams.INACTIVE_GAS
 
-      # PCM applies pitch compensation to gas/accel, but we need to compensate for the brake/pre-charge bits
-      accel_due_to_pitch = 0.0
-      if len(CC.orientationNED) == 3:
-        accel_due_to_pitch = math.sin(CC.orientationNED[1]) * ACCELERATION_DUE_TO_GRAVITY
+      # Hysteresis for precharge/brake so we don't chatter and we get smooth coast -> brake
+      precharge_actuate, brake_actuate = actuators_calc(self, accel)
 
-      accel_pitch_compensated = accel + accel_due_to_pitch
-      if accel_pitch_compensated > 0.3 or not CC.longActive:
-        self.brake_request = False
-      elif accel_pitch_compensated < 0.0:
-        self.brake_request = True
+      # Never apply gas and brake at the same time: when braking, send no gas
+      if brake_actuate:
+        gas = CarControllerParams.INACTIVE_GAS
 
       stopping = CC.actuators.longControlState == LongCtrlState.stopping
-      # TODO: look into using the actuators packet to send the desired speed
-      can_sends.append(fordcan.create_acc_msg(self.packer, self.CAN, CC.longActive, gas, accel, stopping, self.brake_request, v_ego_kph=V_CRUISE_MAX))
+      target_speed = float(np.clip(actuators.speed * self.target_speed_multiplier, 0, V_CRUISE_MAX))
+      if not CC.longActive and getattr(hud_control, "setSpeed", None) is not None:
+        target_speed = hud_control.setSpeed
+
+      can_sends.append(fordcan.create_acc_msg(
+        self.packer, self.CAN, CC.longActive, gas, accel, stopping,
+        brake_actuate, precharge_actuate, v_ego_kph=target_speed
+      ))
 
       self.accel = accel
       self.gas = gas
-      self.accel_pitch_compensated = accel_pitch_compensated
 
     ### ui ###
     send_ui = (self.main_on_last != main_on) or (self.lkas_enabled_last != CC.latActive) or (self.steer_alert_last != steer_alert)

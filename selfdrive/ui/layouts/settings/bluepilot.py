@@ -28,6 +28,7 @@ class BluePilotLayout(Widget):
       ("BPPortalEnabled", self._enable_web_routes),
       ("send_hands_free_cluster_msg", self._show_hands_free_ui),
       ("BlindSpot", self._show_blindspot),
+      ("ShowBrakeStatus", self._show_brake_status),
       ("FordPrefShowRadarLeadOverlay", self._show_ford_radar_overlay),
       ("FordPrefHybridBatteryStatus", self._show_hybrid_battery_status),
       ("FordPrefHybridPowerFlow", self._show_hybrid_power_flow),
@@ -76,6 +77,15 @@ class BluePilotLayout(Widget):
       lambda: tr("Display red overlay when vehicle is detected in blindspot."),
       initial_state=self._params.get_bool("BlindSpot"),
       callback=lambda state: self._toggle_callback(state, "BlindSpot"),
+      icon="warning.png"
+    )
+
+    # Brake status toggle
+    self._show_brake_status = toggle_item(
+      lambda: tr("Show Brake Status"),
+      lambda: tr("Display speed setpoint in red when vehicle is braking."),
+      initial_state=self._params.get_bool("ShowBrakeStatus"),
+      callback=lambda state: self._toggle_callback(state, "ShowBrakeStatus"),
       icon="warning.png"
     )
 
@@ -228,6 +238,7 @@ class BluePilotLayout(Widget):
       self._show_web_routes_qr,
       self._show_hands_free_ui,
       self._show_blindspot,
+      self._show_brake_status,
       self._show_ford_radar_overlay,
       self._show_hybrid_battery_status,
       self._show_hybrid_power_flow,

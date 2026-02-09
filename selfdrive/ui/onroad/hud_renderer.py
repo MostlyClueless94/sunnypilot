@@ -1,6 +1,7 @@
 import pyray as rl
 from dataclasses import dataclass
 from openpilot.common.constants import CV
+from openpilot.common.params import Params
 from openpilot.selfdrive.ui.onroad.exp_button import ExpButton
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.system.ui.lib.application import gui_app, FontWeight
@@ -79,6 +80,8 @@ class HudRenderer(Widget):
 
     self._exp_button: ExpButton = ExpButton(UI_CONFIG.button_size, UI_CONFIG.wheel_icon_size)
     self._battery_gauge = HybridBatteryGauge()
+    self._params = Params()
+    self._brakes_on = False
 
   def _update_state(self) -> None:
     """Update HUD state based on car state and controls state."""
@@ -107,6 +110,21 @@ class HudRenderer(Widget):
     v_ego = v_ego_cluster if self.v_ego_cluster_seen else car_state.vEgo
     speed_conversion = CV.MS_TO_KPH if ui_state.is_metric else CV.MS_TO_MPH
     self.speed = max(0.0, v_ego * speed_conversion)
+    
+    # Check brake status if enabled
+    if self._params.get_bool("ShowBrakeStatus"):
+      if sm.valid['carStateBP']:
+        try:
+          car_state_bp = sm['carStateBP']
+          brake_light_status = car_state_bp.brakeLightStatus
+          self._brakes_on = brake_light_status.dataAvailable and brake_light_status.brakeLightsOn
+        except (KeyError, AttributeError):
+          self._brakes_on = False
+      else:
+        self._brakes_on = False
+    else:
+      self._brakes_on = False
+    
     self._torque_bar._update_state()
     self._powerflow_gauge._update_state()
 
@@ -192,7 +210,10 @@ class HudRenderer(Widget):
     speed_text_size = measure_text_cached(self._font_bold, speed_text, FONT_SIZES.current_speed)
     speed_pos = rl.Vector2(rect.x + rect.width / 2 - speed_text_size.x / 2, 180 - speed_text_size.y / 2)
     self.speed_right = speed_pos.x + speed_text_size.x
-    rl.draw_text_ex(self._font_bold, speed_text, speed_pos, FONT_SIZES.current_speed, 0, COLORS.WHITE)
+    
+    # Show red when braking if brake status is enabled
+    speed_color = rl.Color(255, 60, 60, 255) if self._brakes_on else COLORS.WHITE
+    rl.draw_text_ex(self._font_bold, speed_text, speed_pos, FONT_SIZES.current_speed, 0, speed_color)
 
     unit_text = tr("km/h") if ui_state.is_metric else tr("mph")
     unit_text_size = measure_text_cached(self._font_medium, unit_text, FONT_SIZES.speed_unit)

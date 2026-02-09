@@ -52,23 +52,32 @@ class ChevronMetrics:
     if not lead_vehicle.chevron or len(lead_vehicle.chevron) < 3:
       return
 
-    # Check if powerflow meter is enabled - if so, always use upper position
+    # Check if powerflow meter is enabled
     powerflow_enabled = self._params.get_bool("FordPrefHybridPowerFlow")
     
+    # Deadband logic for close-proximity mode: switch to close mode at 50ft (15.24m), switch back at 60ft (18.29m)
+    # dRel is in meters, so convert feet to meters: 1 ft = 0.3048 m
+    CLOSE_MODE_THRESHOLD_M = 50.0 * 0.3048  # 50 feet = 15.24 meters
+    NORMAL_MODE_THRESHOLD_M = 60.0 * 0.3048  # 60 feet = 18.29 meters
+    
+    # Deadband logic for powerflow mode: switch to upper position at 150ft (45.72m), switch back at 100ft (30.48m)
+    POWERFLOW_UPPER_THRESHOLD_M = 150.0 * 0.3048  # 150 feet = 45.72 meters
+    POWERFLOW_LOWER_THRESHOLD_M = 100.0 * 0.3048  # 100 feet = 30.48 meters
+    
     if powerflow_enabled:
-      # Powerflow meter is enabled - always use upper position to avoid overlap
-      self._close_mode = True
+      # When powerflow is active, use distance-based positioning
+      if d_rel < POWERFLOW_UPPER_THRESHOLD_M:
+        self._close_mode = True  # Use upper position when close
+      elif d_rel > POWERFLOW_LOWER_THRESHOLD_M:
+        self._close_mode = False  # Use lower position when far
+      # Otherwise keep current state (deadband between 75-85ft)
     else:
-      # Deadband logic: switch to close mode at 50ft (15.24m), switch back at 60ft (18.29m)
-      # dRel is in meters, so convert feet to meters: 1 ft = 0.3048 m
-      CLOSE_MODE_THRESHOLD_M = 50.0 * 0.3048  # 50 feet = 15.24 meters
-      NORMAL_MODE_THRESHOLD_M = 60.0 * 0.3048  # 60 feet = 18.29 meters
-      
+      # Normal mode: use close-proximity logic
       if d_rel < CLOSE_MODE_THRESHOLD_M:
         self._close_mode = True
       elif d_rel > NORMAL_MODE_THRESHOLD_M:
         self._close_mode = False
-      # Otherwise keep current state (deadband between thresholds)
+      # Otherwise keep current state (deadband between 50-60ft)
 
     # Extract chevron points
     # Normal: [bottom_right, top, bottom_left] - chevron[1] is top point (smaller y)
@@ -96,10 +105,15 @@ class ChevronMetrics:
     spacing_offset = max(70, sz * 0.6)  # At least 70px, or 60% of chevron size
     
     if self._close_mode:
-      # Position text well above the chevron (similar to where flipped chevron used to be)
-      # Add extra upward offset to float above the lead vehicle
-      upward_offset = sz * 3.0  # Move text up by 3x chevron size to float above vehicle
-      chevron_text_y = chevron_top_y - spacing_offset - upward_offset
+      if powerflow_enabled:
+        # When powerflow is active and in upper position, place text just above chevron (top of lead vehicle)
+        # Use smaller offset (85% of spacing) to position it closer to the chevron
+        chevron_text_y = chevron_top_y - (spacing_offset * 0.85)
+      else:
+        # Normal close-proximity mode: position text well above the chevron to float above the lead vehicle
+        # Add extra upward offset to float above the lead vehicle
+        upward_offset = sz * 3.0  # Move text up by 3x chevron size to float above vehicle
+        chevron_text_y = chevron_top_y - spacing_offset - upward_offset
     else:
       # Position text below the chevron
       chevron_text_y = chevron_bottom_y + spacing_offset

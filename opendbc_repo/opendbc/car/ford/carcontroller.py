@@ -760,10 +760,10 @@ class CarController(CarControllerBase): #, IntelligentCruiseButtonManagementInte
           lead_time_sec = float(lead.dRel) / CS.out.vEgo
       lead_time_sec = float(np.clip(lead_time_sec, 0.0, 5.0))
 
-      # Dynamic coasting: full coast when lead > 1.5s, min coast when lead < 0.75s (interpolate 0.75–1.5s)
-      # Higher min_gas = more coasting (more accel values treated as coast, less brake tap)
+      # Dynamic coasting: full coast when lead > 1.5s, min coast when lead < 0.75s (interpolate 0.75–1.5s).
+      # Only expand coasting in the "let off" region: never treat positive accel as coast so we engage gas when asked.
       min_gas_close = CarControllerParams.MIN_GAS
-      min_gas_far = 0.25
+      min_gas_far = 0.0   # cap at 0 so positive accel always gets gas (no pulsing to maintain speed)
       dynamic_min_gas = float(np.interp(lead_time_sec, [0.75, 1.5], [min_gas_close, min_gas_far]))
 
       # Single accel path (like old logic): one clipped value for both gas and brake

@@ -39,7 +39,7 @@ def actuators_calc(cc_self, brake): # cc_self is the CarController object (self)
     precharge_actuate = False
 
   cc_self.precharge_actuate_last = precharge_actuate
-  logDebug(f"actuators_calc: {brake}\t{precharge_actuate}\t{brake_actuate}")
+  # logDebug(f"actuators_calc: {brake}\t{precharge_actuate}\t{brake_actuate}")
 
   return precharge_actuate, brake_actuate
 

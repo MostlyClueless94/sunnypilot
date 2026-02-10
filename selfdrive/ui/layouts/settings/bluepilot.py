@@ -131,7 +131,7 @@ class BluePilotLayout(Widget):
       lambda: tr("Max Coasting TTC (s)"),
       lambda: tr("Full coasting above this TTC (seconds). Blend between min and max."),
       param="MAX_COASTING_TTC",
-      min_value=15.0,
+      min_value=8.0,
       max_value=60.0,
       step=1.0,
       suffix="s",

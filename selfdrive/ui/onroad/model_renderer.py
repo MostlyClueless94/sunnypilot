@@ -242,15 +242,15 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     max_distance = np.clip(path_x_array[-1], MIN_DRAW_DISTANCE, MAX_DRAW_DISTANCE)
     max_idx = self._get_path_length_idx(self._lane_lines[0].raw_points[:, 0], max_distance)
 
-    # Update lane lines using raw points
+    # Update lane lines using raw points (doubled width: 0.025 -> 0.05)
     for i, lane_line in enumerate(self._lane_lines):
       lane_line.projected_points = self._map_line_to_polygon(
-        lane_line.raw_points, 0.025 * self._lane_line_probs[i], 0.0, max_idx, max_distance
+        lane_line.raw_points, 0.05 * self._lane_line_probs[i], 0.0, max_idx, max_distance
       )
 
-    # Update road edges using raw points
+    # Update road edges using raw points (doubled width: 0.025 -> 0.05)
     for road_edge in self._road_edges:
-      road_edge.projected_points = self._map_line_to_polygon(road_edge.raw_points, 0.025, 0.0, max_idx, max_distance)
+      road_edge.projected_points = self._map_line_to_polygon(road_edge.raw_points, 0.05, 0.0, max_idx, max_distance)
 
     # Update path using raw points
     if lead and lead.status:
@@ -579,6 +579,8 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     if ui_state.rainbow_path:
       #self.rainbow_path.draw_rainbow_path(self._rect, self._path)
       draw_polygon(self._rect, self._path.projected_points, rainbow=True, rainbow_v=self._rainbow_v)
+      # Draw status-colored edges even for rainbow path
+      self._draw_path_edges()
       return
 
     if self._experimental_mode:
@@ -598,6 +600,60 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
         stops=[0.0, 0.5, 1.0],
       )
       draw_polygon(self._rect, self._path.projected_points, gradient=gradient)
+    
+    # Draw status-colored edges on top of the filled path
+    self._draw_path_edges()
+
+  def _draw_path_edges(self):
+    """Draw path edges (left, right, and front) with status-based colors."""
+    if not self._path.projected_points.size:
+      return
+    
+    points = self._path.projected_points
+    num_points = len(points)
+    
+    # Path polygon structure: [left_0..left_N-1, right_N-1..right_0]
+    # Split point: where left edge ends and right edge begins
+    mid_point = num_points // 2
+    
+    if mid_point < 2:
+      return  # Need at least 2 points per edge
+    
+    # Extract left and right edges
+    # Left edge: first half, already in correct order (near to far)
+    left_edge = points[:mid_point]
+    # Right edge: second half, stored in reverse (far to near), reverse to get near to far
+    right_edge = points[mid_point:][::-1]
+    
+    # Get status color for edges (same as lane lines)
+    edge_color = LANE_LINE_COLORS.get(ui_state.status, LANE_LINE_COLORS[UIStatus.DISENGAGED])
+    
+    # Draw left edge (from near to far)
+    for i in range(len(left_edge) - 1):
+      rl.draw_line_ex(
+        rl.Vector2(left_edge[i][0], left_edge[i][1]),
+        rl.Vector2(left_edge[i + 1][0], left_edge[i + 1][1]),
+        2.0,  # Line thickness
+        edge_color
+      )
+    
+    # Draw right edge (from near to far)
+    for i in range(len(right_edge) - 1):
+      rl.draw_line_ex(
+        rl.Vector2(right_edge[i][0], right_edge[i][1]),
+        rl.Vector2(right_edge[i + 1][0], right_edge[i + 1][1]),
+        2.0,  # Line thickness
+        edge_color
+      )
+    
+    # Draw front edge (connects far left point to far right point)
+    if len(left_edge) > 0 and len(right_edge) > 0:
+      rl.draw_line_ex(
+        rl.Vector2(left_edge[-1][0], left_edge[-1][1]),  # Last left point (far)
+        rl.Vector2(right_edge[-1][0], right_edge[-1][1]),  # Last right point (far)
+        2.0,  # Line thickness
+        edge_color
+      )
 
   def _draw_lead_indicator(self):
     # Draw lead vehicles if available

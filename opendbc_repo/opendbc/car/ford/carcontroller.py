@@ -239,7 +239,7 @@ class CarController(CarControllerBase): #, IntelligentCruiseButtonManagementInte
     self.max_path_offset_change = 0.00125
     self.max_curvature_rate_change = 0.0001
 
-    self.sm = messaging.SubMaster(['modelV2', 'liveParameters', 'selfdriveState'])
+    self.sm = messaging.SubMaster(['modelV2', 'liveParameters', 'selfdriveState', 'radarState'])
     self.VM = VehicleModel(self.CP)
     self.curvature_lookup_time = 0.2
 
@@ -751,6 +751,21 @@ class CarController(CarControllerBase): #, IntelligentCruiseButtonManagementInte
     ### longitudinal control ###
     # send acc msg at 50Hz
     if self.CP.openpilotLongitudinalControl and (self.frame % CarControllerParams.ACC_CONTROL_STEP) == 0:
+      # Lead-vehicle time gap (seconds at current speed) for dynamic coasting
+      lead_time_sec = 3.0
+      if self.sm.valid.get('radarState', False):
+        rs = self.sm['radarState']
+        lead = getattr(rs, 'leadOne', None)
+        if lead and getattr(lead, 'status', False) and getattr(lead, 'dRel', 0) > 0 and CS.out.vEgo > 0.5:
+          lead_time_sec = float(lead.dRel) / CS.out.vEgo
+      lead_time_sec = float(np.clip(lead_time_sec, 0.0, 5.0))
+
+      # Dynamic coasting: full coast when lead > 1.5s, min coast when lead < 0.75s (interpolate 0.75–1.5s)
+      # Higher min_gas = more coasting (more accel values treated as coast, less brake tap)
+      min_gas_close = CarControllerParams.MIN_GAS
+      min_gas_far = 0.25
+      dynamic_min_gas = float(np.interp(lead_time_sec, [0.75, 1.5], [min_gas_close, min_gas_far]))
+
       # Single accel path (like old logic): one clipped value for both gas and brake
       accel = actuators.accel
       if CC.longActive:
@@ -760,7 +775,7 @@ class CarController(CarControllerBase): #, IntelligentCruiseButtonManagementInte
       accel = float(np.clip(accel, CarControllerParams.ACCEL_MIN, CarControllerParams.ACCEL_MAX))
 
       gas = accel
-      if not CC.longActive or gas < CarControllerParams.MIN_GAS:
+      if not CC.longActive or gas < dynamic_min_gas:
         gas = CarControllerParams.INACTIVE_GAS
 
       # Hysteresis for precharge/brake so we don't chatter and we get smooth coast -> brake

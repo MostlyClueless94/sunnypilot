@@ -40,7 +40,7 @@ BORDER_COLORS = {
 WIDE_CAM_MAX_SPEED = 10.0  # m/s (22 mph)
 ROAD_CAM_MIN_SPEED = 15.0  # m/s (34 mph)
 INF_POINT = np.array([1000.0, 0.0, 0.0])
-CONFIDENCE_BALL_R = 50
+CONFIDENCE_BALL_R = 25  # Bar width for TICI (was 50, now 25 for thinner bar - half the original)
 CONFIDENCE_BALL_W = CONFIDENCE_BALL_R + 15
 
 class AugmentedRoadView(CameraView):
@@ -60,7 +60,7 @@ class AugmentedRoadView(CameraView):
     self._hud_renderer = HudRenderer(CONFIDENCE_BALL_W)
     self.alert_renderer = AlertRenderer()
     self.driver_state_renderer = DriverStateRenderer()
-    self._confidence_ball = ConfidenceBall(radius=50)
+    self._confidence_ball = ConfidenceBall(radius=20)  # Doubled from 10 to 20 for better visibility
     self._battery_gauge = HybridBatteryGauge()
 
     # Blindspot screen edge indicators (MICI style)
@@ -108,12 +108,17 @@ class AugmentedRoadView(CameraView):
     self._draw_blindspot_screen_edges(rect)
 
     # Draw all UI overlays
+    # Confidence ball bar starts at left edge and has width CONFIDENCE_BALL_R
     confidence_ball_rect = rl.Rectangle(
-      self.rect.x + CONFIDENCE_BALL_R,
+      self.rect.x,
       self.rect.y,
       CONFIDENCE_BALL_R,
       self.rect.height,
     )
+    # Draw dark grey background for the confidence ball bar area (where video doesn't extend)
+    dark_grey = rl.Color(40, 40, 40, 255)  # Dark grey instead of black
+    rl.draw_rectangle(int(confidence_ball_rect.x), int(confidence_ball_rect.y), 
+                     int(confidence_ball_rect.width), int(confidence_ball_rect.height), dark_grey)
     self._confidence_ball.render(confidence_ball_rect)
 
     left_rect = rl.Rectangle(

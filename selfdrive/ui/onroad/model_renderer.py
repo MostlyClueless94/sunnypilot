@@ -154,14 +154,9 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     radar_state = sm['radarState'] if sm.valid['radarState'] else None
     lead_one = radar_state.leadOne if radar_state else None
 
-    # Check for Ford ACC overlay feature
-    # Show chevron when using openpilot longitudinal control OR when using Ford ACC with overlay enabled
-    ford_overlay_enabled = False
-    is_ford_vehicle = False
-    if car_params:
-      is_ford_vehicle = car_params.brand == "ford"
-      if is_ford_vehicle and not self._longitudinal_control:
-        ford_overlay_enabled = self._params.get_bool("FordPrefShowRadarLeadOverlay")
+    # Check for radar overlay feature
+    # Show overlay when enabled - lead data comes from model/radarState, available for all vehicles
+    ford_overlay_enabled = self._params.get_bool("FordPrefShowRadarLeadOverlay")
 
     render_lead_indicator = (self._longitudinal_control or ford_overlay_enabled) and radar_state is not None
 

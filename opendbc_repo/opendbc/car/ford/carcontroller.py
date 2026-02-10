@@ -267,6 +267,15 @@ class CarController(CarControllerBase): #, IntelligentCruiseButtonManagementInte
     self.enable_lanefull_mode = self.params.get_bool("enable_lane_full_mode")
     self.custom_profile = int(self.params.get("custom_profile", return_default=True))
     self.LC_PID_gain_UI = float(self.params.get("LC_PID_gain_UI", return_default=True))
+    # Ford long coasting by TTC (seconds): no coast below min, full coast above max (UI: Bluepilot menu)
+    try:
+      self.min_coasting_ttc = float(self.params.get("MIN_COASTING_TTC", return_default=True))
+    except (TypeError, ValueError):
+      self.min_coasting_ttc = 10.0
+    try:
+      self.max_coasting_ttc = float(self.params.get("MAX_COASTING_TTC", return_default=True))
+    except (TypeError, ValueError):
+      self.max_coasting_ttc = 20.0
 
   def handle_post_lane_change_transition(self, path_angle, path_offset, desired_curvature_rate):
     """
@@ -763,13 +772,15 @@ class CarController(CarControllerBase): #, IntelligentCruiseButtonManagementInte
           if d_rel > 0 and v_rel < -0.5:   # closing (we're faster than lead)
             ttc_sec = d_rel / (-v_rel)
           # else: not closing (v_rel >= 0) or too close -> keep ttc_sec large so we coast
-      ttc_sec = float(np.clip(ttc_sec, 0.2, 30.0))
+      ttc_sec = float(np.clip(ttc_sec, 0.2, 60.0))
 
-      # Dynamic coasting by TTC: full coast when TTC > 20s, no coast when TTC < 10s (interpolate 10–20s).
+      # Dynamic coasting by TTC (from UI: MIN_COASTING_TTC, MAX_COASTING_TTC). Full coast above max, no coast below min.
       # Only expand coasting in the "let off" region: never treat positive accel as coast so we engage gas when asked.
+      min_ttc = min(self.min_coasting_ttc, self.max_coasting_ttc)
+      max_ttc = max(self.min_coasting_ttc, self.max_coasting_ttc)
       min_gas_close = CarControllerParams.MIN_GAS
       min_gas_far = 0.0   # cap at 0 so positive accel always gets gas (no pulsing to maintain speed)
-      dynamic_min_gas = float(np.interp(ttc_sec, [10.0, 20.0], [min_gas_close, min_gas_far]))
+      dynamic_min_gas = float(np.interp(ttc_sec, [min_ttc, max_ttc], [min_gas_close, min_gas_far]))
 
       # Single accel path (like old logic): one clipped value for both gas and brake
       accel = actuators.accel

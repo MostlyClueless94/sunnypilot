@@ -40,7 +40,7 @@ BORDER_COLORS = {
 WIDE_CAM_MAX_SPEED = 10.0  # m/s (22 mph)
 ROAD_CAM_MIN_SPEED = 15.0  # m/s (34 mph)
 INF_POINT = np.array([1000.0, 0.0, 0.0])
-CONFIDENCE_BALL_R = 25  # Bar width for TICI (was 50, now 25 for thinner bar - half the original)
+CONFIDENCE_BALL_R = 50  # Bar width for TICI (doubled from 25 to cover blank space on left)
 CONFIDENCE_BALL_W = CONFIDENCE_BALL_R + 15
 
 class AugmentedRoadView(CameraView):
@@ -60,7 +60,7 @@ class AugmentedRoadView(CameraView):
     self._hud_renderer = HudRenderer(CONFIDENCE_BALL_W)
     self.alert_renderer = AlertRenderer()
     self.driver_state_renderer = DriverStateRenderer()
-    self._confidence_ball = ConfidenceBall(radius=20)  # Doubled from 10 to 20 for better visibility
+    self._confidence_ball = ConfidenceBall(radius=30)  # 50% bigger than 20 (20 * 1.5 = 30)
     self._battery_gauge = HybridBatteryGauge()
 
     # Blindspot screen edge indicators (MICI style)

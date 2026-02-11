@@ -16,15 +16,15 @@ def draw_circle_gradient(center_x: float, center_y: float, radius: int,
                                radius * 2, radius * 2,
                                top, bottom)
 
-  # Paint over square with a ring (border thickness is 1/4 of original visible thickness)
+  # Paint over square with a ring (border thickness is 1/4 of original visible thickness, then reduced by 25%)
   # Original: outer_radius = math.ceil(radius * math.sqrt(2)) + 1, thickness ≈ radius * (sqrt(2) - 1) + 1
   # For radius=50: outer_radius ≈ 71, thickness ≈ 21
   # Square diagonal extends to radius * sqrt(2), so outer_radius must be at least that to cover square corners
-  # Then add 1/4 of the original visible border thickness for the actual border
+  # Then add 1/4 of the original visible border thickness, reduced by 25% (so 3/16 of original)
   square_diagonal_radius = radius * math.sqrt(2)
   original_outer_radius = math.ceil(radius * math.sqrt(2)) + 1
   original_visible_thickness = original_outer_radius - radius
-  new_visible_thickness = max(1.0, original_visible_thickness / 4.0)  # 1/4 of original visible thickness, min 1px
+  new_visible_thickness = max(1.0, original_visible_thickness / 4.0 * 0.75)  # 1/4 of original, then 25% smaller (3/16 total)
   # Ensure ring covers square corners, then add thin border
   outer_radius = max(square_diagonal_radius, radius + new_visible_thickness)
   rl.draw_ring(rl.Vector2(int(center_x), int(center_y)), radius, outer_radius,
@@ -68,7 +68,25 @@ class ConfidenceBall(Widget, ConfidenceBallSP):
       self.rect.height,
     )
 
-    dot_height = (1 - self._confidence_filter.x) * (content_rect.height - 2 * self._status_dot_radius) + self._status_dot_radius
+    # Ball range: bottom at 25% up from bottom (75% from top), top at 75% up from bottom (25% from top)
+    # Calculate positions relative to content_rect height
+    bottom_position = content_rect.height * 0.75  # 25% up from bottom = 75% of height
+    top_position = content_rect.height * 0.25      # 75% up from bottom = 25% of height
+    range_height = bottom_position - top_position
+    
+    # Map confidence filter to new range
+    # Original: (1 - self._confidence_filter.x) maps -0.5->1.5 (top) and 1.0->0.0 (bottom)
+    # We want to preserve this mapping but constrain to new range
+    # Normalize filter.x from [-0.5, ~1.0] to [0, 1] where 0 = bottom, 1 = top
+    filter_min = -0.5
+    filter_max = 1.0
+    normalized = (self._confidence_filter.x - filter_min) / (filter_max - filter_min)
+    normalized = max(0.0, min(1.0, normalized))  # Clamp to [0, 1]
+    
+    # Map normalized [0, 1] to [bottom_position, top_position]
+    # When normalized=0 (low confidence), ball at bottom_position
+    # When normalized=1 (high confidence), ball at top_position
+    dot_height = bottom_position - (normalized * range_height) + self._status_dot_radius
     dot_height = content_rect.y + dot_height  # Use content_rect.y, not self._rect.y
 
     # confidence zones
@@ -94,7 +112,8 @@ class ConfidenceBall(Widget, ConfidenceBallSP):
       top_dot_color = rl.Color(50, 50, 50, 255)
       bottom_dot_color = rl.Color(13, 13, 13, 255)
 
-    ring_color = rl.BLACK
+    # Use bottom color for ring to match the ball (darker edge looks more natural)
+    ring_color = bottom_dot_color
     # Position ball so it fits within the bar without going off the left edge
     # If bar is narrower than 2*radius, position ball so left edge aligns with bar left edge
     # Otherwise, position ball centered or aligned to right edge

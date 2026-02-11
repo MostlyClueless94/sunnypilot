@@ -29,6 +29,7 @@ class BluePilotLayout(Widget):
       ("send_hands_free_cluster_msg", self._show_hands_free_ui),
       ("BlindSpot", self._show_blindspot),
       ("ShowBrakeStatus", self._show_brake_status),
+      ("RoadNameToggle", self._show_road_name),
       ("FordPrefShowRadarLeadOverlay", self._show_ford_radar_overlay),
       ("FordPrefHybridBatteryStatus", self._show_hybrid_battery_status),
       ("FordPrefHybridPowerFlow", self._show_hybrid_power_flow),
@@ -87,6 +88,15 @@ class BluePilotLayout(Widget):
       initial_state=self._params.get_bool("ShowBrakeStatus"),
       callback=lambda state: self._toggle_callback(state, "ShowBrakeStatus"),
       icon="warning.png"
+    )
+
+    # Road name display toggle (uses map data from mapd)
+    self._show_road_name = toggle_item(
+      lambda: tr("Display Road Name"),
+      lambda: tr("Show current road name from map data in a pill on the driving screen."),
+      initial_state=(self._params.get("RoadNameToggle") or "1") == "1",
+      callback=lambda state: self._params.put("RoadNameToggle", "1" if state else "0"),
+      icon="speed_limit.png"
     )
 
     # Ford radar lead overlay toggle
@@ -273,6 +283,7 @@ class BluePilotLayout(Widget):
       self._show_hands_free_ui,
       self._show_blindspot,
       self._show_brake_status,
+      self._show_road_name,
       self._show_ford_radar_overlay,
       self._show_hybrid_battery_status,
       self._show_hybrid_power_flow,
@@ -316,7 +327,10 @@ class BluePilotLayout(Widget):
 
     # Refresh toggles from params to mirror external changes
     for key, item in self._refresh_toggles:
-      item.action_item.set_state(ui_state.params.get_bool(key))
+      if key == "RoadNameToggle":
+        item.action_item.set_state((ui_state.params.get(key) or "1") == "1")
+      else:
+        item.action_item.set_state(ui_state.params.get_bool(key))
 
     # Update button enabled states
     self._show_web_routes_qr.action_item.set_enabled(ui_state.params.get_bool("BPPortalEnabled"))

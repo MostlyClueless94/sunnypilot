@@ -138,6 +138,18 @@ class BluePilotLayout(Widget):
       icon="speed_limit.png"
     )
 
+    # Ford long brake/gas cooldown: wait this long (s) after releasing brake or gas before re-applying (reduces tapping at coasting limit).
+    self._long_brake_gas_cooldown = float_control_item(
+      lambda: tr("Brake/Gas Cooldown (s)"),
+      lambda: tr("Seconds to wait after releasing brake or gas before re-applying (1–10 s). Reduces tapping at coasting limit."),
+      param="FordLongBrakeGasCooldown",
+      min_value=1.0,
+      max_value=10.0,
+      step=0.1,
+      suffix="s",
+      icon="speed_limit.png"
+    )
+
     # Human turn detection toggle
     self._enable_human_turn_detection = toggle_item(
       lambda: tr("Enable Human Turn Detection"),
@@ -266,6 +278,7 @@ class BluePilotLayout(Widget):
       self._show_hybrid_power_flow,
       self._min_coasting_ttc,
       self._max_coasting_ttc,
+      self._long_brake_gas_cooldown,
       self._enable_human_turn_detection,
       self._lane_change_factor_high,
       self._enable_lane_positioning,

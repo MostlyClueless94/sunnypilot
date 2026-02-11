@@ -124,6 +124,11 @@ class CarController(CarControllerBase): #, IntelligentCruiseButtonManagementInte
     self.brake_actuator_release_delta = 0.08  # hysteresis gap to release brake
     self.precharge_actuator_target_delta = 0.02  # precharge engages slightly before brake
     self.target_speed_multiplier = 1.0
+    # Brake/gas cooldown: don't re-apply brake or gas within this many seconds after releasing (only when TTC >= MIN_TTC_FOR_SMOOTHING)
+    self._long_brake_sent_last = False
+    self._long_gas_sent_last = False
+    self._long_brake_release_ts = 0.0
+    self._long_gas_release_ts = 0.0
 
     ################################## lateral control parameters ##############################################
 
@@ -276,6 +281,12 @@ class CarController(CarControllerBase): #, IntelligentCruiseButtonManagementInte
       self.max_coasting_ttc = float(self.params.get("MAX_COASTING_TTC", return_default=True))
     except (TypeError, ValueError):
       self.max_coasting_ttc = 20.0
+    # Brake/gas cooldown (s): wait this long after releasing before re-applying (1–10 s, TICI UI)
+    try:
+      self.long_brake_gas_cooldown_sec = float(self.params.get("FordLongBrakeGasCooldown", return_default=True))
+    except (TypeError, ValueError):
+      self.long_brake_gas_cooldown_sec = 3.0
+    self.long_brake_gas_cooldown_sec = float(np.clip(self.long_brake_gas_cooldown_sec, 1.0, 10.0))
 
   def handle_post_lane_change_transition(self, path_angle, path_offset, desired_curvature_rate):
     """
@@ -774,13 +785,19 @@ class CarController(CarControllerBase): #, IntelligentCruiseButtonManagementInte
           # else: not closing (v_rel >= 0) or too close -> keep ttc_sec large so we coast
       ttc_sec = float(np.clip(ttc_sec, 0.2, 60.0))
 
-      # Dynamic coasting by TTC (from UI: MIN_COASTING_TTC, MAX_COASTING_TTC). Full coast above max, no coast below min.
-      # Only expand coasting in the "let off" region: never treat positive accel as coast so we engage gas when asked.
+      # Below this TTC we never modify braking: always obey model (no coasting band, no brake/gas cooldown).
+      MIN_TTC_FOR_SMOOTHING = 8.0
+      use_smoothing = ttc_sec >= MIN_TTC_FOR_SMOOTHING
+
+      # Dynamic coasting by TTC (only when use_smoothing). Below MIN_TTC_FOR_SMOOTHING use MIN_GAS (no coasting band).
       min_ttc = min(self.min_coasting_ttc, self.max_coasting_ttc)
       max_ttc = max(self.min_coasting_ttc, self.max_coasting_ttc)
       min_gas_close = CarControllerParams.MIN_GAS
       min_gas_far = 0.0   # cap at 0 so positive accel always gets gas (no pulsing to maintain speed)
-      dynamic_min_gas = float(np.interp(ttc_sec, [min_ttc, max_ttc], [min_gas_close, min_gas_far]))
+      if use_smoothing:
+        dynamic_min_gas = float(np.interp(ttc_sec, [min_ttc, max_ttc], [min_gas_close, min_gas_far]))
+      else:
+        dynamic_min_gas = min_gas_close  # no coasting band; obey model
 
       # Single accel path (like old logic): one clipped value for both gas and brake
       accel = actuators.accel
@@ -800,6 +817,33 @@ class CarController(CarControllerBase): #, IntelligentCruiseButtonManagementInte
       # Never apply gas and brake at the same time: when braking, send no gas
       if brake_actuate:
         gas = CarControllerParams.INACTIVE_GAS
+
+      # When TTC >= 8s: cooldown hysteresis – don't re-apply brake or gas within cooldown_sec after releasing.
+      # Long press of either is OK; only the re-application after release is delayed.
+      if use_smoothing:
+        ts = self.frame * DT_CTRL
+        cooldown = self.long_brake_gas_cooldown_sec
+        want_brake = brake_actuate
+        want_gas = gas > CarControllerParams.INACTIVE_GAS
+        can_brake = want_brake and (self._long_brake_sent_last or (ts - self._long_brake_release_ts >= cooldown))
+        can_gas = want_gas and (self._long_gas_sent_last or (ts - self._long_gas_release_ts >= cooldown))
+        if want_brake and not can_brake:
+          accel = 0.0
+          gas = CarControllerParams.INACTIVE_GAS
+          brake_actuate = 0
+          precharge_actuate = 0
+        if want_gas and not can_gas:
+          gas = CarControllerParams.INACTIVE_GAS
+        # Update release timestamps when we transition from on to off
+        if self._long_brake_sent_last and not brake_actuate:
+          self._long_brake_release_ts = ts
+        if self._long_gas_sent_last and (gas <= CarControllerParams.INACTIVE_GAS):
+          self._long_gas_release_ts = ts
+        self._long_brake_sent_last = bool(brake_actuate)
+        self._long_gas_sent_last = (gas > CarControllerParams.INACTIVE_GAS)
+      else:
+        self._long_brake_sent_last = bool(brake_actuate)
+        self._long_gas_sent_last = (gas > CarControllerParams.INACTIVE_GAS)
 
       stopping = CC.actuators.longControlState == LongCtrlState.stopping
       target_speed = float(np.clip(actuators.speed * self.target_speed_multiplier, 0, V_CRUISE_MAX))

@@ -267,8 +267,8 @@ class HudRenderer(Widget):
     gap_right = rect.x + rect.width / 2 - 80  # End of gap before current speed (wider to allow padding)
     center_x = (gap_left + gap_right) / 2 - 25  # Center of available space, shifted 25px left (15 + 10)
 
-    # Measure all lines to get pill dimensions
-    line_sizes = [measure_text_cached(self._font_semi_bold, line, FONT_SIZES.road_name) for line in road_name_lines]
+    # Measure all lines to get pill dimensions (use _font_bold to match alert pills)
+    line_sizes = [measure_text_cached(self._font_bold, line, FONT_SIZES.road_name) for line in road_name_lines]
     max_line_width = max(s.x for s in line_sizes)
     single_line_height = line_sizes[0].y
     total_text_height = single_line_height * len(road_name_lines) + line_spacing * (len(road_name_lines) - 1)
@@ -293,12 +293,12 @@ class HudRenderer(Widget):
     for i, (line, line_size) in enumerate(zip(road_name_lines, line_sizes)):
       text_x = pill_x + (pill_width - line_size.x) / 2
       rl.draw_text_ex(
-        self._font_semi_bold,
+        self._font_bold,
         line,
         rl.Vector2(text_x, text_y),
         FONT_SIZES.road_name,
         0,
-        COLORS.WHITE_TRANSLUCENT,
+        rl.WHITE,
       )
       text_y += single_line_height + line_spacing
 

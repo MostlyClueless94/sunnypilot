@@ -9,7 +9,7 @@ from enum import IntEnum
 
 import pyray as rl
 from openpilot.selfdrive.ui.layouts.settings import settings as OP
-from openpilot.selfdrive.ui.layouts.settings.bluepilot import BluePilotLayout
+from openpilot.selfdrive.ui.bp.layouts.settings.bluepilot import BluePilotLayout
 from openpilot.selfdrive.ui.layouts.settings.firehose import FirehoseLayout
 from openpilot.selfdrive.ui.layouts.settings.toggles import TogglesLayout
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.cruise import CruiseLayout

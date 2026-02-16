@@ -5,14 +5,14 @@ from openpilot.common.time_helpers import system_time_valid
 from openpilot.system.ui.widgets.scroller import Scroller
 from openpilot.selfdrive.ui.mici.widgets.button import BigButton, BigParamControl, BigMultiParamToggle, BigMultiToggle
 from openpilot.system.ui.widgets.label import gui_label, MiciLabel, UnifiedLabel
-from openpilot.selfdrive.ui.mici.widgets.floatbutton import BigParamFloatControl
+from openpilot.selfdrive.ui.bp.mici.widgets.floatbutton import BigParamFloatControl
 from openpilot.selfdrive.ui.mici.widgets.dialog import BigDialogBase
 from openpilot.system.ui.lib.application import gui_app, MousePos
 from openpilot.system.ui.widgets import NavWidget, DialogResult
 from openpilot.selfdrive.ui.layouts.settings.common import restart_needed_callback
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.common.params import Params
-from openpilot.selfdrive.ui.mici.widgets.web_server_qr_dialog import WebServerQRDialog
+from openpilot.selfdrive.ui.bp.mici.widgets.web_server_qr_dialog import WebServerQRDialog
 
 class BluePilotLayoutMici(NavWidget):
   def __init__(self, back_callback: Callable):

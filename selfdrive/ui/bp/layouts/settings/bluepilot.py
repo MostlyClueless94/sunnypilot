@@ -8,8 +8,8 @@ from openpilot.system.ui.widgets.scroller_tici import Scroller
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.multilang import tr, tr_noop
 from openpilot.selfdrive.ui.ui_state import ui_state
-from openpilot.selfdrive.ui.widgets.web_server_qr_dialog_tici import WebServerQRDialogTici
-from openpilot.selfdrive.ui.widgets.float_control_item import float_control_item
+from openpilot.selfdrive.ui.bp.widgets.web_server_qr_dialog_tici import WebServerQRDialogTici
+from openpilot.selfdrive.ui.bp.widgets.float_control_item import float_control_item
 
 
 class BluePilotLayout(Widget):

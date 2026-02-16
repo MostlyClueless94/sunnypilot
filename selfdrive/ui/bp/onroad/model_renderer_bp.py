@@ -1,0 +1,323 @@
+import numpy as np
+import pyray as rl
+from openpilot.common.filter_simple import FirstOrderFilter
+from openpilot.selfdrive.ui.onroad.model_renderer import ModelRenderer, LANE_LINE_COLORS, CLIP_MARGIN, MIN_DRAW_DISTANCE, MAX_DRAW_DISTANCE
+from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
+from openpilot.system.ui.lib.application import gui_app
+from openpilot.system.ui.lib.shader_polygon import draw_polygon, Gradient
+
+
+class ModelRendererBP(ModelRenderer):
+  """BluePilot ModelRenderer with enhanced lane lines, path smoothing, ford overlay, and path edges."""
+
+  def __init__(self):
+    super().__init__()
+    # Path smoothing: store previous smoothed path for temporal damping
+    self._previous_path_projected_points = np.empty((0, 2), dtype=np.float32)
+    self._path_smoothing_damping = 0.3
+
+    # Torque filter for lane line coloring (orange when high torque)
+    self._torque_filter = FirstOrderFilter(0, 0.1, 1 / gui_app.target_fps)
+
+  def _render(self, rect: rl.Rectangle):
+    sm = ui_state.sm
+
+    if ui_state.rainbow_path:
+      self._rainbow_v = np.clip(sm['carState'].vEgo, 2.5, 35) / 30
+
+    if (sm.recv_frame["liveCalibration"] < ui_state.started_frame or
+        sm.recv_frame["modelV2"] < ui_state.started_frame):
+      return
+
+    self._clip_region = rl.Rectangle(
+      rect.x - CLIP_MARGIN, rect.y - CLIP_MARGIN, rect.width + 2 * CLIP_MARGIN, rect.height + 2 * CLIP_MARGIN
+    )
+
+    self._experimental_mode = sm['selfdriveState'].experimentalMode
+
+    live_calib = sm['liveCalibration']
+    from openpilot.selfdrive.locationd.calibrationd import HEIGHT_INIT
+    self._path_offset_z = live_calib.height[0] if live_calib.height else HEIGHT_INIT[0]
+
+    # Get carParams
+    car_params = None
+    if sm.valid['carParams']:
+      try:
+        car_params = sm['carParams']
+        self._longitudinal_control = car_params.openpilotLongitudinalControl
+      except (KeyError, AttributeError):
+        pass
+
+    if car_params is None:
+      if ui_state.CP:
+        car_params = ui_state.CP
+        if ui_state.CP.alphaLongitudinalAvailable:
+          self._longitudinal_control = ui_state.has_longitudinal_control
+        else:
+          self._longitudinal_control = ui_state.CP.openpilotLongitudinalControl
+
+    model = sm['modelV2']
+    radar_state = sm['radarState'] if sm.valid['radarState'] else None
+    lead_one = radar_state.leadOne if radar_state else None
+
+    # BP: Ford radar overlay feature
+    ford_overlay_enabled = self._params.get_bool("FordPrefShowRadarLeadOverlay")
+    render_lead_indicator = (self._longitudinal_control or ford_overlay_enabled) and radar_state is not None
+
+    model_updated = sm.updated['modelV2']
+    if model_updated or sm.updated['radarState'] or self._transform_dirty:
+      if model_updated:
+        self._update_raw_points(model)
+
+      path_x_array = self._path.raw_points[:, 0]
+      if path_x_array.size == 0:
+        return
+
+      self._update_model(lead_one, path_x_array)
+      if render_lead_indicator:
+        self._update_leads(radar_state, path_x_array, ford_overlay_enabled)
+
+      # BP: Update torque filter for lane line coloring
+      if sm.valid['carOutput']:
+        try:
+          self._torque_filter.update(-sm['carOutput'].actuatorsOutput.torque)
+        except (KeyError, AttributeError):
+          pass
+
+      self._transform_dirty = False
+
+    self._draw_lane_lines()
+    self._draw_path(sm)
+
+    if render_lead_indicator and radar_state:
+      self._draw_lead_indicator()
+      self.chevron_metrics.draw_lead_status(sm, radar_state, self._rect, self._lead_vehicles, ford_overlay_enabled=ford_overlay_enabled)
+
+  def _update_model(self, lead, path_x_array):
+    """Update model with path smoothing."""
+    super()._update_model(lead, path_x_array)
+    self._apply_smooth_path()
+
+  def _apply_smooth_path(self):
+    """Apply Gaussian-weighted spatial smoothing with temporal damping to reduce path sway."""
+    if self._path.projected_points.size == 0:
+      return
+
+    if len(self._path.projected_points) < 4:
+      self._previous_path_projected_points = self._path.projected_points.copy()
+      return
+
+    n = len(self._path.projected_points)
+    smoothed = np.zeros_like(self._path.projected_points)
+
+    for i in range(n):
+      pt = self._path.projected_points[i].copy()
+      if 1 < i < n - 1:
+        y_smooth = 0.0
+        weight_sum = 0.0
+        for j in range(-2, 3):
+          idx = i + j
+          if 0 <= idx < n:
+            weight = np.exp(-0.5 * j * j)
+            y_smooth += self._path.projected_points[idx][1] * weight
+            weight_sum += weight
+        if weight_sum > 0:
+          pt[1] = y_smooth / weight_sum
+      smoothed[i] = pt
+
+    if (self._previous_path_projected_points.size > 0 and
+        len(self._previous_path_projected_points) == len(smoothed)):
+      damping = self._path_smoothing_damping
+      for i in range(len(smoothed)):
+        y_diff = smoothed[i][1] - self._previous_path_projected_points[i][1]
+        smoothed[i][1] = self._previous_path_projected_points[i][1] + y_diff * (1.0 - damping)
+    else:
+      self._previous_path_projected_points = smoothed.copy()
+
+    self._previous_path_projected_points = smoothed.copy()
+    self._path.projected_points = smoothed
+
+  def _draw_lane_lines(self):
+    """Draw lane lines with enhanced rendering and glow effects."""
+    self._draw_enhanced_lane_lines()
+
+  def _get_ll_color(self, prob: float, adjacent: bool, left: bool):
+    """Get lane line color with torque-based coloring."""
+    alpha = np.clip(prob, 0.0, 0.7)
+    if adjacent:
+      _base_color = LANE_LINE_COLORS.get(ui_state.status, LANE_LINE_COLORS[UIStatus.DISENGAGED])
+      color = rl.Color(_base_color.r, _base_color.g, _base_color.b, int(alpha * 255))
+
+      torque = self._torque_filter.x
+      high_torque = abs(torque) > 0.6
+      if high_torque and (left == (torque > 0)):
+        orange_color = rl.Color(255, 115, 0, int(alpha * 255))
+        blend_factor = np.interp(abs(torque), [0.6, 0.8], [0.0, 1.0])
+        inv_factor = 1.0 - blend_factor
+        color = rl.Color(
+          int(color.r * inv_factor + orange_color.r * blend_factor),
+          int(color.g * inv_factor + orange_color.g * blend_factor),
+          int(color.b * inv_factor + orange_color.b * blend_factor),
+          color.a
+        )
+    else:
+      color = rl.Color(255, 255, 255, int(alpha * 255))
+
+    if ui_state.status == UIStatus.DISENGAGED:
+      color = rl.Color(0, 0, 0, int(alpha * 255))
+
+    return color
+
+  def _draw_enhanced_lane_lines(self):
+    """Draw enhanced lane lines with glow effects."""
+    for i, lane_line in enumerate(self._lane_lines):
+      if lane_line.projected_points.size == 0 or self._lane_line_probs[i] < 0.4:
+        continue
+
+      base_alpha = np.clip(self._lane_line_probs[i] * 0.8, 0.3, 0.8)
+      is_current_lane = (i == 1 or i == 2)
+      if not is_current_lane:
+        base_alpha *= 0.4
+
+      base_color = self._get_ll_color(float(self._lane_line_probs[i]), is_current_lane, i in (0, 1))
+      scaled_alpha = int(base_color.a * (base_alpha / 0.7) if base_alpha < 0.7 else base_color.a)
+      color = rl.Color(base_color.r, base_color.g, base_color.b, scaled_alpha)
+      draw_polygon(self._rect, lane_line.projected_points, color)
+
+    self._draw_lane_glow_effects()
+
+    for i, road_edge in enumerate(self._road_edges):
+      if road_edge.projected_points.size == 0:
+        continue
+      edge_alpha = np.clip(1.0 - self._road_edge_stds[i], 0.0, 1.0) * 0.6
+      color = rl.Color(255, 0, 0, int(edge_alpha * 255))
+      draw_polygon(self._rect, road_edge.projected_points, color)
+
+    self._draw_road_edge_glow_effects()
+
+  def _draw_lane_glow_effects(self):
+    """Draw glow effects around lane lines."""
+    glow_widths = [24.0, 16.0, 8.0]
+    glow_alphas = [0.08, 0.15, 0.3]
+
+    for i, lane_line in enumerate(self._lane_lines):
+      if lane_line.projected_points.size == 0 or self._lane_line_probs[i] < 0.4:
+        continue
+      base_alpha = np.clip(self._lane_line_probs[i] * 0.8, 0.3, 0.8)
+      is_current_lane = (i == 1 or i == 2)
+      if not is_current_lane:
+        base_alpha *= 0.4
+      base_color = self._get_ll_color(float(self._lane_line_probs[i]), is_current_lane, i in (0, 1))
+      for glow_width, glow_alpha in zip(glow_widths, glow_alphas):
+        expanded_points = self._expand_polygon(lane_line.projected_points, glow_width)
+        if expanded_points.size > 0:
+          alpha = int(base_alpha * glow_alpha * 255)
+          color = rl.Color(base_color.r, base_color.g, base_color.b, alpha)
+          draw_polygon(self._rect, expanded_points, color)
+
+  def _draw_road_edge_glow_effects(self):
+    """Draw glow effects around road edges."""
+    glow_widths = [36.0, 24.0, 12.0]
+    glow_alphas = [0.05, 0.1, 0.2]
+
+    for i, road_edge in enumerate(self._road_edges):
+      if road_edge.projected_points.size == 0:
+        continue
+      edge_alpha = np.clip(1.0 - self._road_edge_stds[i], 0.0, 1.0)
+      if edge_alpha < 0.3:
+        continue
+      for glow_width, glow_alpha in zip(glow_widths, glow_alphas):
+        expanded_points = self._expand_polygon(road_edge.projected_points, glow_width)
+        if expanded_points.size > 0:
+          alpha = int(edge_alpha * glow_alpha * 255)
+          color = rl.Color(255, 0, 0, alpha)
+          draw_polygon(self._rect, expanded_points, color)
+
+  def _expand_polygon(self, points: np.ndarray, width: float) -> np.ndarray:
+    """Expand polygon outward by width pixels for glow effect."""
+    if points.size == 0 or len(points) < 3:
+      return np.empty((0, 2), dtype=np.float32)
+
+    expanded = []
+    n = len(points)
+    for i in range(n):
+      prev_idx = (i - 1) % n
+      next_idx = (i + 1) % n
+      p_prev = points[prev_idx]
+      p_curr = points[i]
+      p_next = points[next_idx]
+      edge1 = p_curr - p_prev
+      edge2 = p_next - p_curr
+      len1 = np.linalg.norm(edge1)
+      len2 = np.linalg.norm(edge2)
+      if len1 > 1e-6:
+        edge1 = edge1 / len1
+      if len2 > 1e-6:
+        edge2 = edge2 / len2
+      normal1 = np.array([-edge1[1], edge1[0]])
+      normal2 = np.array([-edge2[1], edge2[0]])
+      normal = (normal1 + normal2) / 2.0
+      normal_len = np.linalg.norm(normal)
+      if normal_len > 1e-6:
+        normal = normal / normal_len
+      expanded.append(p_curr + normal * width)
+
+    return np.array(expanded, dtype=np.float32)
+
+  def _draw_path(self, sm):
+    """Draw path with status-colored edges."""
+    super()._draw_path(sm)
+    self._draw_path_edges()
+
+  def _draw_path_edges(self):
+    """Draw path edges (left, right, and front) with status-based colors."""
+    if not self._path.projected_points.size:
+      return
+
+    points = self._path.projected_points
+    num_points = len(points)
+    mid_point = num_points // 2
+    if mid_point < 2:
+      return
+
+    left_edge = points[:mid_point]
+    right_edge = points[mid_point:][::-1]
+
+    edge_color = LANE_LINE_COLORS.get(ui_state.status, LANE_LINE_COLORS[UIStatus.DISENGAGED])
+
+    for i in range(len(left_edge) - 1):
+      rl.draw_line_ex(
+        rl.Vector2(left_edge[i][0], left_edge[i][1]),
+        rl.Vector2(left_edge[i + 1][0], left_edge[i + 1][1]),
+        4.0, edge_color
+      )
+
+    for i in range(len(right_edge) - 1):
+      rl.draw_line_ex(
+        rl.Vector2(right_edge[i][0], right_edge[i][1]),
+        rl.Vector2(right_edge[i + 1][0], right_edge[i + 1][1]),
+        4.0, edge_color
+      )
+
+    if len(left_edge) > 0 and len(right_edge) > 0:
+      rl.draw_line_ex(
+        rl.Vector2(left_edge[-1][0], left_edge[-1][1]),
+        rl.Vector2(right_edge[-1][0], right_edge[-1][1]),
+        4.0, edge_color
+      )
+
+  def _draw_lead_indicator(self):
+    """Draw lead vehicles with dynamic colors based on detection source."""
+    for lead in self._lead_vehicles:
+      if not lead.glow or not lead.chevron:
+        continue
+
+      if lead.is_radar:
+        glow_color = rl.Color(0, 134, 233, 255)
+        chevron_color = rl.Color(0, 100, 200, lead.fill_alpha)
+      else:
+        glow_color = rl.Color(218, 202, 37, 255)
+        chevron_color = rl.Color(201, 34, 49, lead.fill_alpha)
+
+      rl.draw_triangle_fan(lead.glow, len(lead.glow), glow_color)
+      rl.draw_triangle_fan(lead.chevron, len(lead.chevron), chevron_color)

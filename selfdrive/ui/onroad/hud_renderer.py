@@ -1,17 +1,12 @@
 import pyray as rl
 from dataclasses import dataclass
 from openpilot.common.constants import CV
-from openpilot.common.params import Params
-from openpilot.system.hardware import PC
 from openpilot.selfdrive.ui.onroad.exp_button import ExpButton
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.system.ui.lib.application import gui_app, FontWeight
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.lib.text_measure import measure_text_cached
 from openpilot.system.ui.widgets import Widget
-from openpilot.selfdrive.ui.mici.onroad.torque_bar import TorqueBar
-from openpilot.selfdrive.ui.onroad.hybrid_battery_gauge import HybridBatteryGauge
-from openpilot.selfdrive.ui.onroad.powerflow_gauge import PowerflowGauge
 
 # Constants
 SET_SPEED_NA = 255
@@ -56,7 +51,6 @@ class Colors:
   BORDER_TRANSLUCENT = rl.Color(255, 255, 255, 75)
   HEADER_GRADIENT_START = rl.Color(0, 0, 0, 114)
   HEADER_GRADIENT_END = rl.BLANK
-  ROAD_NAME_PILL_BG = rl.Color(45, 45, 45, 255)  # Dark grey pill for road name
 
 
 UI_CONFIG = UIConfig()
@@ -74,18 +68,12 @@ class HudRenderer(Widget):
     self.set_speed: float = SET_SPEED_NA
     self.speed: float = 0.0
     self.v_ego_cluster_seen: bool = False
-    self._torque_bar = TorqueBar(scale=3.0, always=True)
-    self.speed_right = 0
-    self._powerflow_gauge = PowerflowGauge()
 
     self._font_semi_bold: rl.Font = gui_app.font(FontWeight.SEMI_BOLD)
     self._font_bold: rl.Font = gui_app.font(FontWeight.BOLD)
     self._font_medium: rl.Font = gui_app.font(FontWeight.MEDIUM)
 
     self._exp_button: ExpButton = ExpButton(UI_CONFIG.button_size, UI_CONFIG.wheel_icon_size)
-    self._battery_gauge = HybridBatteryGauge()
-    self._params = Params()
-    self._brakes_on = False
 
   def _update_state(self) -> None:
     """Update HUD state based on car state and controls state."""
@@ -115,23 +103,6 @@ class HudRenderer(Widget):
     speed_conversion = CV.MS_TO_KPH if ui_state.is_metric else CV.MS_TO_MPH
     self.speed = max(0.0, v_ego * speed_conversion)
 
-    # Check brake status if enabled
-    if self._params.get_bool("ShowBrakeStatus"):
-      if sm.valid['carStateBP']:
-        try:
-          car_state_bp = sm['carStateBP']
-          brake_light_status = car_state_bp.brakeLightStatus
-          self._brakes_on = brake_light_status.dataAvailable and brake_light_status.brakeLightsOn
-        except (KeyError, AttributeError):
-          self._brakes_on = False
-      else:
-        self._brakes_on = False
-    else:
-      self._brakes_on = False
-
-    self._torque_bar._update_state()
-    self._powerflow_gauge._update_state()
-
   def _render(self, rect: rl.Rectangle) -> None:
     """Render HUD elements to the screen."""
     # Draw the header background
@@ -144,20 +115,12 @@ class HudRenderer(Widget):
       COLORS.HEADER_GRADIENT_END,
     )
 
-    # Render powerflow gauge above torque bar
-    self._powerflow_gauge.render(rect)
-
-    if ui_state.sm['controlsState'].lateralControlState.which() != 'angleState' or ui_state.sm.updated["controllerStateBP"]:
-      self._torque_bar.render(rect)
-
     if self.is_cruise_available:
       self._draw_set_speed(rect)
 
-    self._draw_road_name(rect)
     self._draw_current_speed(rect)
 
     button_x = rect.x + rect.width - UI_CONFIG.border_size - UI_CONFIG.button_size
-    # Vertical center aligns with current speed (header_align_center_y)
     button_y = rect.y + UI_CONFIG.header_align_center_y - UI_CONFIG.button_size / 2
     self._exp_button.render(rl.Rectangle(button_x, button_y, UI_CONFIG.button_size, UI_CONFIG.button_size))
 
@@ -208,111 +171,12 @@ class HudRenderer(Widget):
       set_speed_color,
     )
 
-  def get_speed_right(self) -> int:
-    return self.speed_right
-
-  def _draw_road_name(self, rect: rl.Rectangle) -> None:
-    """Draw road name in a dark grey pill between max speed setpoint and current speed."""
-    # RoadNameToggle: "1" = on, "0" = off. Default to on when param not set.
-    if (self._params.get("RoadNameToggle") or "1") != "1":
-      return
-
-    # Get road name from liveMapDataSP (preferred) or Params fallback
-    road_name = ""
-    if ui_state.sm.valid.get("liveMapDataSP", False):
-      try:
-        road_name = (ui_state.sm["liveMapDataSP"].roadName or "").strip()
-      except (KeyError, AttributeError):
-        pass
-    if not road_name:
-      road_name = (self._params.get("RoadName") or "").strip()
-    if not road_name and PC:
-      # Simulator has no GPS - use hardcoded name for UI testing (font size, placement, etc.)
-      road_name = "west grand parkway south"
-    if not road_name:
-      return
-
-    # Wrap long road names at spaces (max 22 chars per line)
-    MAX_CHARS_PER_LINE = 22
-    line_spacing = 4
-
-    def _wrap_at_spaces(text: str, max_len: int) -> list[str]:
-      if len(text) <= max_len:
-        return [text] if text else []
-      lines = []
-      remaining = text.strip()
-      while remaining:
-        if len(remaining) <= max_len:
-          lines.append(remaining)
-          break
-        chunk = remaining[: max_len + 1]  # Look at first max_len+1 chars for a space
-        last_space = chunk.rfind(' ')
-        if last_space > 0:
-          lines.append(remaining[:last_space])
-          remaining = remaining[last_space + 1 :].lstrip()
-        else:
-          # No space found - break at max_len (fallback for very long words)
-          lines.append(remaining[:max_len])
-          remaining = remaining[max_len:].lstrip()
-      return lines
-
-    road_name_lines = _wrap_at_spaces(road_name, MAX_CHARS_PER_LINE)
-    if not road_name_lines:
-      return
-
-    # Layout: pill centered on fixed spot between set speed (left) and current speed (center)
-    set_speed_width = UI_CONFIG.set_speed_width_metric if ui_state.is_metric else UI_CONFIG.set_speed_width_imperial
-    set_speed_x = rect.x + 60 + self._left_offset + (UI_CONFIG.set_speed_width_imperial - set_speed_width) // 2
-    gap_left = set_speed_x + set_speed_width + 24  # Start of gap after set speed box
-    gap_right = rect.x + rect.width / 2 - 80  # End of gap before current speed (wider to allow padding)
-    center_x = (gap_left + gap_right) / 2 - 25  # Center of available space, shifted 25px left (15 + 10)
-
-    # Measure all lines to get pill dimensions (use _font_bold to match alert pills)
-    line_sizes = [measure_text_cached(self._font_bold, line, FONT_SIZES.road_name) for line in road_name_lines]
-    max_line_width = max(s.x for s in line_sizes)
-    single_line_height = line_sizes[0].y
-    total_text_height = single_line_height * len(road_name_lines) + line_spacing * (len(road_name_lines) - 1)
-
-    pill_padding_h = 48  # Horizontal padding around text
-    pill_padding_v = 12  # Vertical padding around text
-    pill_height = int(total_text_height) + 2 * pill_padding_v
-    pill_width = min(int(max_line_width) + 2 * pill_padding_h, int(gap_right - gap_left))
-    if pill_width < 60:
-      return
-
-    # Position by center: pill left edge = center - half width
-    pill_x = center_x - pill_width / 2
-    # Vertical center aligns with current speed (header_align_center_y)
-    pill_y = rect.y + UI_CONFIG.header_align_center_y - pill_height / 2
-
-    pill_rect = rl.Rectangle(pill_x, pill_y, pill_width, pill_height)
-    rl.draw_rectangle_rounded(pill_rect, 0.75, 10, COLORS.ROAD_NAME_PILL_BG)
-
-    # Draw each line centered in pill
-    text_y = pill_y + pill_padding_v
-    for i, (line, line_size) in enumerate(zip(road_name_lines, line_sizes)):
-      text_x = pill_x + (pill_width - line_size.x) / 2
-      rl.draw_text_ex(
-        self._font_bold,
-        line,
-        rl.Vector2(text_x, text_y),
-        FONT_SIZES.road_name,
-        0,
-        rl.WHITE,
-      )
-      text_y += single_line_height + line_spacing
-
   def _draw_current_speed(self, rect: rl.Rectangle) -> None:
     """Draw the current vehicle speed and unit."""
     speed_text = str(round(self.speed))
     speed_text_size = measure_text_cached(self._font_bold, speed_text, FONT_SIZES.current_speed)
-    # Vertical center aligns with header_align_center_y
     speed_pos = rl.Vector2(rect.x + rect.width / 2 - speed_text_size.x / 2, rect.y + UI_CONFIG.header_align_center_y - speed_text_size.y / 2)
-    self.speed_right = speed_pos.x + speed_text_size.x
-
-    # Show red when braking if brake status is enabled
-    speed_color = rl.Color(255, 60, 60, 255) if self._brakes_on else COLORS.WHITE
-    rl.draw_text_ex(self._font_bold, speed_text, speed_pos, FONT_SIZES.current_speed, 0, speed_color)
+    rl.draw_text_ex(self._font_bold, speed_text, speed_pos, FONT_SIZES.current_speed, 0, COLORS.WHITE)
 
     unit_text = tr("km/h") if ui_state.is_metric else tr("mph")
     unit_text_size = measure_text_cached(self._font_medium, unit_text, FONT_SIZES.speed_unit)

@@ -2,14 +2,13 @@ import pyray as rl
 from dataclasses import dataclass
 from openpilot.common.constants import CV
 from openpilot.selfdrive.ui.mici.onroad.torque_bar import TorqueBar
-from openpilot.selfdrive.ui.mici.onroad.powerflow_gauge import MiciPowerflowGauge
+from openpilot.selfdrive.ui.bp.mici.onroad.powerflow_gauge import MiciPowerflowGauge
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.system.ui.lib.application import gui_app, FontWeight
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.lib.text_measure import measure_text_cached
 from openpilot.system.ui.widgets import Widget
 from openpilot.common.filter_simple import FirstOrderFilter
-from openpilot.common.params import Params
 from cereal import log
 
 EventName = log.OnroadEvent.EventName
@@ -108,8 +107,6 @@ class HudRenderer(Widget):
     self.speed: float = 0.0
     self.v_ego_cluster_seen: bool = False
     self._engaged: bool = False
-    self._brakes_on = False
-
     self._can_draw_top_icons = True
     self._show_wheel_critical = False
 
@@ -130,8 +127,6 @@ class HudRenderer(Widget):
     self._wheel_y_filter = FirstOrderFilter(0, 0.1, 1 / gui_app.target_fps)
 
     self._set_speed_alpha_filter = FirstOrderFilter(0.0, 0.1, 1 / gui_app.target_fps)
-
-    self.params = Params()
 
   def set_wheel_critical_icon(self, critical: bool):
     """Set the wheel icon to critical or normal state."""
@@ -175,14 +170,6 @@ class HudRenderer(Widget):
     speed_conversion = CV.MS_TO_KPH if ui_state.is_metric else CV.MS_TO_MPH
     self.speed = max(0.0, v_ego * speed_conversion)
 
-    if self.params.get_bool("ShowBrakeStatus"):
-      sm = ui_state.sm
-      car_state_bp = sm['carStateBP']
-      brake_light_status = car_state_bp.brakeLightStatus
-      self._brakes_on = brake_light_status.dataAvailable and brake_light_status.brakeLightsOn
-    else:
-      self._brakes_on = False
-
   def _render(self, rect: rl.Rectangle) -> None:
     """Render HUD elements to the screen."""
 
@@ -225,11 +212,7 @@ class HudRenderer(Widget):
     dest_rect = rl.Rectangle(pos_x, pos_y, wheel_txt.width, wheel_txt.height)
     origin = (wheel_txt.width / 2, wheel_txt.height / 2)
 
-    # color and draw
-    if self._brakes_on:
-      color = rl.Color(255, 60, 60, int(self._wheel_alpha_filter.x))
-    else:
-      color = rl.Color(255, 255, 255, int(self._wheel_alpha_filter.x))
+    color = rl.Color(255, 255, 255, int(self._wheel_alpha_filter.x))
     rl.draw_texture_pro(wheel_txt, src_rect, dest_rect, origin, rotation, color)
 
     if self._show_wheel_critical:

@@ -949,6 +949,10 @@ class CarController(CarControllerBase): #, IntelligentCruiseButtonManagementInte
         precharge_actuate = op_brake_actuate
         bp_long_used = False
 
+      # Never allow gas while braking
+      if brake_actuate:
+          gas = CarControllerParams.INACTIVE_GAS
+
       # Clip to ford.h ACCDATA safety limits
       accel = float(clip(accel, CarControllerParams.ACCEL_MIN, CarControllerParams.ACCEL_MAX))
       if gas != CarControllerParams.INACTIVE_GAS:

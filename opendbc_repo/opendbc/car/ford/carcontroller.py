@@ -16,7 +16,7 @@ from selfdrive.modeld.constants import ModelConstants  # for calculations
 from common.pid import PIDController # PID control of lateral
 from opendbc.car.ford.helpers import compute_dm_msg_values
 from openpilot.common.params import Params
-#from opendbc.sunnypilot.car.ford.icbm import IntelligentCruiseButtonManagementInterface
+from opendbc.sunnypilot.car.ford.icbm import IntelligentCruiseButtonManagementInterface
 
 LongCtrlState = structs.CarControl.Actuators.LongControlState
 VisualAlert = structs.CarControl.HUDControl.VisualAlert
@@ -99,10 +99,11 @@ def apply_creep_compensation(accel: float, v_ego: float) -> float:
   return float(accel)
 
 
-class CarController(CarControllerBase): #, IntelligentCruiseButtonManagementInterface):
+class CarController(CarControllerBase, IntelligentCruiseButtonManagementInterface):
+# class CarController(CarControllerBase):
   def __init__(self, dbc_names, CP, CP_SP):
     CarControllerBase.__init__(self, dbc_names, CP, CP_SP)
-    #IntelligentCruiseButtonManagementInterface.__init__(self, CP, CP_SP)
+    # IntelligentCruiseButtonManagementInterface.__init__(self, CP, CP_SP)
 
     self.params = Params()
 
@@ -136,9 +137,6 @@ class CarController(CarControllerBase): #, IntelligentCruiseButtonManagementInte
     # Toggles
     self.enable_human_turn_detection = True
     self.enable_lane_positioning = True
-    self.bp_BRAKE_ACTIVATE = -0.14
-    self.bp_PRECHARGE_ACTIVATE = -0.08
-    self.bp_MIN_HIGHWAY_ACCEL = -0.1   # when above target_TTC_high but model wants brake: coast
 
     # Variables to initialize (these get updated every scan as part of the control code)
     self.precision_type = 1  # precise or comfort
@@ -158,15 +156,17 @@ class CarController(CarControllerBase): #, IntelligentCruiseButtonManagementInte
     self._bp_long_active_last = False  # True if we sent BP long values last frame (for clean transition off BP long)
     self.bp_gas_last = 0.0
     self.bp_accel_last = 0.0
+    self.bpSpeedAllow = False # initialize to false
 
     # Long Control Variables
     self.MAX_URBAN_SPEED_MPH = 45.0
     self.following_gas_ROC = 0.05 # amount that gas can change per scan when in following mode
-    self.following_accel_ROC = 0.025  # amount that accel can change per scan when in following mode
-    self.brake_actuate_target = -0.12 # at what accel limit do we engage brakes
-    self.brake_actuate_release = -0.04 # at what accel limit do we release brakes
-    self.precharge_actuate_target = -0.08 # at what accel limit do we engage precharge
-    self.precharge_actuate_release = -0.04 # at what accel limit do we release precharge
+    # 0.1/s at 50 Hz long control (ACC_CONTROL_STEP=2, 100 Hz base) => 0.1/50 = 0.002 per scan
+    self.following_accel_ROC = 0.002  # max accel change per scan when in following mode
+    self.brake_actuate_target = -0.14 # at what accel limit do we engage brakes
+    self.brake_actuate_release = -0.06 # at what accel limit do we release brakes
+    self.precharge_actuate_target = -0.12 # at what accel limit do we engage precharge
+    self.precharge_actuate_release = -0.06 # at what accel limit do we release precharge
 
     # # Curvature variables
     self.curvature_lookup_time = 0.42 #from lagd
@@ -289,17 +289,7 @@ class CarController(CarControllerBase): #, IntelligentCruiseButtonManagementInte
     self.enable_lanefull_mode = self.params.get_bool("enable_lane_full_mode")
     self.custom_profile = int(self.params.get("custom_profile", return_default=True))
     self.LC_PID_gain_UI = float(self.params.get("LC_PID_gain_UI", return_default=True))
-    # Ford long: rate-of-change limits when following a lead (gas and accel per scan)
-    try:
-      self.following_gas_ROC = float(self.params.get("FordFollowingGasROC", return_default=True))
-    except (TypeError, ValueError):
-      self.following_gas_ROC = 0.05
-    self.following_gas_ROC = float(np.clip(self.following_gas_ROC, 0.01, 0.5))
-    try:
-      self.following_accel_ROC = float(self.params.get("FordFollowingAccelROC", return_default=True))
-    except (TypeError, ValueError):
-      self.following_accel_ROC = 0.025
-    self.following_accel_ROC = float(np.clip(self.following_accel_ROC, 0.005, 0.2))
+    # Ford long: bypass BP longitudinal toggle (gas/accel ROC use __init__ defaults only)
     self.disable_BP_long_UI = self.params.get_bool("disable_BP_long_UI")
 
   def handle_post_lane_change_transition(self, path_angle, path_offset, desired_curvature_rate):
@@ -422,10 +412,10 @@ class CarController(CarControllerBase): #, IntelligentCruiseButtonManagementInte
       can_sends.append(fordcan.create_button_msg(self.packer, self.CAN.camera, CS.buttons_stock_values, tja_toggle=True))
 
     # Intelligent Cruise Button Management (ICBM)
-    #icbm_can_sends, self.last_button_frame = IntelligentCruiseButtonManagementInterface.update(
-    #  self, CC_SP, CS, self.packer, self.CAN, self.frame, self.last_button_frame
-    #)
-    #can_sends.extend(icbm_can_sends)
+    icbm_can_sends, self.last_button_frame = IntelligentCruiseButtonManagementInterface.update(
+     self, CC_SP, CS, self.packer, self.CAN, self.frame, self.last_button_frame
+     )
+    can_sends.extend(icbm_can_sends)
 
     ### lateral control ###
 
@@ -821,6 +811,14 @@ class CarController(CarControllerBase): #, IntelligentCruiseButtonManagementInte
       # TODO return to this signal later, it might help with highway control, but sending values ford doesn't like causes ACC to cancel.
       self.accel_pred = -5.0  # same as BluePilot branch until safe logic is confirmed
 
+      # Speed deadband for BP long: engage above 50 mph, disallow below 45 mph; 45–50 keeps current state to avoid oscillation.
+      bpSpeedTooSlow = v_ego_mph < self.MAX_URBAN_SPEED_MPH
+      bpSpeedHighEnough = v_ego_mph > self.MAX_URBAN_SPEED_MPH + 5
+      if bpSpeedHighEnough:
+        self.bpSpeedAllow = True
+      if bpSpeedTooSlow:
+        self.bpSpeedAllow = False
+
       # BluePilot longitudinal: gas limits when following + rate-limited accel/brake to avoid stomping.
       if not self.disable_BP_long_UI:
 
@@ -877,8 +875,8 @@ class CarController(CarControllerBase): #, IntelligentCruiseButtonManagementInte
 
         # limits when gaining
         if gaining:
-          if lead_time_sec < 2.5:
-              max_follow_gas = 0.0 # if we are within 2.5 seconds and gaining, why press the gas?
+          if lead_time_sec < 1.5:
+              max_follow_gas = 0.0 # if we are within 1.5 seconds and gaining, why press the gas?
               min_follow_gas = 0.0
           else:
              max_follow_gas = op_gas
@@ -905,12 +903,10 @@ class CarController(CarControllerBase): #, IntelligentCruiseButtonManagementInte
         bp_gas = clip(op_gas, min_follow_gas, max_follow_gas)
         bp_accel = clip(op_accel, min_follow_accel, max_follow_accel)
 
-        # now let's apply some rate limits, to keep the places where we choose op_accel or op_gas from moving too fast
+        # now let's apply some rate limits, not much, just try to dampen the initial hit when braking
         # but only apply the limits if there is no imminent chance of a collision
-        UI_ROC_MODIFIER = 500 # to keep UI variables a reasonable number, divide them in carcontroller
         if ttc_sec > 8.0 and lead_time_sec > 0.5:
-          bp_gas = clip(bp_gas, self.bp_gas_last - self.following_gas_ROC/UI_ROC_MODIFIER, self.bp_gas_last + self.following_gas_ROC/UI_ROC_MODIFIER)
-          bp_accel = clip(bp_accel, self.bp_accel_last - self.following_accel_ROC/UI_ROC_MODIFIER, self.bp_accel_last + self.following_accel_ROC/UI_ROC_MODIFIER)
+          bp_accel = clip(bp_accel, self.bp_accel_last - self.following_accel_ROC, 999) #only limit the downward change of braking
 
         # Set brake_actuate and precharge_actuate flags (initialized False above)
         if bp_accel < self.brake_actuate_target:
@@ -922,13 +918,14 @@ class CarController(CarControllerBase): #, IntelligentCruiseButtonManagementInte
         if bp_accel > self.precharge_actuate_release:
           bp_precharge_actuate = False
 
-        # Determine if we will use bp smoothing
+        # Determine if we will use bp smoothing (bpSpeedAllow deadband updated above, outside this block)
         gasPressed = CS.out.gasPressed
         brakePressed = CS.out.brakePressed
-        # When we have a lead, require lead speed > 40 mph so we don't coast into a traffic jam; when no lead, allow BP long
-        apply_bp_long = (self.disable_BP_long_UI == False) and (v_ego_mph > self.MAX_URBAN_SPEED_MPH) and (gasPressed == False) and (brakePressed == False) and (lead is None or v_lead_mph > 40.0)
 
-        if apply_bp_long:
+        # When we have a lead, require lead speed > 40 mph so we don't coast into a traffic jam; when no lead, allow BP long
+        apply_bp_long = (self.disable_BP_long_UI == False) and (self.bpSpeedAllow) and (gasPressed == False) and (brakePressed == False) and (lead is None or v_lead_mph > 40.0)
+
+        if apply_bp_long and CC.longActive:
           accel = bp_accel
           gas = bp_gas
           brake_actuate = bp_brake_actuate
@@ -949,7 +946,8 @@ class CarController(CarControllerBase): #, IntelligentCruiseButtonManagementInte
         precharge_actuate = op_brake_actuate
         bp_long_used = False
 
-      # Never allow gas while braking
+
+      # dont allow gas and brake at the same time
       if brake_actuate:
           gas = CarControllerParams.INACTIVE_GAS
 

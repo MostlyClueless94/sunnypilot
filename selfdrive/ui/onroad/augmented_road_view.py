@@ -12,7 +12,7 @@ from openpilot.selfdrive.ui.onroad.cameraview import CameraView
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.common.transformations.camera import DEVICE_CAMERAS, DeviceCameraConfig, view_frame_from_device_frame
 from openpilot.common.transformations.orientation import rot_from_euler
-from openpilot.selfdrive.ui.mici.onroad.confidence_ball import ConfidenceBall
+from openpilot.selfdrive.ui.bp.mici.onroad.confidence_ball_bp import ConfidenceBallTiciBP as ConfidenceBall
 
 if gui_app.sunnypilot_ui():
   from openpilot.selfdrive.ui.sunnypilot.onroad.hud_renderer import HudRendererSP as HudRenderer
@@ -61,7 +61,7 @@ class AugmentedRoadView(CameraView):
     self._hud_renderer = HudRenderer(CONFIDENCE_BALL_W)
     self.alert_renderer = AlertRenderer()
     self.driver_state_renderer = DriverStateRenderer()
-    self._confidence_ball = ConfidenceBall(radius=CONFIDENCE_BALL_R)  # Doubled from 10 to 20 for better visibility
+    self._confidence_ball = ConfidenceBall()
 
     # debug
     self._pm = messaging.PubMaster(['uiDebug'])

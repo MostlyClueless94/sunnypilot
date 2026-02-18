@@ -35,7 +35,7 @@ class ConfidenceBallBP(ConfidenceBall):
           transparent   # top-right
       )
 
-  def get_animate_status_probs():
+  def get_animate_status_probs(self):
     if ui_state.status == UIStatus.LAT_ONLY:
       return ui_state.sm['modelV2'].meta.disengagePredictions.steerOverrideProbs ** 2
 
@@ -51,7 +51,6 @@ class ConfidenceBallBP(ConfidenceBall):
       bar_width,
       self.rect.height,
     )
-    ui_state.status = UIStatus.LAT_ONLY
 
     bottom_position = content_rect.height
     top_position = 0.0

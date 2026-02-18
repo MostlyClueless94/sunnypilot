@@ -37,10 +37,10 @@ class ConfidenceBallBP(ConfidenceBall):
 
   def get_animate_status_probs(self):
     if ui_state.status == UIStatus.LAT_ONLY:
-      return ui_state.sm['modelV2'].meta.disengagePredictions.steerOverrideProbs ** 2
+      return [p * p for p in ui_state.sm['modelV2'].meta.disengagePredictions.steerOverrideProbs]
 
     # UIStatus.LONG_ONLY
-    return ui_state.sm['modelV2'].meta.disengagePredictions.brakeDisengageProbs ** 2
+    return [p * p for p in ui_state.sm['modelV2'].meta.disengagePredictions.brakeDisengageProbs]
 
   def _render(self, _):
     bar_width = self._width

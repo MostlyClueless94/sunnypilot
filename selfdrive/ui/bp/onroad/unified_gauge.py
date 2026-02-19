@@ -39,23 +39,29 @@ STEERING_MAX_HEIGHT = 18 * STEERING_SCALE
 # --- Power flow layout constants ---
 POWERFLOW_ANGLE_SPAN_UNIFIED = 16.0
 POWERFLOW_ANGLE_SPAN_SOLO = 13.5
-POWERFLOW_TEXT_FONT_SIZE = 48
+POWERFLOW_TEXT_FONT_SIZE = 44
 POWERFLOW_TEXT_COLOR = rl.Color(255, 255, 255, 240)
 POWERFLOW_TEXT_GAP = 30
 POWERFLOW_VALUE_EPS = 0.005
 POWERFLOW_UNIFIED_GAP = 26.0
 POWERFLOW_SOLO_BASE_OFFSET = 95.0
 POWERFLOW_THICKNESS_RATIO_UNIFIED = 0.90
+POWERFLOW_IDLE_THICKNESS_RATIO = 0.78
+POWERFLOW_ACTIVE_THICKNESS_RATIO = 1.10
+POWERFLOW_ACTIVITY_DEADBAND = 0.03
+TEXT_LETTER_SPACING = 1.0
 
 # --- Tick marks ---
 TICK_COLOR = rl.Color(200, 200, 200, 200)
 TICK_LENGTH_RATIO = 0.10
+TICK_ALPHA_IDLE = 115
+TICK_ALPHA_ACTIVE = 190
 
 # --- Background ---
 BG_PADDING = 18
 BG_STYLE_SOLID = 0
 BG_STYLE_GRADIENT = 1
-BG_COLOR = rl.Color(20, 20, 20, 100)
+BG_COLOR = rl.Color(20, 20, 20, 142)
 
 # --- Color constants ---
 REGEN_COLOR = rl.Color(80, 230, 80, 255)
@@ -69,6 +75,8 @@ GLOW_ALPHA = 60
 # --- Divider ---
 DIVIDER_THICKNESS = 3
 DIVIDER_COLOR = rl.Color(220, 220, 220, 110)
+DIVIDER_ALPHA_IDLE = 80
+DIVIDER_ALPHA_ACTIVE = 130
 
 # --- Dynamic scaling reference ---
 FULL_CONTENT_WIDTH = 2100.0
@@ -181,11 +189,13 @@ class UnifiedGauge(Widget):
       self._render_steering_arc(layout.rect, layout.cx, layout.cy, TORQUE_ANGLE_SPAN, layout.steering_height)
       return
 
+    pf_activity = self._activity_from_value(self._powerflow_filter.x)
     self._render_background(layout.rect, layout.cx, layout.cy, layout.angle_span, layout.bg_top, layout.bg_bottom)
-    self._render_powerflow_bar(layout.rect, layout.cx, layout.cy, layout.angle_span, layout.pf_mid, layout.pf_thickness)
-    self._render_tick_marks(layout.cx, layout.cy, layout.angle_span, layout.pf_mid, layout.pf_thickness)
-    self._render_divider(layout.rect, layout.cx, layout.cy, layout.angle_span, layout.divider_radius)
-    self._render_text_labels(layout.cx, layout.cy, layout.angle_span, layout.text_size, layout.text_radius)
+    self._render_powerflow_bar(layout.rect, layout.cx, layout.cy, layout.angle_span,
+                               layout.pf_mid, layout.pf_thickness, pf_activity)
+    self._render_tick_marks(layout.cx, layout.cy, layout.angle_span, layout.pf_mid, layout.pf_thickness, pf_activity)
+    self._render_divider(layout.rect, layout.cx, layout.cy, layout.angle_span, layout.divider_radius, pf_activity)
+    self._render_text_labels(layout.cx, layout.cy, layout.angle_span, layout.text_size, layout.text_radius, pf_activity)
 
     if mode == MODE_UNIFIED:
       self._render_steering_arc(layout.rect, layout.cx, layout.cy, layout.angle_span, layout.steering_height)
@@ -263,7 +273,7 @@ class UnifiedGauge(Widget):
       cx, cy, bg_r_mid, bg_thickness + GLOW_EXPANSION * 2,
       start_angle, end_angle, cap_radius=min(14, bg_thickness / 2 + GLOW_EXPANSION),
     )
-    draw_polygon(rect, glow_pts, color=rl.Color(20, 20, 20, int(BG_COLOR.a * 0.3)))
+    draw_polygon(rect, glow_pts, color=rl.Color(20, 20, 20, int(BG_COLOR.a * 0.30)))
 
     bg_pts = arc_bar_pts(
       cx, cy, bg_r_mid, bg_thickness, start_angle, end_angle,
@@ -307,23 +317,28 @@ class UnifiedGauge(Widget):
     )
     draw_polygon(rect, bg_pts, color=rl.Color(20, 20, 20, bg_alpha))
 
-  def _render_powerflow_bar(self, rect, cx, cy, angle_span, pf_mid, pf_thickness):
+  def _render_powerflow_bar(self, rect, cx, cy, angle_span, pf_mid, pf_thickness, pf_activity):
     center_angle = -90.0
     half_span = angle_span / 2
     start_angle, end_angle = self._angles(angle_span)
+    draw_thickness = pf_thickness * np.interp(
+      pf_activity, [0.0, 1.0], [POWERFLOW_IDLE_THICKNESS_RATIO, POWERFLOW_ACTIVE_THICKNESS_RATIO]
+    )
 
-    track_glow_thickness = pf_thickness + GLOW_EXPANSION * 2
+    track_glow_thickness = draw_thickness + GLOW_EXPANSION * 2
     track_glow_pts = arc_bar_pts(
       cx, cy, pf_mid, track_glow_thickness,
       start_angle, end_angle, cap_radius=min(10, track_glow_thickness / 2),
     )
-    draw_polygon(rect, track_glow_pts, color=rl.Color(255, 255, 255, 8))
+    track_glow_alpha = int(np.interp(pf_activity, [0.0, 1.0], [10, 20]))
+    draw_polygon(rect, track_glow_pts, color=rl.Color(255, 255, 255, track_glow_alpha))
 
     track_pts = arc_bar_pts(
-      cx, cy, pf_mid, pf_thickness,
-      start_angle, end_angle, cap_radius=min(8, pf_thickness / 2),
+      cx, cy, pf_mid, draw_thickness,
+      start_angle, end_angle, cap_radius=min(8, draw_thickness / 2),
     )
-    draw_polygon(rect, track_pts, color=rl.Color(255, 255, 255, 20))
+    track_alpha = int(np.interp(pf_activity, [0.0, 1.0], [22, 40]))
+    draw_polygon(rect, track_pts, color=rl.Color(255, 255, 255, track_alpha))
 
     value = self._powerflow_filter.x
     if abs(value) < POWERFLOW_VALUE_EPS:
@@ -336,7 +351,7 @@ class UnifiedGauge(Widget):
       bar_end = min(center_angle + half_span * value, end_angle)
       tip_color = DEMAND_COLOR
 
-    glow_thickness = pf_thickness + GLOW_EXPANSION * 2
+    glow_thickness = draw_thickness + GLOW_EXPANSION * 2
     glow_pts = arc_bar_pts(
       cx, cy, pf_mid, glow_thickness,
       center_angle, bar_end, cap_radius=min(10, glow_thickness / 2),
@@ -345,29 +360,40 @@ class UnifiedGauge(Widget):
     glow_gradient = Gradient(
       start=(cx / rect.width, 0),
       end=(glow_tip_x / rect.width, 0),
-      colors=[rl.Color(255, 255, 255, GLOW_ALPHA), rl.Color(tip_color.r, tip_color.g, tip_color.b, GLOW_ALPHA)],
+      colors=[
+        rl.Color(255, 255, 255, int(np.interp(pf_activity, [0.0, 1.0], [45, GLOW_ALPHA]))),
+        rl.Color(tip_color.r, tip_color.g, tip_color.b, int(np.interp(pf_activity, [0.0, 1.0], [45, GLOW_ALPHA]))),
+      ],
       stops=[0.0, 1.0],
     )
     draw_polygon(rect, glow_pts, gradient=glow_gradient)
 
     bar_pts = arc_bar_pts(
-      cx, cy, pf_mid, pf_thickness,
-      center_angle, bar_end, cap_radius=min(8, pf_thickness / 2),
+      cx, cy, pf_mid, draw_thickness,
+      center_angle, bar_end, cap_radius=min(8, draw_thickness / 2),
     )
     tip_x = min(bar_pts[:, 0]) if value < 0 else max(bar_pts[:, 0])
+    center_color = rl.Color(CENTER_COLOR.r, CENTER_COLOR.g, CENTER_COLOR.b, int(np.interp(pf_activity, [0.0, 1.0], [170, 240])))
+    tip_draw_color = rl.Color(tip_color.r, tip_color.g, tip_color.b, int(np.interp(pf_activity, [0.0, 1.0], [200, 255])))
     gradient = Gradient(
       start=(cx / rect.width, 0),
       end=(tip_x / rect.width, 0),
-      colors=[CENTER_COLOR, tip_color],
+      colors=[center_color, tip_draw_color],
       stops=[0.0, 1.0],
     )
     draw_polygon(rect, bar_pts, gradient=gradient)
 
-  def _render_tick_marks(self, cx, cy, angle_span, pf_mid, pf_thickness):
-    outer_radius = pf_mid + pf_thickness / 2
-    inner_radius = pf_mid - pf_thickness / 2
-    tick_length = pf_thickness * TICK_LENGTH_RATIO
+  def _render_tick_marks(self, cx, cy, angle_span, pf_mid, pf_thickness, pf_activity):
+    draw_thickness = pf_thickness * np.interp(
+      pf_activity, [0.0, 1.0], [POWERFLOW_IDLE_THICKNESS_RATIO, POWERFLOW_ACTIVE_THICKNESS_RATIO]
+    )
+    outer_radius = pf_mid + draw_thickness / 2
+    inner_radius = pf_mid - draw_thickness / 2
+    tick_length = draw_thickness * TICK_LENGTH_RATIO
     start_angle, end_angle = self._angles(angle_span)
+    tick_alpha = int(np.interp(pf_activity, [0.0, 1.0], [TICK_ALPHA_IDLE, TICK_ALPHA_ACTIVE]))
+    tick_color = rl.Color(TICK_COLOR.r, TICK_COLOR.g, TICK_COLOR.b, tick_alpha)
+    tick_thickness = np.interp(pf_activity, [0.0, 1.0], [1.4, 2.2])
 
     for percent in range(0, 101, 10):
       angle_deg = start_angle + (end_angle - start_angle) * (percent / 100.0)
@@ -378,37 +404,41 @@ class UnifiedGauge(Widget):
       rl.draw_line_ex(
         rl.Vector2(cx + cos_a * outer_radius, cy + sin_a * outer_radius),
         rl.Vector2(cx + cos_a * (outer_radius - tick_length), cy + sin_a * (outer_radius - tick_length)),
-        2.0, TICK_COLOR,
+        tick_thickness, tick_color,
       )
       rl.draw_line_ex(
         rl.Vector2(cx + cos_a * inner_radius, cy + sin_a * inner_radius),
         rl.Vector2(cx + cos_a * (inner_radius + tick_length), cy + sin_a * (inner_radius + tick_length)),
-        2.0, TICK_COLOR,
+        tick_thickness, tick_color,
       )
 
-  def _render_divider(self, rect, cx, cy, angle_span, divider_radius):
+  def _render_divider(self, rect, cx, cy, angle_span, divider_radius, pf_activity):
     start_angle, end_angle = self._angles(angle_span)
+    divider_alpha = int(np.interp(pf_activity, [0.0, 1.0], [DIVIDER_ALPHA_IDLE, DIVIDER_ALPHA_ACTIVE]))
+    divider_color = rl.Color(DIVIDER_COLOR.r, DIVIDER_COLOR.g, DIVIDER_COLOR.b, divider_alpha)
     divider_pts = arc_bar_pts(cx, cy, divider_radius, DIVIDER_THICKNESS, start_angle, end_angle, cap_radius=1)
-    draw_polygon(rect, divider_pts, color=DIVIDER_COLOR)
+    draw_polygon(rect, divider_pts, color=divider_color)
 
-  def _render_text_labels(self, cx, cy, angle_span, font_size, text_radius):
+  def _render_text_labels(self, cx, cy, angle_span, font_size, text_radius, pf_activity):
     power_flow_text = get_hev_power_flow_text(self._power_flow_mode_value)
     engine_reason_text = get_hev_engine_on_reason_text(self._engine_on_reason_value)
     quarter_angle = angle_span / 4
-    max_width = text_radius * np.deg2rad(angle_span / 2) * 0.9
+    max_width = text_radius * np.deg2rad(angle_span / 2) * 0.86
+    text_alpha = int(np.interp(pf_activity, [0.0, 1.0], [175, POWERFLOW_TEXT_COLOR.a]))
+    text_color = rl.Color(POWERFLOW_TEXT_COLOR.r, POWERFLOW_TEXT_COLOR.g, POWERFLOW_TEXT_COLOR.b, text_alpha)
 
     if power_flow_text:
       left_size = self._fit_font_size(power_flow_text, self._font_bold, font_size, max_width)
       self._render_arc_text(
         cx, cy, text_radius, -90.0 - quarter_angle,
-        power_flow_text, self._font_bold, left_size, POWERFLOW_TEXT_COLOR,
+        power_flow_text, self._font_bold, left_size, text_color,
       )
 
     if engine_reason_text:
       right_size = self._fit_font_size(engine_reason_text, self._font_bold, font_size, max_width)
       self._render_arc_text(
         cx, cy, text_radius, -90.0 + quarter_angle,
-        engine_reason_text, self._font_bold, right_size, POWERFLOW_TEXT_COLOR,
+        engine_reason_text, self._font_bold, right_size, text_color,
       )
 
   def _render_steering_arc(self, rect, cx, cy, _angle_span, steering_height):
@@ -436,11 +466,12 @@ class UnifiedGauge(Widget):
     a1 = a0 + bg_angle_span / 2 * torque
     fg_pts = arc_bar_pts(cx, cy, mid_r, steering_height, a0, a1, cap_radius=STEERING_CAP_RADIUS)
 
-    transition_t = max(0, abs(torque) - 0.5) * 2.0
+    transition = np.clip((abs(torque) - 0.35) / 0.65, 0.0, 1.0)
+    transition_t = transition * transition * (3.0 - 2.0 * transition)
     brightness_boost = 1.0 + 0.3 * min(abs(torque), 1.0)
 
     if ui_state.status in (UIStatus.ENGAGED, UIStatus.LAT_ONLY):
-      base_alpha = int(min(255, 255 * 0.9 * alpha_val * brightness_boost))
+      base_alpha = int(min(255, 255 * 0.82 * alpha_val * brightness_boost))
       start_color = blend_colors(
         rl.Color(255, 255, 255, base_alpha),
         rl.Color(255, 220, 0, int(min(255, 255 * alpha_val * brightness_boost))),
@@ -452,7 +483,7 @@ class UnifiedGauge(Widget):
         transition_t,
       )
     else:
-      dimmed = rl.Color(255, 255, 255, int(255 * 0.35 * alpha_val))
+      dimmed = rl.Color(255, 255, 255, int(255 * 0.30 * alpha_val))
       start_color = dimmed
       end_color = dimmed
 
@@ -490,6 +521,10 @@ class UnifiedGauge(Widget):
   def _angles(self, angle_span: float) -> tuple[float, float]:
     return -90.0 - angle_span / 2, -90.0 + angle_span / 2
 
+  def _activity_from_value(self, value: float) -> float:
+    t = np.clip((abs(value) - POWERFLOW_ACTIVITY_DEADBAND) / (1.0 - POWERFLOW_ACTIVITY_DEADBAND), 0.0, 1.0)
+    return t * t * (3.0 - 2.0 * t)
+
   def _fit_font_size(self, text, font, base_size, max_width):
     text_size = measure_text_cached(font, text, base_size)
     if text_size.x <= max_width or max_width <= 0:
@@ -505,4 +540,4 @@ class UnifiedGauge(Widget):
     origin = rl.Vector2(text_size.x / 2, text_size.y / 2)
     rotation = center_angle_deg + 90
 
-    rl.draw_text_pro(font, text, rl.Vector2(pos_x, pos_y), origin, rotation, font_size, 0, color)
+    rl.draw_text_pro(font, text, rl.Vector2(pos_x, pos_y), origin, rotation, font_size, TEXT_LETTER_SPACING, color)

@@ -30,6 +30,7 @@ class ChevronMetricsBP(ChevronMetrics):
     # Set by ModelRendererBP before calling draw_lead_status
     self.ford_overlay_enabled: bool = False
     self.lead_is_radar: list[bool] = [False, False]
+    self.overlay_scale: float = 1.0
 
   def should_render(self) -> bool:
     # Render if chevron metrics is enabled OR if Ford overlay is enabled
@@ -71,14 +72,14 @@ class ChevronMetricsBP(ChevronMetrics):
     chevron_top_y = min(all_y_coords)
     chevron_bottom_y = max(all_y_coords)
 
-    sz = np.clip((25 * 30) / (d_rel / 3 + 30), 15.0, 30.0) * 2.35
+    sz = np.clip((25 * 30) / (d_rel / 3 + 30), 15.0, 30.0) * 2.35 * self.overlay_scale
 
     text_lines = self._build_text_lines_bp(d_rel, v_rel, v_ego)
     if not text_lines:
       return
 
     # Position text: below chevron normally, above chevron when in close mode
-    spacing_offset = max(70, sz * 0.6)
+    spacing_offset = max(70 * self.overlay_scale, sz * 0.6)
 
     if self._close_mode:
       if powerflow_enabled:
@@ -129,10 +130,11 @@ class ChevronMetricsBP(ChevronMetrics):
     shadow_color = rl.Color(0, 0, 0, int(200 * self._lead_status_alpha))
 
     if self.ford_overlay_enabled and len(text_lines) == 3:
-      # BluePilot: Horizontal boxed layout with colored borders
-      font_size = 60
-      padding = 12
-      box_spacing = 15
+      # BluePilot: Horizontal boxed layout with colored borders, scaled by overlay size
+      scale = self.overlay_scale
+      font_size = int(60 * scale)
+      padding = int(12 * scale)
+      box_spacing = int(15 * scale)
       box_color = rl.Color(40, 40, 40, int(220 * self._lead_status_alpha))
 
       # Measure all text sizes
@@ -173,7 +175,7 @@ class ChevronMetricsBP(ChevronMetrics):
         border_color = rl.Color(VISION_BORDER_COLOR_BASE.r, VISION_BORDER_COLOR_BASE.g,
                                 VISION_BORDER_COLOR_BASE.b, alpha)
 
-      border_thickness = 6
+      border_thickness = max(2, int(6 * scale))
 
       for line, text_size in zip(text_lines, text_sizes):
         box_width = text_size.x + (padding * 2)

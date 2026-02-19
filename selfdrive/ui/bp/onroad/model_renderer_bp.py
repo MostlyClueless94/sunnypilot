@@ -2,7 +2,7 @@ import numpy as np
 import pyray as rl
 from openpilot.common.filter_simple import FirstOrderFilter
 from openpilot.common.params import Params
-from openpilot.selfdrive.ui.onroad.model_renderer import ModelRenderer, CLIP_MARGIN, MIN_DRAW_DISTANCE, MAX_DRAW_DISTANCE
+from openpilot.selfdrive.ui.onroad.model_renderer import ModelRenderer, LeadVehicle, CLIP_MARGIN, MIN_DRAW_DISTANCE, MAX_DRAW_DISTANCE
 from openpilot.selfdrive.ui.bp.onroad.chevron_metrics_bp import ChevronMetricsBP
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.system.ui.lib.application import gui_app
@@ -20,6 +20,9 @@ LEAD_RADAR_GLOW = rl.Color(0, 134, 233, 255)
 LEAD_RADAR_CHEVRON_BASE = rl.Color(0, 100, 200, 255)
 LEAD_VISION_GLOW = rl.Color(218, 202, 37, 255)
 LEAD_VISION_CHEVRON_BASE = rl.Color(201, 34, 49, 255)
+
+# BluePilot: Overlay size scale factors (Small=0, Medium=1, Large=2)
+OVERLAY_SCALE_FACTORS = {0: 0.6, 1: 1.0, 2: 1.5}
 
 
 class ModelRendererBP(ModelRenderer):
@@ -41,6 +44,19 @@ class ModelRendererBP(ModelRenderer):
 
     # BluePilot: Track whether each lead is radar-sourced
     self._lead_is_radar = [False, False]
+
+    # BluePilot: Overlay size scale factor (read from param periodically)
+    self._overlay_scale = 1.0
+
+    # BluePilot: Lead position smoothing filters to reduce radar jitter
+    dt = 1 / gui_app.target_fps
+    self._lead_d_filters = [FirstOrderFilter(0, 0.4, dt, initialized=False),
+                            FirstOrderFilter(0, 0.4, dt, initialized=False)]
+    self._lead_y_filters = [FirstOrderFilter(0, 0.5, dt, initialized=False),
+                            FirstOrderFilter(0, 0.5, dt, initialized=False)]
+    self._lead_v_filters = [FirstOrderFilter(0, 0.3, dt, initialized=False),
+                            FirstOrderFilter(0, 0.3, dt, initialized=False)]
+    self._lead_was_active = [False, False]
 
   def _render(self, rect: rl.Rectangle):
     sm = ui_state.sm
@@ -64,6 +80,11 @@ class ModelRendererBP(ModelRenderer):
 
     if self._counter % 60 == 0:
       self._camera_offset = ui_state.params.get("CameraOffset", return_default=True) if ui_state.active_bundle else 0.0
+      try:
+        size_val = int(self._bp_params.get("FordPrefRadarOverlaySize", return_default=True))
+      except (TypeError, ValueError):
+        size_val = 1
+      self._overlay_scale = OVERLAY_SCALE_FACTORS.get(size_val, 1.0)
     self._counter += 1
 
     if sm.updated['carParams']:
@@ -109,6 +130,7 @@ class ModelRendererBP(ModelRenderer):
       # BluePilot: Pass radar/overlay state to BP chevron metrics for boxed layout
       self.chevron_metrics.ford_overlay_enabled = ford_overlay_enabled
       self.chevron_metrics.lead_is_radar = self._lead_is_radar
+      self.chevron_metrics.overlay_scale = self._overlay_scale
       self.chevron_metrics.draw_lead_status(sm, radar_state, self._rect, self._lead_vehicles)
 
   def _update_lead_radar_status(self, radar_state):
@@ -119,6 +141,59 @@ class ModelRendererBP(ModelRenderer):
         self._lead_is_radar[i] = getattr(lead_data, 'radar', False)
       else:
         self._lead_is_radar[i] = False
+
+  def _update_leads(self, radar_state, path_x_array):
+    """Update lead positions with temporal smoothing to reduce radar jitter."""
+    self._lead_vehicles = [LeadVehicle(), LeadVehicle()]
+    leads = [radar_state.leadOne, radar_state.leadTwo]
+
+    dt = 1 / gui_app.target_fps
+    for i, lead_data in enumerate(leads):
+      if lead_data and lead_data.status:
+        # Reset filters when a lead first appears so we don't lerp from stale data
+        if not self._lead_was_active[i]:
+          self._lead_d_filters[i] = FirstOrderFilter(lead_data.dRel, 0.4, dt)
+          self._lead_y_filters[i] = FirstOrderFilter(lead_data.yRel, 0.5, dt)
+          self._lead_v_filters[i] = FirstOrderFilter(lead_data.vRel, 0.3, dt)
+
+        # Smooth the raw radar values
+        d_rel = self._lead_d_filters[i].update(lead_data.dRel)
+        y_rel = self._lead_y_filters[i].update(lead_data.yRel)
+        v_rel = self._lead_v_filters[i].update(lead_data.vRel)
+
+        idx = self._get_path_length_idx(path_x_array, d_rel)
+        z = self._path.raw_points[idx, 2] if idx < len(self._path.raw_points) else 0.0
+        point = self._map_to_screen(d_rel, -y_rel + self._camera_offset, z + self._path_offset_z)
+        if point:
+          self._lead_vehicles[i] = self._update_lead_vehicle(d_rel, v_rel, point, self._rect)
+
+        self._lead_was_active[i] = True
+      else:
+        self._lead_was_active[i] = False
+
+  def _update_lead_vehicle(self, d_rel, v_rel, point, rect):
+    """Override to apply overlay size scale factor to chevron geometry."""
+    speed_buff, lead_buff = 10.0, 40.0
+
+    fill_alpha = 0
+    if d_rel < lead_buff:
+      fill_alpha = 255 * (1.0 - (d_rel / lead_buff))
+      if v_rel < 0:
+        fill_alpha += 255 * (-1 * (v_rel / speed_buff))
+      fill_alpha = min(fill_alpha, 255)
+
+    # Apply overlay scale factor to chevron size
+    sz = np.clip((25 * 30) / (d_rel / 3 + 30), 15.0, 30.0) * 2.35 * self._overlay_scale
+    x = np.clip(point[0], 0.0, rect.width - sz / 2)
+    y = min(point[1], rect.height - sz * 0.6)
+
+    g_xo = sz / 5
+    g_yo = sz / 10
+
+    glow = [(x + (sz * 1.35) + g_xo, y + sz + g_yo), (x, y - g_yo), (x - (sz * 1.35) - g_xo, y + sz + g_yo)]
+    chevron = [(x + (sz * 1.25), y + sz), (x, y), (x - (sz * 1.25), y + sz)]
+
+    return LeadVehicle(glow=glow, chevron=chevron, fill_alpha=int(fill_alpha))
 
   def _update_model(self, lead, path_x_array):
     """Update model with doubled lane line width and path smoothing."""

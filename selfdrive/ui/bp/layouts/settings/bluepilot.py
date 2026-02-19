@@ -4,7 +4,7 @@ from collections.abc import Callable
 from openpilot.common.params import Params
 from openpilot.common.swaglog import cloudlog
 from openpilot.system.ui.widgets import Widget, DialogResult
-from openpilot.system.ui.widgets.list_view import toggle_item, button_item, text_item, ButtonAction, ListItem
+from openpilot.system.ui.widgets.list_view import toggle_item, button_item, text_item, multiple_button_item, ButtonAction, ListItem
 from openpilot.system.ui.widgets.scroller_tici import Scroller
 from openpilot.system.ui.widgets.option_dialog import MultiOptionDialog
 from openpilot.system.ui.lib.application import gui_app
@@ -138,6 +138,21 @@ class BluePilotLayout(Widget):
       lambda: tr("Display chevron with lead vehicle info when using Ford stock ACC."),
       initial_state=self._params.get_bool("FordPrefShowRadarLeadOverlay"),
       callback=lambda state: self._toggle_callback(state, "FordPrefShowRadarLeadOverlay"),
+      icon="speed_limit.png"
+    )
+
+    # Ford radar overlay size selector (inline buttons like Driving Personality)
+    try:
+      overlay_size_idx = int(self._params.get("FordPrefRadarOverlaySize", return_default=True))
+    except (TypeError, ValueError):
+      overlay_size_idx = 1
+    self._radar_overlay_size_btn = multiple_button_item(
+      lambda: tr("Radar Overlay Size"),
+      lambda: tr("Set the size of the radar lead overlay chevron and info boxes."),
+      buttons=[lambda: tr("Small"), lambda: tr("Medium"), lambda: tr("Large")],
+      button_width=225,
+      callback=self._set_overlay_size,
+      selected_index=overlay_size_idx,
       icon="speed_limit.png"
     )
 
@@ -305,6 +320,7 @@ class BluePilotLayout(Widget):
       self._show_confidence_ball,
       self._animate_steering_wheel,
       self._show_ford_radar_overlay,
+      self._radar_overlay_size_btn,
       self._show_hybrid_battery_status,
       self._show_hybrid_power_flow,
       self._enable_human_turn_detection,
@@ -350,6 +366,12 @@ class BluePilotLayout(Widget):
 
     # Update button enabled states
     self._show_web_routes_qr.action_item.set_enabled(ui_state.params.get_bool("BPPortalEnabled"))
+    self._radar_overlay_size_btn.action_item.set_enabled(ui_state.params.get_bool("FordPrefShowRadarLeadOverlay"))
+    try:
+      overlay_idx = int(ui_state.params.get("FordPrefRadarOverlaySize", return_default=True))
+    except (TypeError, ValueError):
+      overlay_idx = 1
+    self._radar_overlay_size_btn.action_item.set_selected_button(overlay_idx)
     self._custom_path_offset.action_item.set_enabled(ui_state.params.get_bool("enable_lane_positioning"))
     self._enable_lane_full_mode.action_item.set_enabled(ui_state.params.get_bool("enable_lane_positioning"))
     self._pc_blend_ratio_high_C.action_item.set_enabled(ui_state.params.get_bool("custom_profile"))
@@ -459,6 +481,10 @@ class BluePilotLayout(Widget):
       self._preferred_network_dialog = None
 
     gui_app.set_modal_overlay(self._preferred_network_dialog, callback=handle_selection)
+
+  def _set_overlay_size(self, button_index: int):
+    """Handle overlay size button selection."""
+    self._params.put("FordPrefRadarOverlaySize", button_index)
 
   def _render(self, rect):
     # Process WiFi manager callbacks

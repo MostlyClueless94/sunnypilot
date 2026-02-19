@@ -1338,6 +1338,14 @@
     "title": "BluePilot: Enable Hands-Free UI",
     "description": "Enables hands-free (BlueCruise icon) on the gauge cluster for supported vehicles."
   },
+  "FordPrefShowRadarLeadOverlay": {
+    "title": "BluePilot: Show Radar Lead Overlay (Ford ACC)",
+    "description": "Displays a chevron with lead vehicle info (distance, speed, time) when using Ford stock ACC."
+  },
+  "FordPrefRadarOverlaySize": {
+    "title": "BluePilot: Radar Overlay Size",
+    "description": "Sets the size of the radar lead overlay chevron and info boxes. 0=Small, 1=Medium, 2=Large."
+  },
   "FordPrefHybridBatteryStatus": {
     "title": "BluePilot: Show Hybrid/EV Battery Status",
     "description": "Displays hybrid/EV battery status including state of charge (SOC), voltage, and current (amps) on the UI."

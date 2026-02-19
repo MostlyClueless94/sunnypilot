@@ -22,6 +22,7 @@ except Exception:
 
 FAVORITE_CHECK_PERIOD_SECONDS = 30
 INITIAL_CHECK_DELAY = 5.0  # Wait 5 seconds after startup for networks to be scanned
+MIN_SIGNAL_STRENGTH = 20  # Minimum signal strength (0-100) required to auto-connect
 
 
 class WifiFavoriteManager:
@@ -118,17 +119,27 @@ class WifiFavoriteManager:
         
         # If we're connected to something other than the favorite, try to switch
         if current_connected_ssid and current_connected_ssid != favorite_ssid:
-          # Check if favorite is in scan results (optional - helps but not required)
-          favorite_in_scan = False
+          # Check if favorite is in scan results with sufficient signal strength
+          favorite_network = None
+          favorite_signal_strength = 0
           with self._wifi_manager._lock:
             for network in self._wifi_manager._networks:
               if network.ssid == favorite_ssid:
-                favorite_in_scan = True
+                favorite_network = network
+                favorite_signal_strength = network.strength
                 break
           
-          # Try to activate favorite network (NetworkManager will handle if it's in range)
-          # We know it's saved, so NetworkManager can attempt to connect
-          cloudlog.info(f"BluePilot: Connected to '{current_connected_ssid}', switching to favorite '{favorite_ssid}' (in scan: {favorite_in_scan})...")
+          # Only attempt connection if favorite is visible in scan results AND has sufficient signal strength
+          if favorite_network is None:
+            cloudlog.debug(f"BluePilot: Favorite network '{favorite_ssid}' not in scan results, skipping auto-connect")
+            continue
+          
+          if favorite_signal_strength < MIN_SIGNAL_STRENGTH:
+            cloudlog.debug(f"BluePilot: Favorite network '{favorite_ssid}' signal strength ({favorite_signal_strength}%) below minimum ({MIN_SIGNAL_STRENGTH}%), skipping auto-connect")
+            continue
+          
+          # Favorite is visible and has sufficient signal strength - attempt connection
+          cloudlog.info(f"BluePilot: Connected to '{current_connected_ssid}', switching to favorite '{favorite_ssid}' (signal: {favorite_signal_strength}%)...")
           try:
             # Disconnect from current network first
             self._wifi_manager._deactivate_connection(current_connected_ssid)

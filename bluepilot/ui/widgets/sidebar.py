@@ -498,8 +498,8 @@ class SidebarBP(Widget):
     if ui_state.started:
       if 'flag' in self._button_rects:
         self._flag_btn.render(self._button_rects['flag'])
-      if self._debug_btn and 'debug' in self._button_rects:
-        self._debug_btn.render(self._button_rects['debug'])
+      # if self._debug_btn and 'debug' in self._button_rects:
+      #   self._debug_btn.render(self._button_rects['debug'])
 
   def _draw_background(self, rect: rl.Rectangle):
     """Draw sidebar background with gradient"""

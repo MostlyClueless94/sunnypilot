@@ -21,18 +21,8 @@ PILL_FONT_SIZE = 48
 PILL_LINE_SPACING = 8
 PILL_MAX_CHARS_PER_LINE = 28
 
-# Alert pill constants (3x larger than informational pills)
-ALERT_PILL_HEIGHT_SINGLE = 210
-ALERT_PILL_HEIGHT_DOUBLE = 348
-ALERT_PILL_PADDING_H = 90
-ALERT_PILL_PADDING_V = 45
-ALERT_PILL_FONT_SIZE = 144
-ALERT_PILL_LINE_SPACING = 24
-ALERT_PILL_MAX_CHARS_PER_LINE = 28
-
 # Pill notification colors
 PILL_BACKGROUND_COLOR = rl.Color(45, 45, 45, 255)
-PILL_ALERT_COLOR = rl.Color(0xDA, 0x6F, 0x25, 0xFF)
 
 
 def _wrap_text(text: str, max_chars: int):
@@ -68,7 +58,6 @@ class AlertRendererBP(AlertRenderer):
       return
 
     is_informational = (alert.status == AlertStatus.normal and alert.size != AlertSize.full)
-    is_alert_pill = (alert.status == AlertStatus.userPrompt and alert.size != AlertSize.full)
 
     if is_informational:
       alert_rect = self._get_pill_rect(rect, alert)
@@ -79,17 +68,8 @@ class AlertRendererBP(AlertRenderer):
           alert_rect.width - 2 * PILL_PADDING_H, alert_rect.height - 2 * PILL_PADDING_V
         )
         self._draw_pill_text(text_rect, alert)
-    elif is_alert_pill:
-      alert_rect = self._get_alert_pill_rect(rect, alert)
-      if alert_rect:
-        self._draw_alert_pill_background(alert_rect)
-        text_rect = rl.Rectangle(
-          alert_rect.x + ALERT_PILL_PADDING_H, alert_rect.y + ALERT_PILL_PADDING_V,
-          alert_rect.width - 2 * ALERT_PILL_PADDING_H, alert_rect.height - 2 * ALERT_PILL_PADDING_V
-        )
-        self._draw_alert_pill_text(text_rect, alert)
     else:
-      # Delegate to stock AlertRenderer for full-screen/critical alerts
+      # Delegate to stock AlertRenderer for all other alerts (including orange alerts)
       super()._render(rect)
 
   def _get_pill_rect(self, rect: rl.Rectangle, alert) -> Optional[rl.Rectangle]:
@@ -155,57 +135,3 @@ class AlertRendererBP(AlertRenderer):
       x = rect.x + (rect.width - text_size.x) / 2
       y = rect.y + extra_padding + (available_height - text_size.y) / 2
       rl.draw_text_ex(self.font_bold, text, rl.Vector2(x, y), PILL_FONT_SIZE, 0, rl.WHITE)
-
-  def _get_alert_pill_rect(self, rect: rl.Rectangle, alert) -> Optional[rl.Rectangle]:
-    """Calculate orange pill alert rectangle in middle of screen, 1/3 up from bottom."""
-    text = alert.text1 if alert.text1 else alert.text2
-    if not text:
-      return None
-
-    needs_wrapping = len(text) > ALERT_PILL_MAX_CHARS_PER_LINE
-    if needs_wrapping:
-      line1, line2 = _wrap_text(text, ALERT_PILL_MAX_CHARS_PER_LINE)
-      line1_size = measure_text_cached(self.font_bold, line1, ALERT_PILL_FONT_SIZE)
-      line2_size = measure_text_cached(self.font_bold, line2, ALERT_PILL_FONT_SIZE)
-      text_width = max(line1_size.x, line2_size.x)
-      pill_height = ALERT_PILL_HEIGHT_DOUBLE
-    else:
-      text_size = measure_text_cached(self.font_bold, text, ALERT_PILL_FONT_SIZE)
-      text_width = text_size.x
-      pill_height = ALERT_PILL_HEIGHT_SINGLE
-
-    pill_width = text_width + 2 * ALERT_PILL_PADDING_H
-    pill_x = rect.x + (rect.width - pill_width) / 2
-    pill_y = rect.y + (rect.height * 2 / 3) - (pill_height / 2)
-    return rl.Rectangle(pill_x, pill_y, pill_width, pill_height)
-
-  def _draw_alert_pill_background(self, rect: rl.Rectangle) -> None:
-    rl.draw_rectangle_rounded(rect, 0.75, 10, PILL_ALERT_COLOR)
-
-  def _draw_alert_pill_text(self, rect: rl.Rectangle, alert) -> None:
-    """Draw text in alert pill (centered, single or two lines, 3x larger)."""
-    text = alert.text1 if alert.text1 else alert.text2
-    if not text:
-      return
-
-    needs_wrapping = len(text) > ALERT_PILL_MAX_CHARS_PER_LINE
-    if needs_wrapping:
-      line1, line2 = _wrap_text(text, ALERT_PILL_MAX_CHARS_PER_LINE)
-      line1_size = measure_text_cached(self.font_bold, line1, ALERT_PILL_FONT_SIZE)
-      line2_size = measure_text_cached(self.font_bold, line2, ALERT_PILL_FONT_SIZE)
-      total_text_height = line1_size.y + ALERT_PILL_LINE_SPACING + line2_size.y
-      extra_top_padding = rect.height * 0.05
-      extra_bottom_padding = rect.height * 0.08
-      available_height = rect.height - extra_top_padding - extra_bottom_padding
-      start_y = rect.y + extra_top_padding + (available_height - total_text_height) / 2
-
-      line1_x = rect.x + (rect.width - line1_size.x) / 2
-      rl.draw_text_ex(self.font_bold, line1, rl.Vector2(line1_x, start_y), ALERT_PILL_FONT_SIZE, 0, rl.WHITE)
-      line2_x = rect.x + (rect.width - line2_size.x) / 2
-      line2_y = start_y + line1_size.y + ALERT_PILL_LINE_SPACING
-      rl.draw_text_ex(self.font_bold, line2, rl.Vector2(line2_x, line2_y), ALERT_PILL_FONT_SIZE, 0, rl.WHITE)
-    else:
-      text_size = measure_text_cached(self.font_bold, text, ALERT_PILL_FONT_SIZE)
-      x = rect.x + (rect.width - text_size.x) / 2
-      y = rect.y + (rect.height - text_size.y) / 2
-      rl.draw_text_ex(self.font_bold, text, rl.Vector2(x, y), ALERT_PILL_FONT_SIZE, 0, rl.WHITE)

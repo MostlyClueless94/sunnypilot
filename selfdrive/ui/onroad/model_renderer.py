@@ -6,13 +6,12 @@ from dataclasses import dataclass, field
 from openpilot.common.filter_simple import FirstOrderFilter
 from openpilot.common.params import Params
 from openpilot.selfdrive.locationd.calibrationd import HEIGHT_INIT
-from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
+from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.shader_polygon import draw_polygon, Gradient
 from openpilot.system.ui.widgets import Widget
 
 from openpilot.selfdrive.ui.sunnypilot.onroad.model_renderer import ChevronMetrics, ModelRendererSP
-from openpilot.selfdrive.ui.sunnypilot.mici.onroad.model_renderer import LANE_LINE_COLORS_SP
 
 CLIP_MARGIN = 500
 MIN_DRAW_DISTANCE = 10.0
@@ -30,13 +29,6 @@ NO_THROTTLE_COLORS = [
   rl.Color(242, 242, 242, 0),   # HSLF(112/360, 0.0, 0.95, 0.0)
 ]
 
-LANE_LINE_COLORS = {
-  UIStatus.DISENGAGED: rl.Color(200, 200, 200, 255),
-  UIStatus.OVERRIDE: rl.Color(255, 255, 255, 255),
-  UIStatus.ENGAGED: rl.Color(0, 255, 64, 255),  # Bright green when engaged
-  **LANE_LINE_COLORS_SP,
-}
-
 
 @dataclass
 class ModelPoints:
@@ -49,8 +41,6 @@ class LeadVehicle:
   glow: list[float] = field(default_factory=list)
   chevron: list[float] = field(default_factory=list)
   fill_alpha: int = 0
-  is_radar: bool = False
-  flip_chevron: bool = False  # Flip chevron upside down when close
 
 
 class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
@@ -66,8 +56,8 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     self._road_edge_stds = np.zeros(2, dtype=np.float32)
     self._lead_vehicles = [LeadVehicle(), LeadVehicle()]
     self._path_offset_z = HEIGHT_INIT[0]
-    self._params = Params()
-
+    self._counter = -1
+    self._camera_offset = ui_state.params.get("CameraOffset", return_default=True) if ui_state.active_bundle else 0.0
     # Initialize ModelPoints objects
     self._path = ModelPoints()
     self._lane_lines = [ModelPoints() for _ in range(4)]
@@ -87,7 +77,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     )
 
     # Get longitudinal control setting from car parameters
-    if car_params := self._params.get("CarParams"):
+    if car_params := Params().get("CarParams"):
       cp = messaging.log_from_bytes(car_params, car.CarParams)
       self._longitudinal_control = cp.openpilotLongitudinalControl
 
@@ -97,10 +87,6 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
 
   def _render(self, rect: rl.Rectangle):
     sm = ui_state.sm
-
-    if ui_state.rainbow_path:
-      #basis about 70MPH, range ~5.6-78MPH, normalized for shader
-      self._rainbow_v = np.clip(sm['carState'].vEgo, 2.5, 35) / 30
 
     # Check if data is up-to-date
     if (sm.recv_frame["liveCalibration"] < ui_state.started_frame or
@@ -118,33 +104,16 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     live_calib = sm['liveCalibration']
     self._path_offset_z = live_calib.height[0] if live_calib.height else HEIGHT_INIT[0]
 
-    # Get carParams - try message stream first (works in device), fallback to params (works in replay)
-    # Similar pattern to how controllerStateBP/lateralUncertainty is accessed
-    car_params = None
+    if self._counter % 60 == 0:
+      self._camera_offset = ui_state.params.get("CameraOffset", return_default=True) if ui_state.active_bundle else 0.0
+    self._counter += 1
 
-    # Try to get from message stream (published by card.py every 50 seconds)
-    if sm.valid['carParams']:
-      try:
-        car_params = sm['carParams']
-        self._longitudinal_control = car_params.openpilotLongitudinalControl
-      except (KeyError, AttributeError):
-        pass
-
-    # Fallback to params-based CarParams (replay writes to params, ui_state updates every 5 seconds)
-    if car_params is None:
-      # Always check ui_state.CP as fallback (replay writes CarParams to params)
-      if ui_state.CP:
-        car_params = ui_state.CP
-        # Use longitudinal control from params if available
-        if ui_state.CP.alphaLongitudinalAvailable:
-          self._longitudinal_control = ui_state.has_longitudinal_control
-        else:
-          self._longitudinal_control = ui_state.CP.openpilotLongitudinalControl
+    if sm.updated['carParams']:
+      self._longitudinal_control = sm['carParams'].openpilotLongitudinalControl
 
     model = sm['modelV2']
     radar_state = sm['radarState'] if sm.valid['radarState'] else None
     lead_one = radar_state.leadOne if radar_state else None
-
     render_lead_indicator = self._longitudinal_control and radar_state is not None
 
     # Update model data when needed
@@ -160,7 +129,6 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
       self._update_model(lead_one, path_x_array)
       if render_lead_indicator:
         self._update_leads(radar_state, path_x_array)
-
       self._transform_dirty = False
 
     # Draw elements
@@ -173,19 +141,19 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
 
   def _update_raw_points(self, model):
     """Update raw 3D points from model data"""
-    self._path.raw_points = np.array([model.position.x, model.position.y, model.position.z], dtype=np.float32).T
+    self._path.raw_points = np.array([model.position.x, np.array(model.position.y) + self._camera_offset, model.position.z], dtype=np.float32).T
 
     for i, lane_line in enumerate(model.laneLines):
-      self._lane_lines[i].raw_points = np.array([lane_line.x, lane_line.y, lane_line.z], dtype=np.float32).T
+      self._lane_lines[i].raw_points = np.array([lane_line.x, np.array(lane_line.y) + self._camera_offset, lane_line.z], dtype=np.float32).T
 
     for i, road_edge in enumerate(model.roadEdges):
-      self._road_edges[i].raw_points = np.array([road_edge.x, road_edge.y, road_edge.z], dtype=np.float32).T
+      self._road_edges[i].raw_points = np.array([road_edge.x, np.array(road_edge.y) + self._camera_offset, road_edge.z], dtype=np.float32).T
 
     self._lane_line_probs = np.array(model.laneLineProbs, dtype=np.float32)
     self._road_edge_stds = np.array(model.roadEdgeStds, dtype=np.float32)
     self._acceleration_x = np.array(model.acceleration.x, dtype=np.float32)
 
-  def _update_leads(self, radar_state, path_x_array, ford_overlay_enabled: bool = False):
+  def _update_leads(self, radar_state, path_x_array):
     """Update positions of lead vehicles"""
     self._lead_vehicles = [LeadVehicle(), LeadVehicle()]
     leads = [radar_state.leadOne, radar_state.leadTwo]
@@ -193,43 +161,28 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     for i, lead_data in enumerate(leads):
       if lead_data and lead_data.status:
         d_rel, y_rel, v_rel = lead_data.dRel, lead_data.yRel, lead_data.vRel
-        is_radar = lead_data.radar if hasattr(lead_data, 'radar') else False
-
-        # Deadband logic: move text above chevron at 50ft (15.24m), move back below at 60ft (18.29m)
-        # dRel is in meters, so convert feet to meters: 1 ft = 0.3048 m
-        CLOSE_MODE_THRESHOLD_M = 50.0 * 0.3048  # 50 feet = 15.24 meters
-        NORMAL_MODE_THRESHOLD_M = 60.0 * 0.3048  # 60 feet = 18.29 meters
-
-        # Update ChevronMetrics state (ModelRenderer inherits from ChevronMetrics)
-        if d_rel < CLOSE_MODE_THRESHOLD_M:
-          self._close_mode = True
-        elif d_rel > NORMAL_MODE_THRESHOLD_M:
-          self._close_mode = False
-        # Otherwise keep current state (deadband between thresholds)
-        flip_chevron = False  # Don't flip chevron, just move text
-
         idx = self._get_path_length_idx(path_x_array, d_rel)
 
         # Get z-coordinate from path at the lead vehicle position
         z = self._path.raw_points[idx, 2] if idx < len(self._path.raw_points) else 0.0
-        point = self._map_to_screen(d_rel, -y_rel, z + self._path_offset_z)
+        point = self._map_to_screen(d_rel, -y_rel + self._camera_offset, z + self._path_offset_z)
         if point:
-          self._lead_vehicles[i] = self._update_lead_vehicle(d_rel, v_rel, point, self._rect, is_radar=is_radar, flip_chevron=flip_chevron)
+          self._lead_vehicles[i] = self._update_lead_vehicle(d_rel, v_rel, point, self._rect)
 
   def _update_model(self, lead, path_x_array):
     """Update model visualization data based on model message"""
     max_distance = np.clip(path_x_array[-1], MIN_DRAW_DISTANCE, MAX_DRAW_DISTANCE)
     max_idx = self._get_path_length_idx(self._lane_lines[0].raw_points[:, 0], max_distance)
 
-    # Update lane lines using raw points (doubled width: 0.025 -> 0.05)
+    # Update lane lines using raw points
     for i, lane_line in enumerate(self._lane_lines):
       lane_line.projected_points = self._map_line_to_polygon(
-        lane_line.raw_points, 0.05 * self._lane_line_probs[i], 0.0, max_idx, max_distance
+        lane_line.raw_points, 0.025 * self._lane_line_probs[i], 0.0, max_idx, max_distance
       )
 
-    # Update road edges using raw points (doubled width: 0.025 -> 0.05)
+    # Update road edges using raw points
     for road_edge in self._road_edges:
-      road_edge.projected_points = self._map_line_to_polygon(road_edge.raw_points, 0.05, 0.0, max_idx, max_distance)
+      road_edge.projected_points = self._map_line_to_polygon(road_edge.raw_points, 0.025, 0.0, max_idx, max_distance)
 
     # Update path using raw points
     if lead and lead.status:
@@ -288,8 +241,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
       stops=gradient_stops,
     )
 
-  def _update_lead_vehicle(self, d_rel, v_rel, point, rect, is_radar: bool = False, flip_chevron: bool = False):
-    # flip_chevron parameter kept for compatibility but not used - chevron always stays normal
+  def _update_lead_vehicle(self, d_rel, v_rel, point, rect):
     speed_buff, lead_buff = 10.0, 40.0
 
     # Calculate fill alpha
@@ -303,35 +255,32 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     # Calculate size and position
     sz = np.clip((25 * 30) / (d_rel / 3 + 30), 15.0, 30.0) * 2.35
     x = np.clip(point[0], 0.0, rect.width - sz / 2)
-    base_y = min(point[1], rect.height - sz * 0.6)
+    y = min(point[1], rect.height - sz * 0.6)
 
     g_xo = sz / 5
     g_yo = sz / 10
 
-    # Create glow and chevron points
-    # Normal: chevron points down [bottom_right, top, bottom_left]
-    # Always use normal orientation - don't flip chevron
-    y = base_y
     glow = [(x + (sz * 1.35) + g_xo, y + sz + g_yo), (x, y - g_yo), (x - (sz * 1.35) - g_xo, y + sz + g_yo)]
     chevron = [(x + (sz * 1.25), y + sz), (x, y), (x - (sz * 1.25), y + sz)]
 
-    return LeadVehicle(glow=glow, chevron=chevron, fill_alpha=int(fill_alpha), is_radar=is_radar, flip_chevron=flip_chevron)
+    return LeadVehicle(glow=glow, chevron=chevron, fill_alpha=int(fill_alpha))
 
   def _draw_lane_lines(self):
-    """Draw lane lines and road edges."""
+    """Draw lane lines and road edges"""
     for i, lane_line in enumerate(self._lane_lines):
       if lane_line.projected_points.size == 0:
         continue
+
       alpha = np.clip(self._lane_line_probs[i], 0.0, 0.7)
-      color = LANE_LINE_COLORS.get(ui_state.status, LANE_LINE_COLORS[UIStatus.DISENGAGED])
-      color = rl.Color(color.r, color.g, color.b, int(alpha * 255))
+      color = rl.Color(255, 255, 255, int(alpha * 255))
       draw_polygon(self._rect, lane_line.projected_points, color)
 
     for i, road_edge in enumerate(self._road_edges):
       if road_edge.projected_points.size == 0:
         continue
-      edge_alpha = np.clip(1.0 - self._road_edge_stds[i], 0.0, 1.0) * 0.6
-      color = rl.Color(255, 0, 0, int(edge_alpha * 255))
+
+      alpha = np.clip(1.0 - self._road_edge_stds[i], 0.0, 1.0)
+      color = rl.Color(255, 0, 0, int(alpha * 255))
       draw_polygon(self._rect, road_edge.projected_points, color)
 
   def _draw_path(self, sm):
@@ -343,7 +292,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     self._blend_filter.update(int(allow_throttle))
 
     if ui_state.rainbow_path:
-      draw_polygon(self._rect, self._path.projected_points, rainbow=True, rainbow_v=self._rainbow_v)
+      self.rainbow_path.draw_rainbow_path(self._rect, self._path)
       return
 
     if self._experimental_mode:
@@ -365,15 +314,13 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
       draw_polygon(self._rect, self._path.projected_points, gradient=gradient)
 
   def _draw_lead_indicator(self):
+    # Draw lead vehicles if available
     for lead in self._lead_vehicles:
       if not lead.glow or not lead.chevron:
         continue
 
-      glow_color = rl.Color(218, 202, 37, 255)
-      chevron_color = rl.Color(201, 34, 49, lead.fill_alpha)
-
-      rl.draw_triangle_fan(lead.glow, len(lead.glow), glow_color)
-      rl.draw_triangle_fan(lead.chevron, len(lead.chevron), chevron_color)
+      rl.draw_triangle_fan(lead.glow, len(lead.glow), rl.Color(218, 202, 37, 255))
+      rl.draw_triangle_fan(lead.chevron, len(lead.chevron), rl.Color(201, 34, 49, lead.fill_alpha))
 
   @staticmethod
   def _get_path_length_idx(pos_x_array: np.ndarray, path_distance: float) -> int:

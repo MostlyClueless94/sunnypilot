@@ -4,7 +4,10 @@ import cereal.messaging as messaging
 from openpilot.selfdrive.ui.mici.layouts.home import MiciHomeLayout
 from openpilot.selfdrive.ui.mici.layouts.settings.settings import SettingsLayout
 from openpilot.selfdrive.ui.mici.layouts.offroad_alerts import MiciOffroadAlerts
-from openpilot.selfdrive.ui.mici.onroad.augmented_road_view import AugmentedRoadView
+from openpilot.selfdrive.ui.mici.onroad.augmented_road_view import AugmentedRoadView  # noqa: F401
+# BluePilot: START - BP onroad overlays (blindspot, complication, brake coloring, powerflow)
+from openpilot.selfdrive.ui.bp.mici.onroad.augmented_road_view_bp import MiciAugmentedRoadViewBP as AugmentedRoadView  # noqa: F811
+# BluePilot: END - BP onroad overlays
 from openpilot.selfdrive.ui.ui_state import device, ui_state
 from openpilot.selfdrive.ui.mici.layouts.onboarding import OnboardingWindow
 from openpilot.system.ui.widgets import Widget
@@ -13,7 +16,6 @@ from openpilot.system.ui.lib.application import gui_app
 
 if gui_app.sunnypilot_ui():
   from openpilot.selfdrive.ui.sunnypilot.mici.layouts.settings import SettingsLayoutSP as SettingsLayout
-  from openpilot.selfdrive.ui.bp.mici.onroad.augmented_road_view_bp import MiciAugmentedRoadViewBP as AugmentedRoadView
 
 
 ONROAD_DELAY = 2.5  # seconds
@@ -51,7 +53,7 @@ class MiciMainLayout(Widget):
       self._alerts_layout,
       self._home_layout,
       self._onroad_layout,
-    ], spacing=0, pad_start=0, pad_end=0)
+    ], spacing=0, pad_start=0, pad_end=0, scroll_indicator=False)
     self._scroller.set_reset_scroll_at_show(False)
 
     # Disable scrolling when onroad is interacting with bookmark

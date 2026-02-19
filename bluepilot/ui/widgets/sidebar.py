@@ -8,12 +8,15 @@ State Management:
 - Updates metrics at a reduced rate for performance
 """
 
+import subprocess
+import threading
 import time
 import pyray as rl
 from collections.abc import Callable
 from cereal import log
 from openpilot.common.params import Params
 from openpilot.selfdrive.ui.ui_state import ui_state
+from openpilot.system.hardware import PC
 from openpilot.system.ui.lib.application import gui_app, FontWeight, MousePos
 from openpilot.system.ui.lib.text_measure import measure_text_cached
 from openpilot.system.ui.widgets import Widget
@@ -61,6 +64,11 @@ class SidebarBP(Widget):
     self._net_type = "Offline"
     self._net_carrier_ssid = "No Connection"
     self._net_strength = 0
+
+    # WiFi SSID background fetch
+    self._wifi_ssid_cache = ""
+    self._wifi_ssid_last_fetch = 0.0
+    self._wifi_ssid_fetching = False
 
     # Metric values
     self._cpu_usage = "0%"
@@ -207,20 +215,10 @@ class SidebarBP(Widget):
       # Get carrier/SSID
       net_type = device_state.networkType
       if net_type == NetworkType.wifi:
-        # Try to get SSID from networkInfo.state (for WiFi) or use network type
-        try:
-          net_info = device_state.networkInfo
-          if net_info and hasattr(net_info, 'state') and net_info.state and net_info.state != "":
-            self._net_carrier_ssid = str(net_info.state)
-          elif net_info and hasattr(net_info, 'technology') and net_info.technology and net_info.technology != "":
-            self._net_carrier_ssid = str(net_info.technology)
-          else:
-            self._net_carrier_ssid = "WiFi Connected"
-        except (AttributeError, ValueError, TypeError):
-          # Fallback if network info is unavailable
-          self._net_carrier_ssid = "WiFi Connected"
+        ssid = self._get_wifi_ssid()
+        self._net_carrier_ssid = ssid if ssid else "WiFi Connected"
       elif net_type in (NetworkType.cell2G, NetworkType.cell3G, NetworkType.cell4G, NetworkType.cell5G):
-        # Try to get carrier name from network info
+        # Get carrier name from network info (cellular modem data)
         try:
           if hasattr(device_state, 'networkInfo') and device_state.networkInfo:
             operator_code = getattr(device_state.networkInfo, 'operator', None)
@@ -240,6 +238,29 @@ class SidebarBP(Widget):
       self._net_type = "Offline"
       self._net_carrier_ssid = "No Connection"
       self._net_strength = 0
+
+  def _get_wifi_ssid(self):
+    """Get WiFi SSID with periodic background refresh (every 10s)"""
+    now = time.monotonic()
+    if now - self._wifi_ssid_last_fetch > 10.0 and not self._wifi_ssid_fetching:
+      self._wifi_ssid_last_fetch = now
+      self._wifi_ssid_fetching = True
+      threading.Thread(target=self._fetch_wifi_ssid, daemon=True).start()
+    return self._wifi_ssid_cache
+
+  def _fetch_wifi_ssid(self):
+    """Background fetch of connected WiFi SSID via iwgetid"""
+    if PC:
+      self._wifi_ssid_fetching = False
+      return
+    try:
+      result = subprocess.check_output(["iwgetid", "-r"], encoding='utf-8', timeout=3).strip()
+      if result:
+        self._wifi_ssid_cache = result
+    except Exception:
+      pass
+    finally:
+      self._wifi_ssid_fetching = False
 
   def _update_connection_status(self, device_state):
     """Update Athena connection status"""

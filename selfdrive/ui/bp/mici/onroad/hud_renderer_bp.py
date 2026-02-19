@@ -1,16 +1,18 @@
 import pyray as rl
 from openpilot.common.params import Params
-from openpilot.selfdrive.ui.mici.onroad.hud_renderer import HudRenderer
+from openpilot.selfdrive.ui.sunnypilot.mici.onroad.hud_renderer import HudRendererSP
+from openpilot.selfdrive.ui.bp.mici.onroad.powerflow_gauge import MiciPowerflowGauge
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 
 
-class MiciHudRendererBP(HudRenderer):
-  """BluePilot MICI HudRenderer with brake status coloring."""
+class MiciHudRendererBP(HudRendererSP):
+  """BluePilot MICI HudRenderer with brake status coloring and powerflow gauge."""
 
   def __init__(self):
     super().__init__()
     self._bp_params = Params()
     self._brakes_on = False
+    self._power_flow = MiciPowerflowGauge()
 
   def _update_state(self) -> None:
     super()._update_state()
@@ -27,14 +29,16 @@ class MiciHudRendererBP(HudRenderer):
       self._brakes_on = False
 
   def _draw_steering_wheel(self, rect: rl.Rectangle) -> None:
-    """Override to add brake status coloring to wheel icon."""
+    """Override to add brake status coloring to wheel icon and powerflow gauge."""
     wheel_txt = self._txt_wheel_critical if self._show_wheel_critical else self._txt_wheel
+
+    bsm_detected = self._has_blind_spot_detected() if hasattr(self, '_has_blind_spot_detected') else False
 
     if self._show_wheel_critical:
       self._wheel_alpha_filter.update(255)
       self._wheel_y_filter.update(0)
     else:
-      if ui_state.status == UIStatus.DISENGAGED:
+      if ui_state.status == UIStatus.DISENGAGED or bsm_detected:
         self._wheel_alpha_filter.update(0)
         self._wheel_y_filter.update(wheel_txt.height / 2)
       else:
@@ -57,7 +61,7 @@ class MiciHudRendererBP(HudRenderer):
     dest_rect = rl.Rectangle(pos_x, pos_y, wheel_txt.width, wheel_txt.height)
     origin = (wheel_txt.width / 2, wheel_txt.height / 2)
 
-    # BP: Red color when braking
+    # BluePilot: Red color when braking
     if self._brakes_on:
       color = rl.Color(255, 60, 60, int(self._wheel_alpha_filter.x))
     else:
@@ -70,6 +74,7 @@ class MiciHudRendererBP(HudRenderer):
       exclamation_pos_y = pos_y - self._txt_exclamation_point.height / 2
       rl.draw_texture(self._txt_exclamation_point, int(exclamation_pos_x), int(exclamation_pos_y), rl.WHITE)
 
+    # BluePilot: Render powerflow gauge around steering wheel
     power_flow_radius = self._power_flow.RADIUS
     power_rect = rl.Rectangle(
       int(rect.x + 21) - power_flow_radius,

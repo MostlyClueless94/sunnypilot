@@ -35,9 +35,10 @@ VOLTAGE_AMPS_FONT_SIZE = 53  # Font size for voltage and amps (40 * 1.33 = 53.2,
 VOLTAGE_AMPS_LINE_SPACING = 12  # Space between voltage and amps lines (increased from 8 to make widget taller)
 BACKGROUND_PADDING = 15  # Padding around widget for background box
 BACKGROUND_ROUNDNESS = 0.3  # Roundness for background box
+BACKGROUND_GLOW_EXPANSION = 4  # Soft edge expansion to match unified gauge container treatment
 
 # Colors
-BACKGROUND_BOX_COLOR = rl.Color(20, 20, 20, 200)  # Translucent dark grey background
+BACKGROUND_BOX_COLOR = rl.Color(20, 20, 20, 100)  # Match unified powerflow container fill
 BATTERY_BG_COLOR = rl.Color(40, 40, 40, 220)  # Dark grey background
 BATTERY_BORDER_COLOR = rl.Color(200, 200, 200, 255)  # Light grey border
 BATTERY_FILL_COLOR = rl.Color(100, 200, 100, 255)  # Green fill (will be adjusted based on SOC)
@@ -190,8 +191,17 @@ class HybridBatteryGauge(Widget):
       background_x = x - BACKGROUND_PADDING
       background_y = y - BACKGROUND_PADDING
       
-      # Draw background box behind entire widget
+      # Draw background box behind entire widget (matching unified powerflow container style)
       background_rect = rl.Rectangle(background_x, background_y, background_width, background_height)
+      glow_rect = rl.Rectangle(
+        background_x - BACKGROUND_GLOW_EXPANSION,
+        background_y - BACKGROUND_GLOW_EXPANSION,
+        background_width + BACKGROUND_GLOW_EXPANSION * 2,
+        background_height + BACKGROUND_GLOW_EXPANSION * 2,
+      )
+      rl.draw_rectangle_rounded(
+        glow_rect, BACKGROUND_ROUNDNESS, 10, rl.Color(20, 20, 20, int(BACKGROUND_BOX_COLOR.a * 0.3))
+      )
       rl.draw_rectangle_rounded(background_rect, BACKGROUND_ROUNDNESS, 10, BACKGROUND_BOX_COLOR)
       
       # Draw battery body (rounded rectangle)

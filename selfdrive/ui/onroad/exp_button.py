@@ -23,6 +23,8 @@ class ExpButton(Widget):
     self._txt_wheel: rl.Texture = gui_app.texture('icons/chffr_wheel.png', icon_size, icon_size)
     self._txt_exp: rl.Texture = gui_app.texture('icons/experimental.png', icon_size, icon_size)
     self._rect = rl.Rectangle(0, 0, button_size, button_size)
+    self._animate_wheel = self._params.get_bool("BPAnimateSteeringWheel")
+    self._param_counter = 0
 
   def set_rect(self, rect: rl.Rectangle) -> None:
     self._rect.x, self._rect.y = rect.x, rect.y
@@ -31,6 +33,11 @@ class ExpButton(Widget):
     selfdrive_state = ui_state.sm["selfdriveState"]
     self._experimental_mode = selfdrive_state.experimentalMode
     self._engageable = selfdrive_state.engageable or selfdrive_state.enabled
+
+    self._param_counter += 1
+    if self._param_counter >= 60:
+      self._param_counter = 0
+      self._animate_wheel = self._params.get_bool("BPAnimateSteeringWheel")
 
   def _handle_mouse_release(self, _):
     super()._handle_mouse_release(_)
@@ -48,9 +55,19 @@ class ExpButton(Widget):
 
     self._white_color.a = 180 if self.is_pressed or not self._engageable else 255
 
-    texture = self._txt_exp if self._held_or_actual_mode() else self._txt_wheel
-    #rl.draw_circle(center_x, center_y, self._rect.width / 2, self._black_bg)
-    rl.draw_texture(texture, center_x - texture.width // 2, center_y - texture.height // 2, self._white_color)
+    is_exp = self._held_or_actual_mode()
+    texture = self._txt_exp if is_exp else self._txt_wheel
+    rl.draw_circle(center_x, center_y, self._rect.width / 2, self._black_bg)
+
+    if is_exp or not self._animate_wheel:
+      rl.draw_texture(texture, center_x - texture.width // 2, center_y - texture.height // 2, self._white_color)
+    else:
+      # Rotate wheel icon to match steering angle
+      rotation = -ui_state.sm['carState'].steeringAngleDeg
+      src_rect = rl.Rectangle(0, 0, texture.width, texture.height)
+      dest_rect = rl.Rectangle(center_x, center_y, texture.width, texture.height)
+      origin = rl.Vector2(texture.width / 2, texture.height / 2)
+      rl.draw_texture_pro(texture, src_rect, dest_rect, origin, rotation, self._white_color)
 
   def _held_or_actual_mode(self):
     now = time.monotonic()

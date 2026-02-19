@@ -4,7 +4,6 @@ import pyray as rl
 from collections.abc import Callable
 
 from openpilot.common.swaglog import cloudlog
-from openpilot.common.params import Params
 from openpilot.system.ui.widgets.label import UnifiedLabel
 from openpilot.selfdrive.ui.mici.widgets.dialog import BigMultiOptionDialog, BigInputDialog, BigDialogOptionButton, BigConfirmationDialogV2
 from openpilot.system.ui.lib.application import gui_app, MousePos, FontWeight
@@ -35,14 +34,12 @@ class LoadingAnimation(Widget):
 class WifiIcon(Widget):
   def __init__(self):
     super().__init__()
-    self.set_rect(rl.Rectangle(0, 0, 89, 64))
+    self.set_rect(rl.Rectangle(0, 0, 86, 64))
 
-    self._wifi_slash_txt = gui_app.texture("icons_mici/settings/network/wifi_strength_slash.png", 89, 64)
-    self._wifi_none_txt = gui_app.texture("icons_mici/settings/network/wifi_strength_none.png", 89, 64)
-    self._wifi_low_txt = gui_app.texture("icons_mici/settings/network/wifi_strength_low.png", 89, 64)
-    self._wifi_medium_txt = gui_app.texture("icons_mici/settings/network/wifi_strength_medium.png", 89, 64)
-    self._wifi_full_txt = gui_app.texture("icons_mici/settings/network/wifi_strength_full.png", 89, 64)
-    self._lock_txt = gui_app.texture("icons_mici/settings/network/new/lock.png", 23, 32)
+    self._wifi_low_txt = gui_app.texture("icons_mici/settings/network/wifi_strength_low.png", 86, 64)
+    self._wifi_medium_txt = gui_app.texture("icons_mici/settings/network/wifi_strength_medium.png", 86, 64)
+    self._wifi_full_txt = gui_app.texture("icons_mici/settings/network/wifi_strength_full.png", 86, 64)
+    self._lock_txt = gui_app.texture("icons_mici/settings/network/new/lock.png", 22, 32)
 
     self._network: Network | None = None
     self._scale = 1.0
@@ -53,22 +50,22 @@ class WifiIcon(Widget):
   def set_scale(self, scale: float):
     self._scale = scale
 
+  @staticmethod
+  def get_strength_icon_idx(strength: int) -> int:
+    return round(strength / 100 * 2)
+
   def _render(self, _):
     if self._network is None:
       return
 
     # Determine which wifi strength icon to use
-    strength = round(self._network.strength / 100 * 4)
-    if strength == 4:
+    strength = self.get_strength_icon_idx(self._network.strength)
+    if strength == 2:
       strength_icon = self._wifi_full_txt
-    elif strength == 3:
+    elif strength == 1:
       strength_icon = self._wifi_medium_txt
-    elif strength == 2:
-      strength_icon = self._wifi_low_txt
-    elif self._network.strength < 0:
-      strength_icon = self._wifi_slash_txt
     else:
-      strength_icon = self._wifi_none_txt
+      strength_icon = self._wifi_low_txt
 
     icon_x = int(self._rect.x + (self._rect.width - strength_icon.width * self._scale) // 2)
     icon_y = int(self._rect.y + (self._rect.height - strength_icon.height * self._scale) // 2)
@@ -123,10 +120,8 @@ class WifiItem(BigDialogOptionButton):
       self._label.set_color(rl.Color(255, 255, 255, int(255 * 0.58)))
       self._label.set_font_weight(FontWeight.DISPLAY_REGULAR)
 
-    # Calculate label area
     label_offset = self.LEFT_MARGIN + self._wifi_icon.rect.width + 20
-    label_width = self._rect.width - label_offset
-    label_rect = rl.Rectangle(self._rect.x + label_offset, self._rect.y, label_width, self._rect.height)
+    label_rect = rl.Rectangle(self._rect.x + label_offset, self._rect.y, self._rect.width - label_offset, self._rect.height)
     self._label.set_text(normalize_ssid(self._network.ssid))
     self._label.render(label_rect)
 
@@ -178,7 +173,7 @@ class ForgetButton(Widget):
 
     self._bg_txt = gui_app.texture("icons_mici/settings/network/new/forget_button.png", 100, 100)
     self._bg_pressed_txt = gui_app.texture("icons_mici/settings/network/new/forget_button_pressed.png", 100, 100)
-    self._trash_txt = gui_app.texture("icons_mici/settings/network/new/trash.png", 32, 36)
+    self._trash_txt = gui_app.texture("icons_mici/settings/network/new/trash.png", 35, 42)
     self.set_rect(rl.Rectangle(0, 0, 100 + self.HORIZONTAL_MARGIN * 2, 100))
 
   def _handle_mouse_release(self, mouse_pos: MousePos):
@@ -323,7 +318,7 @@ class WifiUIMici(BigMultiOptionDialog):
   INACTIVITY_TIMEOUT = 1
 
   def __init__(self, wifi_manager: WifiManager, back_callback: Callable):
-    super().__init__([], None, None, right_btn_callback=None)
+    super().__init__([], None)
 
     # Set up back navigation
     self.set_back_callback(back_callback)
@@ -391,7 +386,7 @@ class WifiUIMici(BigMultiOptionDialog):
       else:
         network_button = WifiItem(network)
 
-      self.add_button(network_button)
+      self._scroller.add_widget(network_button)
 
     # remove networks no longer present
     self._scroller._items[:] = [btn for btn in self._scroller._items if btn.option in self._networks]
@@ -405,11 +400,10 @@ class WifiUIMici(BigMultiOptionDialog):
       self._wifi_manager.connect_to_network(ssid, password)
       self._update_buttons()
 
-  def _on_option_selected(self, option: str, smooth_scroll: bool = True):
-    super()._on_option_selected(option, smooth_scroll)
+  def _on_option_selected(self, option: str):
+    super()._on_option_selected(option)
 
-    # only open if button is already selected
-    if option in self._networks and option == self._selected_option:
+    if option in self._networks:
       self._network_info_page.set_current_network(self._networks[option])
       self._open_network_manage_page()
 
@@ -456,7 +450,7 @@ class WifiUIMici(BigMultiOptionDialog):
     current_selection = self.get_selected_option()
     if self._restore_selection and current_selection in self._networks:
       self._scroller._layout()
-      BigMultiOptionDialog._on_option_selected(self, current_selection, smooth_scroll=False)
+      BigMultiOptionDialog._on_option_selected(self, current_selection)
       self._restore_selection = None
 
     super()._render(_)

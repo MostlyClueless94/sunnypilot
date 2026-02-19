@@ -1,7 +1,7 @@
 import pyray as rl
 from openpilot.selfdrive.ui.mici.onroad.confidence_ball import ConfidenceBall
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
-from openpilot.system.ui.lib.shader_polygon import draw_circle_gradient
+from openpilot.selfdrive.ui.mici.onroad.confidence_ball import draw_circle_gradient
 
 class ConfidenceBallBP(ConfidenceBall):
   def __init__(self, demo: bool = False, radius: float=24, width: float = 60, align_right: bool = True):
@@ -107,16 +107,19 @@ class ConfidenceBallBP(ConfidenceBall):
                               int(content_rect.height),
                               color)
 
-    draw_circle_gradient(content_rect, ball_center_x, dot_height, self._status_dot_radius,
+    draw_circle_gradient(ball_center_x, dot_height, self._status_dot_radius,
                          top_dot_color, bottom_dot_color)
 
 class ConfidenceBallMiciBP(ConfidenceBallBP):
+  BALL_WIDTH = 60
   def __init__(self, demo: bool = False):
-    ConfidenceBallBP.__init__(self, demo=demo, radius=24, width=60, align_right=True)
+    ConfidenceBallBP.__init__(self, demo=demo, radius=24, width=self.BALL_WIDTH, align_right=False)
 
-TICI_CONFIDENCE_BALL_R = 25  # Bar width for TICI (was 50, now 25 for thinner bar - half the original)
+TICI_CONFIDENCE_BALL_R = 25
 TICI_CONFIDENCE_BALL_MARGIN = 5
 TICI_CONFIDENCE_BALL_W = TICI_CONFIDENCE_BALL_R * 2 + TICI_CONFIDENCE_BALL_MARGIN
+
 class ConfidenceBallTiciBP(ConfidenceBallBP):
+  BALL_WIDTH = TICI_CONFIDENCE_BALL_W
   def __init__(self, demo: bool = False):
-    ConfidenceBallBP.__init__(self, demo=demo, radius=TICI_CONFIDENCE_BALL_R, width=TICI_CONFIDENCE_BALL_W, align_right=True)
+    ConfidenceBallBP.__init__(self, demo=demo, radius=TICI_CONFIDENCE_BALL_R, width=self.BALL_WIDTH, align_right=False)

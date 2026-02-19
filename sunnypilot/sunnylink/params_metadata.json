@@ -90,8 +90,12 @@
     "description": ""
   },
   "BlindSpot": {
-    "title": "Blind Spot Detection",
-    "description": ""
+    "title": "[TIZI/TICI only] Blind Spot Detection",
+    "description": "Enabling this will display warnings when a vehicle is detected in your blind spot as long as your car has BSM supported."
+  },
+  "BlinkerLateralReengageDelay": {
+    "title": "Post-Blinker Delay",
+    "description": "Delay before lateral control resumes after the turn signal ends."
   },
   "BlinkerMinLateralControlSpeed": {
     "title": "Blinker Min Lateral Control Speed",
@@ -121,9 +125,18 @@
     "title": "Camera Debug Exp Time",
     "description": ""
   },
+  "CameraOffset": {
+    "title": "Adjust Camera Offset",
+    "description": "Virtually shift camera's perspective to move model's center to Left(+ values) or Right (- values)",
+    "min": -0.35,
+    "max": 0.35,
+    "step": 0.01,
+    "unit": "meters"
+  },
   "CarBatteryCapacity": {
     "title": "Car Battery Capacity",
-    "description": ""
+    "description": "Battery Size",
+    "unit": "kWh"
   },
   "CarList": {
     "title": "Supported Car List",
@@ -163,29 +176,7 @@
   },
   "ChevronInfo": {
     "title": "Chevron Info",
-    "description": "",
-    "options": [
-      {
-        "value": 0,
-        "label": "Off"
-      },
-      {
-        "value": 1,
-        "label": "Distance"
-      },
-      {
-        "value": 2,
-        "label": "Speed"
-      },
-      {
-        "value": 3,
-        "label": "Time ahead (s)"
-      },
-      {
-        "value": 4,
-        "label": "All"
-      }
-    ]
+    "description": ""
   },
   "CompletedSunnylinkConsentVersion": {
     "title": "Completed sunnylink Consent Version",
@@ -208,7 +199,7 @@
     "description": ""
   },
   "CustomAccIncrementsEnabled": {
-    "title": "Custom ACC Increments Enabled",
+    "title": "Custom ACC Increments",
     "description": ""
   },
   "CustomAccLongPressIncrement": {
@@ -226,8 +217,8 @@
     "step": 1
   },
   "CustomTorqueParams": {
-    "title": "Custom Torque Params",
-    "description": ""
+    "title": "Enable Custom Torque Tuning",
+    "description": "Enables custom tuning for Torque lateral control"
   },
   "DevUIInfo": {
     "title": "Developer UI Info",
@@ -301,7 +292,7 @@
   },
   "EnforceTorqueControl": {
     "title": "Enforce Torque Control",
-    "description": ""
+    "description": "Enable this to enforce sunnypilot to steer with Torque lateral control."
   },
   "ExperimentalMode": {
     "title": "Experimental Mode",
@@ -352,8 +343,8 @@
     "description": ""
   },
   "GreenLightAlert": {
-    "title": "Green Light Alert",
-    "description": ""
+    "title": "Green Traffic Light Alert (Beta)",
+    "description": "A chime and on-screen alert (TIZI/TICI only) will play when the traffic light you are waiting for turns green and you have no vehicle in front of you. <br>Note: This chime is only designed as a notification. It is the driver's responsibility to observe their environment and make decisions accordingly."
   },
   "GsmApn": {
     "title": "GSM APN",
@@ -380,8 +371,8 @@
     "description": ""
   },
   "HideVEgoUI": {
-    "title": "Hide vEgo UI",
-    "description": ""
+    "title": "[TIZI/TICI only] Speedometer: Hide from Onroad Screen",
+    "description": "When enabled, the speedometer on the onroad screen is not displayed."
   },
   "HyundaiLongitudinalTuning": {
     "title": "Hyundai Longitudinal Tuning",
@@ -411,7 +402,61 @@
   },
   "InteractivityTimeout": {
     "title": "Interactivity Timeout",
-    "description": ""
+    "description": "Apply a custom timeout for settings UI. This is the time after which settings UI closes automatically if user is not interacting with the screen.",
+    "options": [
+      {
+        "value": 0,
+        "label": "Default"
+      },
+      {
+        "value": 10,
+        "label": "10 s"
+      },
+      {
+        "value": 20,
+        "label": "20 s"
+      },
+      {
+        "value": 30,
+        "label": "30 s"
+      },
+      {
+        "value": 40,
+        "label": "40 s"
+      },
+      {
+        "value": 50,
+        "label": "50 s"
+      },
+      {
+        "value": 60,
+        "label": "1 m"
+      },
+      {
+        "value": 70,
+        "label": "1 m"
+      },
+      {
+        "value": 80,
+        "label": "1 m"
+      },
+      {
+        "value": 90,
+        "label": "1 m"
+      },
+      {
+        "value": 100,
+        "label": "1 m"
+      },
+      {
+        "value": 110,
+        "label": "1 m"
+      },
+      {
+        "value": 120,
+        "label": "2 m"
+      }
+    ]
   },
   "IsDevelopmentBranch": {
     "title": "Is Development Branch",
@@ -466,12 +511,15 @@
     "description": ""
   },
   "LagdToggle": {
-    "title": "LaGD Toggle",
-    "description": ""
+    "title": "Live Learning Steer Delay",
+    "description": "Allow device to learn and adapt car's steering response time"
   },
   "LagdToggleDelay": {
-    "title": "LaGD Toggle Delay",
-    "description": ""
+    "title": "Manual Software Delay",
+    "description": "Software delay to use when Live Learning Steer Delay is toggled off",
+    "min": 0.05,
+    "max": 0.5,
+    "step": 0.01
   },
   "LagdValueCache": {
     "title": "LaGD Value Cache",
@@ -479,11 +527,11 @@
   },
   "LaneTurnDesire": {
     "title": "Lane Turn Desire",
-    "description": ""
+    "description": "Force model to plan an intent to turn based on blinker"
   },
   "LaneTurnValue": {
-    "title": "Lane Turn Value",
-    "description": "",
+    "title": "Lane Turn Speed",
+    "description": "Maximum speed for lane turn desire",
     "min": 0,
     "max": 20,
     "step": 1
@@ -541,8 +589,8 @@
     "description": ""
   },
   "LeadDepartAlert": {
-    "title": "Lead Depart Alert",
-    "description": ""
+    "title": "Lead Departure Alert (Beta)",
+    "description": "A chime and on-screen alert (TIZI/TICI only) will play when you are stopped, and the vehicle in front of you start moving. <br>Note: This chime is only designed as a notification. It is the driver's responsibility to observe their environment and make decisions accordingly."
   },
   "LiveDelay": {
     "title": "Live Delay",
@@ -561,12 +609,12 @@
     "description": ""
   },
   "LiveTorqueParamsRelaxedToggle": {
-    "title": "Live Torque Params Relaxed Toggle",
-    "description": ""
+    "title": "Less Restrict Settings for Self-Tune (Beta)",
+    "description": "Less strict settings when using Self-Tune. This allows torqued to be more forgiving when learning values."
   },
   "LiveTorqueParamsToggle": {
-    "title": "Live Torque Params Toggle",
-    "description": ""
+    "title": "Self-Tune",
+    "description": "Enables self-tune for Torque lateral control"
   },
   "LocationFilterInitialState": {
     "title": "Location Filter Initial State",
@@ -642,7 +690,8 @@
   },
   "MaxTimeOffroad": {
     "title": "Max Time Offroad",
-    "description": ""
+    "description": "",
+    "unit": "minutes"
   },
   "ModelManager_ActiveBundle": {
     "title": "Model Manager Active Bundle",
@@ -719,7 +768,7 @@
     "description": ""
   },
   "OffroadMode": {
-    "title": "Offroad Mode",
+    "title": "Force Offroad Mode",
     "description": ""
   },
   "Offroad_CarUnrecognized": {
@@ -783,22 +832,156 @@
     "description": ""
   },
   "OnroadScreenOffBrightness": {
-    "title": "Onroad Screen Off Brightness",
+    "title": "Onroad Brightness",
     "description": "",
-    "min": 0,
-    "max": 100,
-    "step": 5
+    "options": [
+      {
+        "value": 0,
+        "label": "Auto (Default)"
+      },
+      {
+        "value": 1,
+        "label": "Auto (Dark)"
+      },
+      {
+        "value": 2,
+        "label": "5 %"
+      },
+      {
+        "value": 3,
+        "label": "10 %"
+      },
+      {
+        "value": 4,
+        "label": "15 %"
+      },
+      {
+        "value": 5,
+        "label": "20 %"
+      },
+      {
+        "value": 6,
+        "label": "25 %"
+      },
+      {
+        "value": 7,
+        "label": "30 %"
+      },
+      {
+        "value": 8,
+        "label": "35 %"
+      },
+      {
+        "value": 9,
+        "label": "40 %"
+      },
+      {
+        "value": 10,
+        "label": "45 %"
+      },
+      {
+        "value": 11,
+        "label": "50 %"
+      },
+      {
+        "value": 12,
+        "label": "55 %"
+      },
+      {
+        "value": 13,
+        "label": "60 %"
+      },
+      {
+        "value": 14,
+        "label": "65 %"
+      },
+      {
+        "value": 15,
+        "label": "70 %"
+      },
+      {
+        "value": 16,
+        "label": "75 %"
+      },
+      {
+        "value": 17,
+        "label": "80 %"
+      },
+      {
+        "value": 18,
+        "label": "85 %"
+      },
+      {
+        "value": 19,
+        "label": "90 %"
+      },
+      {
+        "value": 20,
+        "label": "95 %"
+      },
+      {
+        "value": 21,
+        "label": "100 %"
+      }
+    ]
   },
   "OnroadScreenOffControl": {
-    "title": "Onroad Screen Off Control",
-    "description": ""
+    "title": "Onroad Brightness",
+    "description": "Adjusts the screen brightness while it's in onroad state."
   },
   "OnroadScreenOffTimer": {
-    "title": "Onroad Screen Off Timer",
+    "title": "Onroad Brightness Delay",
     "description": "",
-    "min": 0,
-    "max": 60,
-    "step": 1
+    "options": [
+      {
+        "value": 15,
+        "label": "15s"
+      },
+      {
+        "value": 30,
+        "label": "30s"
+      },
+      {
+        "value": 60,
+        "label": "1m"
+      },
+      {
+        "value": 120,
+        "label": "2m"
+      },
+      {
+        "value": 180,
+        "label": "3m"
+      },
+      {
+        "value": 240,
+        "label": "4m"
+      },
+      {
+        "value": 300,
+        "label": "5m"
+      },
+      {
+        "value": 360,
+        "label": "6m"
+      },
+      {
+        "value": 420,
+        "label": "7m"
+      },
+      {
+        "value": 480,
+        "label": "8m"
+      },
+      {
+        "value": 540,
+        "label": "9m"
+      },
+      {
+        "value": 600,
+        "label": "10m"
+      }
+    ]
   },
   "OnroadUploads": {
     "title": "Onroad Uploads",
@@ -900,8 +1083,12 @@
     "description": ""
   },
   "RoadNameToggle": {
-    "title": "Road Name Toggle",
-    "description": ""
+    "title": "[TIZI/TICI only] Display Road Name",
+    "description": "Displays the name of the road the car is traveling on. <br>The OpenStreetMap database of the location must be downloaded to fetch the road name."
+  },
+  "RocketFuel": {
+    "title": "[TIZI/TICI only] Real-time Acceleration Bar",
+    "description": "Show an indicator on the left side of the screen to display real-time vehicle acceleration and deceleration. This displays what the car is currently doing, not what the planner is requesting."
   },
   "RouteCount": {
     "title": "Route Count",
@@ -913,22 +1100,22 @@
   },
   "ShowAdvancedControls": {
     "title": "Show Advanced Controls",
-    "description": ""
+    "description": "Enable to show advanced controls on device"
   },
   "ShowDebugInfo": {
     "title": "UI Debug Mode",
     "description": ""
   },
   "ShowTurnSignals": {
-    "title": "Show Turn Signals",
-    "description": ""
+    "title": "[TIZI/TICI only] Display Turn Signals",
+    "description": "When enabled, visual turn indicators are drawn on the HUD."
   },
   "SmartCruiseControlMap": {
-    "title": "Smart Cruise Control Map",
+    "title": "Smart Cruise Control - Map",
     "description": ""
   },
   "SmartCruiseControlVision": {
-    "title": "Smart Cruise Control Vision",
+    "title": "Smart Cruise Control - Vision",
     "description": ""
   },
   "SnoozeUpdate": {
@@ -936,7 +1123,7 @@
     "description": ""
   },
   "SpeedLimitMode": {
-    "title": "Speed Limit Mode",
+    "title": "Speed Limit Assist Mode",
     "description": "",
     "options": [
       {
@@ -976,7 +1163,7 @@
     ]
   },
   "SpeedLimitPolicy": {
-    "title": "Speed Limit Policy",
+    "title": "Speed Limit Source",
     "description": "",
     "options": [
       {
@@ -1002,7 +1189,7 @@
     ]
   },
   "SpeedLimitValueOffset": {
-    "title": "Speed Limit Value Offset",
+    "title": "Speed Limit Offset Value",
     "description": "",
     "min": -30,
     "max": 30,
@@ -1013,8 +1200,8 @@
     "description": ""
   },
   "StandstillTimer": {
-    "title": "Standstill Timer",
-    "description": ""
+    "title": "[TIZI/TICI only] Standstill Timer",
+    "description": "Show a timer on the HUD when the car is at a standstill."
   },
   "SubaruStopAndGo": {
     "title": "Subaru Stop and Go",
@@ -1057,22 +1244,23 @@
     "description": ""
   },
   "TorqueParamsOverrideEnabled": {
-    "title": "Torque Params Override Enabled",
+    "title": "Manual Real-Time Tuning",
     "description": ""
   },
   "TorqueParamsOverrideFriction": {
-    "title": "Torque Params Override Friction",
+    "title": "Manual Tune - Friction",
     "description": "",
     "min": 0.0,
     "max": 1.0,
     "step": 0.01
   },
   "TorqueParamsOverrideLatAccelFactor": {
-    "title": "Torque Params Override Lat Accel Factor",
+    "title": "Manual Tune - Lateral Acceleration Factor",
     "description": "",
     "min": 0.1,
     "max": 5.0,
-    "step": 0.1
+    "step": 0.1,
+    "unit": "m/s²"
   },
   "ToyotaEnforceStockLongitudinal": {
     "title": "Toyota: Enforce Factory Longitudinal Control",
@@ -1083,8 +1271,8 @@
     "description": ""
   },
   "TrueVEgoUI": {
-    "title": "True vEgo UI",
-    "description": ""
+    "title": "[TIZI/TICI only] Speedometer: Always Display True Speed",
+    "description": "For applicable vehicles, always display the true vehicle current speed from wheel speed sensors."
   },
   "UbloxAvailable": {
     "title": "Ublox Available",
@@ -1149,7 +1337,7 @@
   "send_hands_free_cluster_msg": {
     "title": "BluePilot: Enable Hands-Free UI",
     "description": "Enables hands-free (BlueCruise icon) on the gauge cluster for supported vehicles."
-	},
+  },
   "FordPrefHybridBatteryStatus": {
     "title": "BluePilot: Show Hybrid/EV Battery Status",
     "description": "Displays hybrid/EV battery status including state of charge (SOC), voltage, and current (amps) on the UI."
@@ -1213,15 +1401,15 @@
     "step": 0.05,
     "description": "Use custom tuning settings for lateral control instead of defaults.",
     "options": [
-    {
-      "value": 0,
-      "label": "Default Tuning"
-    },
-    {
-      "value": 1,
-      "label": "Use Custom Tuning Parameters"
-    }
-  ]
+      {
+        "value": 0,
+        "label": "Default Tuning"
+      },
+      {
+        "value": 1,
+        "label": "Use Custom Tuning Parameters"
+      }
+    ]
   },
   "LC_PID_gain_UI": {
     "title": "BluePilot: Low Curvature PID Gain",
@@ -1233,7 +1421,7 @@
   "disable_BP_lat_UI": {
     "title": "BluePilot: Disable BluePilot Lateral Controls",
     "description": "Use stock openpilot lateral controls."
-	},
+  },
   "vbatt_pause_charging": {
     "title": "BluePilot: Low Battery voltage shutdown",
     "min": 11.0,
@@ -1275,7 +1463,19 @@
     "title": "BluePilot: Hide Comma 4 onroad border",
     "description": "remove the from the screen"
   },
-    "Blindspot": {
+  "BPHideOnroadBorder": {
+    "title": "BluePilot: Hide Onroad Border",
+    "description": "Hide the colored status border around the driving view on both TICI and MICI."
+  },
+  "BPShowConfidenceBall": {
+    "title": "BluePilot: Show Confidence Ball",
+    "description": "Display the confidence ball on the left side of the driving view on TICI."
+  },
+  "BPAnimateSteeringWheel": {
+    "title": "BluePilot: Animate Steering Wheel",
+    "description": "Rotate the steering wheel icon to match the current steering angle."
+  },
+  "Blindspot": {
     "title": "BluePilot: Show Blindspot warnings",
     "description": "Show a red indication is a car is in your blindspot"
   },

@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import time
-import threading
 import tomllib
 from abc import abstractmethod, ABC
 from enum import StrEnum
@@ -97,9 +96,11 @@ class RadarInterfaceBase(ABC):
 
 
 class CarInterfaceBase(ABC, CarInterfaceBaseSP):
-  CarState: 'CarStateBase'
-  CarController: 'CarControllerBase'
-  RadarInterface: 'RadarInterfaceBase' = RadarInterfaceBase
+  CarState: type['CarStateBase']
+  CarController: type['CarControllerBase']
+  RadarInterface: type['RadarInterfaceBase'] = RadarInterfaceBase
+
+  DRIVABLE_GEARS: tuple[structs.CarState.GearShifter, ...] = ()
 
   def __init__(self, CP: structs.CarParams, CP_SP: structs.CarParamsSP):
     self.CP = CP
@@ -408,6 +409,7 @@ class CarControllerBase(ABC):
   @abstractmethod
   def update(self, CC: structs.CarControl, CC_SP: structs.CarControlSP, CS: CarStateBase, now_nanos: int) -> tuple[structs.CarControl.Actuators, list[CanData]]:
     pass
+
 
 INTERFACE_ATTR_FILE = {
   "FINGERPRINTS": "fingerprints",

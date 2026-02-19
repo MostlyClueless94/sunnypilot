@@ -7,7 +7,6 @@ from openpilot.common.params import Params
 from openpilot.system.ui.widgets.scroller import Scroller
 from openpilot.selfdrive.ui.mici.widgets.button import BigButton
 from openpilot.selfdrive.ui.mici.layouts.settings.toggles import TogglesLayoutMici
-from openpilot.selfdrive.ui.bp.mici.layouts.settings.bluepilot import BluePilotLayoutMici
 from openpilot.selfdrive.ui.mici.layouts.settings.network import NetworkLayoutMici
 from openpilot.selfdrive.ui.mici.layouts.settings.device import DeviceLayoutMici, PairBigButton
 from openpilot.selfdrive.ui.mici.layouts.settings.developer import DeveloperLayoutMici
@@ -18,17 +17,22 @@ from openpilot.system.ui.widgets import Widget, NavWidget
 
 class PanelType(IntEnum):
   TOGGLES = 0
-  BLUEPILOT = 1
-  NETWORK = 2
-  DEVICE = 3
-  DEVELOPER = 4
-  USER_MANUAL = 5
-  FIREHOSE = 6
+  NETWORK = 1
+  DEVICE = 2
+  DEVELOPER = 3
+  USER_MANUAL = 4
+  FIREHOSE = 5
+
 
 @dataclass
 class PanelInfo:
   name: str
   instance: Widget
+
+
+class SettingsBigButton(BigButton):
+  def _get_label_font_size(self):
+    return 64
 
 
 class SettingsLayout(NavWidget):
@@ -37,25 +41,20 @@ class SettingsLayout(NavWidget):
     self._params = Params()
     self._current_panel = None  # PanelType.DEVICE
 
-    toggles_btn = BigButton("toggles", "", "icons_mici/settings/toggles_icon.png")
+    toggles_btn = SettingsBigButton("toggles", "", "icons_mici/settings.png")
     toggles_btn.set_click_callback(lambda: self._set_current_panel(PanelType.TOGGLES))
-
-    bluepilot_btn = BigButton("bluepilot", "", "icons_mici/settings/car_icon.png", tint=rl.BLUE)
-    bluepilot_btn.set_click_callback(lambda: self._set_current_panel(PanelType.BLUEPILOT))
-
-    network_btn = BigButton("network", "", "icons_mici/settings/network/wifi_strength_full.png")
+    network_btn = SettingsBigButton("network", "", "icons_mici/settings/network/wifi_strength_full.png", icon_size=(76, 56))
     network_btn.set_click_callback(lambda: self._set_current_panel(PanelType.NETWORK))
-    device_btn = BigButton("device", "", "icons_mici/settings/device_icon.png")
+    device_btn = SettingsBigButton("device", "", "icons_mici/settings/device_icon.png", icon_size=(74, 60))
     device_btn.set_click_callback(lambda: self._set_current_panel(PanelType.DEVICE))
-    developer_btn = BigButton("developer", "", "icons_mici/settings/developer_icon.png")
+    developer_btn = SettingsBigButton("developer", "", "icons_mici/settings/developer_icon.png", icon_size=(64, 60))
     developer_btn.set_click_callback(lambda: self._set_current_panel(PanelType.DEVELOPER))
 
-    firehose_btn = BigButton("firehose", "", "icons_mici/settings/comma_icon.png")
+    firehose_btn = SettingsBigButton("firehose", "", "icons_mici/settings/firehose.png", icon_size=(52, 62))
     firehose_btn.set_click_callback(lambda: self._set_current_panel(PanelType.FIREHOSE))
 
     self._scroller = Scroller([
       toggles_btn,
-      bluepilot_btn,
       network_btn,
       device_btn,
       PairBigButton(),
@@ -70,7 +69,6 @@ class SettingsLayout(NavWidget):
 
     self._panels = {
       PanelType.TOGGLES: PanelInfo("Toggles", TogglesLayoutMici(back_callback=lambda: self._set_current_panel(None))),
-      PanelType.BLUEPILOT: PanelInfo("BluePilot", BluePilotLayoutMici(back_callback=lambda: self._set_current_panel(None))),
       PanelType.NETWORK: PanelInfo("Network", NetworkLayoutMici(back_callback=lambda: self._set_current_panel(None))),
       PanelType.DEVICE: PanelInfo("Device", DeviceLayoutMici(back_callback=lambda: self._set_current_panel(None))),
       PanelType.DEVELOPER: PanelInfo("Developer", DeveloperLayoutMici(back_callback=lambda: self._set_current_panel(None))),

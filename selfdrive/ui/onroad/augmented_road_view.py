@@ -1,3 +1,4 @@
+import time
 import numpy as np
 import pyray as rl
 from cereal import log, messaging
@@ -12,17 +13,12 @@ from openpilot.selfdrive.ui.onroad.cameraview import CameraView
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.common.transformations.camera import DEVICE_CAMERAS, DeviceCameraConfig, view_frame_from_device_frame
 from openpilot.common.transformations.orientation import rot_from_euler
-from openpilot.selfdrive.ui.bp.mici.onroad.confidence_ball_bp import ConfidenceBallTiciBP as ConfidenceBall
 
 if gui_app.sunnypilot_ui():
-  from openpilot.selfdrive.ui.sunnypilot.onroad.hud_renderer import HudRendererSP as HudRenderer
+  from openpilot.selfdrive.ui.sunnypilot.onroad.augmented_road_view import BORDER_COLORS_SP, AugmentedRoadViewSP
   from openpilot.selfdrive.ui.sunnypilot.onroad.driver_state import DriverStateRendererSP as DriverStateRenderer
-  # BluePilot overrides
-  from openpilot.selfdrive.ui.bp.onroad.alert_renderer_bp import AlertRendererBP as AlertRenderer
-  from openpilot.selfdrive.ui.bp.onroad.hud_renderer_bp import HudRendererBP as HudRenderer
-  from openpilot.selfdrive.ui.bp.onroad.model_renderer_bp import ModelRendererBP as ModelRenderer
-
-from openpilot.selfdrive.ui.sunnypilot.onroad.augmented_road_view import BORDER_COLORS_SP
+  from openpilot.selfdrive.ui.sunnypilot.onroad.hud_renderer import HudRendererSP as HudRenderer
+  from openpilot.selfdrive.ui.sunnypilot.ui_state import OnroadTimerStatus
 
 OpState = log.SelfdriveState.OpenpilotState
 CALIBRATED = log.LiveCalibrationData.Status.calibrated
@@ -40,13 +36,12 @@ BORDER_COLORS = {
 WIDE_CAM_MAX_SPEED = 10.0  # m/s (22 mph)
 ROAD_CAM_MIN_SPEED = 15.0  # m/s (34 mph)
 INF_POINT = np.array([1000.0, 0.0, 0.0])
-CONFIDENCE_BALL_R = 25  # Bar width for TICI (was 50, now 25 for thinner bar - half the original)
-CONFIDENCE_BALL_MARGIN = 5
-CONFIDENCE_BALL_W = CONFIDENCE_BALL_R * 2 + CONFIDENCE_BALL_MARGIN
 
-class AugmentedRoadView(CameraView):
+
+class AugmentedRoadView(CameraView, AugmentedRoadViewSP):
   def __init__(self, stream_type: VisionStreamType = VisionStreamType.VISION_STREAM_ROAD):
-    super().__init__("camerad", stream_type)
+    CameraView.__init__(self, "camerad", stream_type)
+    AugmentedRoadViewSP.__init__(self)
     self._set_placeholder_color(BORDER_COLORS[UIStatus.DISENGAGED])
 
     self.device_camera: DeviceCameraConfig | None = None
@@ -58,16 +53,16 @@ class AugmentedRoadView(CameraView):
     self._content_rect = rl.Rectangle()
 
     self.model_renderer = ModelRenderer()
-    self._hud_renderer = HudRenderer(CONFIDENCE_BALL_W)
+    self._hud_renderer = HudRenderer()
     self.alert_renderer = AlertRenderer()
     self.driver_state_renderer = DriverStateRenderer()
-    self._confidence_ball = ConfidenceBall()
 
     # debug
     self._pm = messaging.PubMaster(['uiDebug'])
 
   def _render(self, rect):
     # Only render when system is started to avoid invalid data access
+    start_draw = time.monotonic()
     if not ui_state.started:
       return
 
@@ -77,13 +72,12 @@ class AugmentedRoadView(CameraView):
     self._update_calibration()
 
     # Create inner content area with border padding
-    # self._content_rect = rl.Rectangle(
-    #   rect.x + UI_BORDER_SIZE,
-    #   rect.y + UI_BORDER_SIZE,
-    #   rect.width - 2 * UI_BORDER_SIZE,
-    #   rect.height - 2 * UI_BORDER_SIZE,
-    # )
-    self._content_rect = rect
+    self._content_rect = rl.Rectangle(
+      rect.x + UI_BORDER_SIZE,
+      rect.y + UI_BORDER_SIZE,
+      rect.width - 2 * UI_BORDER_SIZE,
+      rect.height - 2 * UI_BORDER_SIZE,
+    )
 
     # Enable scissor mode to clip all rendering within content rectangle boundaries
     # This creates a rendering viewport that prevents graphics from drawing outside the border
@@ -97,32 +91,12 @@ class AugmentedRoadView(CameraView):
     # Render the base camera view
     super()._render(rect)
 
-    self.model_renderer.render(self._content_rect)
-
     # Draw all UI overlays
-    # Confidence ball bar starts at left edge and has width CONFIDENCE_BALL_R
-    confidence_ball_rect = rl.Rectangle(
-      self.rect.x + CONFIDENCE_BALL_MARGIN,
-      self.rect.y,
-      CONFIDENCE_BALL_W,
-      self.rect.height,
-    )
-
-    # Draw dark grey background for the confidence ball bar area (where video doesn't extend)
-    dark_grey = rl.Color(40, 40, 40, 255)  # Dark grey instead of black
-    rl.draw_rectangle_rec(confidence_ball_rect, dark_grey)
-    confidence_ball_rect.x -= CONFIDENCE_BALL_MARGIN
-    self._confidence_ball.render(confidence_ball_rect)
-
-    left_rect = rl.Rectangle(
-      self.rect.x + CONFIDENCE_BALL_W,
-      self.rect.y,
-      self.rect.width - CONFIDENCE_BALL_W,
-      self.rect.height,
-    )
+    self.model_renderer.render(self._content_rect)
+    AugmentedRoadViewSP.update_fade_out_bottom_overlay(self, self._content_rect)
     self._hud_renderer.render(self._content_rect)
     self.alert_renderer.render(self._content_rect)
-    self.driver_state_renderer.render(left_rect)
+    self.driver_state_renderer.render(self._content_rect)
 
     # Custom UI extension point - add custom overlays here
     # Use self._content_rect for positioning within camera bounds
@@ -131,7 +105,12 @@ class AugmentedRoadView(CameraView):
     rl.end_scissor_mode()
 
     # Draw colored border based on driving state
-    #self._draw_border(rect)
+    self._draw_border(rect)
+
+    # publish uiDebug
+    msg = messaging.new_message('uiDebug')
+    msg.uiDebug.drawTimeMillis = (time.monotonic() - start_draw) * 1000
+    self._pm.send('uiDebug', msg)
 
   def _handle_mouse_press(self, _):
     if not self._hud_renderer.user_interacting() and self._click_callback is not None:
@@ -246,6 +225,14 @@ class AugmentedRoadView(CameraView):
     self.model_renderer.set_transform(video_transform @ calib_transform)
 
     return self._cached_matrix
+
+  def show_event(self):
+    if gui_app.sunnypilot_ui():
+      ui_state.reset_onroad_sleep_timer(OnroadTimerStatus.RESUME)
+
+  def hide_event(self):
+    if gui_app.sunnypilot_ui():
+      ui_state.reset_onroad_sleep_timer(OnroadTimerStatus.PAUSE)
 
 
 if __name__ == "__main__":

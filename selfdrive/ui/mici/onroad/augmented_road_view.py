@@ -3,26 +3,25 @@ import numpy as np
 import pyray as rl
 from cereal import messaging, car, log
 from msgq.visionipc import VisionStreamType
-from openpilot.selfdrive.ui.bp.mici.onroad.complication import MiciComplication
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.selfdrive.ui.mici.onroad import SIDE_PANEL_WIDTH
 from openpilot.selfdrive.ui.mici.onroad.alert_renderer import AlertRenderer
 from openpilot.selfdrive.ui.mici.onroad.driver_state import DriverStateRenderer
 from openpilot.selfdrive.ui.mici.onroad.hud_renderer import HudRenderer
 from openpilot.selfdrive.ui.mici.onroad.model_renderer import ModelRenderer
-from openpilot.selfdrive.ui.bp.mici.onroad.confidence_ball_bp import ConfidenceBallMiciBP as ConfidenceBall
+from openpilot.selfdrive.ui.mici.onroad.confidence_ball import ConfidenceBall
 from openpilot.selfdrive.ui.mici.onroad.cameraview import CameraView
 from openpilot.system.ui.lib.application import FontWeight, gui_app, MousePos, MouseEvent
 from openpilot.system.ui.widgets.label import UnifiedLabel
 from openpilot.system.ui.widgets import Widget
-from openpilot.common.filter_simple import BounceFilter
+from openpilot.common.filter_simple import BounceFilter, FirstOrderFilter
 from openpilot.common.transformations.camera import DEVICE_CAMERAS, DeviceCameraConfig, view_frame_from_device_frame
 from openpilot.common.transformations.orientation import rot_from_euler
-from openpilot.common.params import Params
 from enum import IntEnum
 
 if gui_app.sunnypilot_ui():
-  from openpilot.selfdrive.ui.bp.mici.onroad.hud_renderer_bp import MiciHudRendererBP as HudRenderer
+  from openpilot.selfdrive.ui.sunnypilot.mici.onroad.hud_renderer import HudRendererSP as HudRenderer
+  from openpilot.selfdrive.ui.sunnypilot.ui_state import OnroadTimerStatus
 
 OpState = log.SelfdriveState.OpenpilotState
 CALIBRATED = log.LiveCalibrationData.Status.calibrated
@@ -51,6 +50,8 @@ class BookmarkIcon(Widget):
     super().__init__()
     self._bookmark_callback = bookmark_callback
     self._icon = gui_app.texture("icons_mici/onroad/bookmark.png", 180, 180)
+    self._icon_fill = gui_app.texture("icons_mici/onroad/bookmark_fill.png", 180, 180)
+    self._active_icon = self._icon
     self._offset_filter = BounceFilter(0.0, 0.1, 1 / gui_app.target_fps)
 
     # State
@@ -89,6 +90,7 @@ class BookmarkIcon(Widget):
 
       if self._offset_filter.x < 1e-3:
         self._interacting = False
+        self._active_icon = self._icon
 
   def _handle_mouse_event(self, mouse_event: MouseEvent):
     if not ui_state.started:
@@ -101,6 +103,7 @@ class BookmarkIcon(Widget):
       self._is_swiping = True
       self._is_swiping_left = False
       self._state = BookmarkState.DRAGGING
+      self._active_icon = self._icon
 
     elif mouse_event.left_down and self._is_swiping:
       self._swipe_current_x = mouse_event.pos.x
@@ -117,6 +120,7 @@ class BookmarkIcon(Widget):
         if swipe_distance > self.PEEK_THRESHOLD:
           self._state = BookmarkState.TRIGGERED
           self._triggered_time = rl.get_time()
+          self._active_icon = self._icon_fill
           self._bookmark_callback()
         else:
           # Otherwise, transition back to hidden
@@ -130,8 +134,8 @@ class BookmarkIcon(Widget):
     """Render the bookmark icon."""
     if self._offset_filter.x > 0:
       icon_x = self.rect.x + self.rect.width - round(self._offset_filter.x)
-      icon_y = self.rect.y + (self.rect.height - self._icon.height) / 2  # Vertically centered
-      rl.draw_texture(self._icon, int(icon_x), int(icon_y), rl.WHITE)
+      icon_y = self.rect.y + (self.rect.height - self._active_icon.height) / 2  # Vertically centered
+      rl.draw_texture(self._active_icon, int(icon_x), int(icon_y), rl.WHITE)
 
 
 class AugmentedRoadView(CameraView):
@@ -159,17 +163,13 @@ class AugmentedRoadView(CameraView):
     self._alert_renderer = AlertRenderer()
     self._driver_state_renderer = DriverStateRenderer()
     self._confidence_ball = ConfidenceBall()
-    self._complication = MiciComplication()
     self._offroad_label = UnifiedLabel("start the car to\nuse sunnypilot", 54, FontWeight.DISPLAY,
                                        text_color=rl.Color(255, 255, 255, int(255 * 0.9)),
                                        alignment=rl.GuiTextAlignment.TEXT_ALIGN_CENTER,
                                        alignment_vertical=rl.GuiTextAlignmentVertical.TEXT_ALIGN_MIDDLE)
 
     self._fade_texture = gui_app.texture("icons_mici/onroad/onroad_fade.png")
-    self._hide_fade = False
-    self._hide_border = False
-
-    self.params = Params()
+    self._fade_alpha_filter = FirstOrderFilter(0, 0.1, 1 / gui_app.target_fps)
 
     # debug
     self._pm = messaging.PubMaster(['uiDebug'])
@@ -186,10 +186,6 @@ class AugmentedRoadView(CameraView):
       self._offroad_label.set_text("system booting")
     else:
       self._offroad_label.set_text("start the car to\nuse sunnypilot")
-
-    self._hide_fade = self.params.get_bool("mici_hide_onroad_fade")
-    self._hide_border = self.params.get_bool("mici_hide_onroad_border")
-
 
   def _handle_mouse_release(self, mouse_pos: MousePos):
     # Don't trigger click callback if bookmark was triggered
@@ -226,9 +222,11 @@ class AugmentedRoadView(CameraView):
     # Draw all UI overlays
     self._model_renderer.render(self._content_rect)
 
-    # Fade out bottom of overlays for looks
-    if not self._hide_fade:
-      rl.draw_texture_ex(self._fade_texture, rl.Vector2(self._content_rect.x, self._content_rect.y), 0.0, 1.0, rl.WHITE)
+    # Fade out bottom of overlays for looks (only when engaged)
+    fade_alpha = self._fade_alpha_filter.update(ui_state.status != UIStatus.DISENGAGED)
+    if fade_alpha > 1e-2:
+      rl.draw_texture_ex(self._fade_texture, rl.Vector2(self._content_rect.x, self._content_rect.y), 0.0, 1.0,
+                         rl.Color(255, 255, 255, int(255 * fade_alpha)))
 
     alert_to_render, not_animating_out = self._alert_renderer.will_render()
 
@@ -242,17 +240,13 @@ class AugmentedRoadView(CameraView):
     self._hud_renderer.set_can_draw_top_icons(alert_to_render is None)
     self._hud_renderer.set_wheel_critical_icon(alert_to_render is not None and not not_animating_out and
                                                alert_to_render.visual_alert == car.CarControl.HUDControl.VisualAlert.steerRequired)
-    self._complication.render(self._content_rect)
-
     # TODO: have alert renderer draw offroad mici label below
     if ui_state.started:
       self._alert_renderer.render(self._content_rect)
-
     self._hud_renderer.render(self._content_rect)
 
     # Draw fake rounded border
-    if not self._hide_border:
-      rl.draw_rectangle_rounded_lines_ex(self._content_rect, 0.2 * 1.02, 10, 50, rl.BLACK)
+    rl.draw_rectangle_rounded_lines_ex(self._content_rect, 0.2 * 1.02, 10, 50, rl.BLACK)
 
     # End clipping region
     rl.end_scissor_mode()
@@ -369,6 +363,14 @@ class AugmentedRoadView(CameraView):
     self._model_renderer.set_transform(video_transform @ calib_transform)
 
     return self._cached_matrix
+
+  def show_event(self):
+    if gui_app.sunnypilot_ui():
+      ui_state.reset_onroad_sleep_timer(OnroadTimerStatus.RESUME)
+
+  def hide_event(self):
+    if gui_app.sunnypilot_ui():
+      ui_state.reset_onroad_sleep_timer(OnroadTimerStatus.PAUSE)
 
 
 if __name__ == "__main__":

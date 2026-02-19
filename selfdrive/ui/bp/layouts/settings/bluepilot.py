@@ -21,13 +21,13 @@ class BluePilotLayout(Widget):
   def __init__(self):
     super().__init__()
     self._params = Params()
-    
+
     # Create WifiManager instance for preferred network selector
     self._wifi_manager = WifiManager()
     self._wifi_manager.set_active(False)  # Don't scan unless needed
     self._saved_networks: list[Network] = []
     self._preferred_network_dialog: MultiOptionDialog | None = None
-    
+
     # Register callback to update saved networks list
     self._wifi_manager.add_callbacks(networks_updated=self._on_network_updated)
 
@@ -41,7 +41,9 @@ class BluePilotLayout(Widget):
       ("send_hands_free_cluster_msg", self._show_hands_free_ui),
       ("BlindSpot", self._show_blindspot),
       ("ShowBrakeStatus", self._show_brake_status),
-      ("RoadNameToggle", self._show_road_name),
+      ("BPHideOnroadBorder", self._hide_onroad_border),
+      ("BPShowConfidenceBall", self._show_confidence_ball),
+      ("BPAnimateSteeringWheel", self._animate_steering_wheel),
       ("FordPrefShowRadarLeadOverlay", self._show_ford_radar_overlay),
       ("FordPrefHybridBatteryStatus", self._show_hybrid_battery_status),
       ("FordPrefHybridPowerFlow", self._show_hybrid_power_flow),
@@ -103,13 +105,31 @@ class BluePilotLayout(Widget):
       icon="warning.png"
     )
 
-    # Road name display toggle (uses map data from mapd)
-    self._show_road_name = toggle_item(
-      lambda: tr("Display Road Name"),
-      lambda: tr("Show current road name from map data in a pill on the driving screen."),
-      initial_state=(self._params.get("RoadNameToggle") or "1") == "1",
-      callback=lambda state: self._params.put("RoadNameToggle", "1" if state else "0"),
-      icon="speed_limit.png"
+    # Hide onroad border toggle
+    self._hide_onroad_border = toggle_item(
+      lambda: tr("Hide Onroad Border"),
+      lambda: tr("Hide the colored status border around the driving view."),
+      initial_state=self._params.get_bool("BPHideOnroadBorder"),
+      callback=lambda state: self._toggle_callback(state, "BPHideOnroadBorder"),
+      icon="warning.png"
+    )
+
+    # Show confidence ball toggle
+    self._show_confidence_ball = toggle_item(
+      lambda: tr("Show Confidence Ball"),
+      lambda: tr("Display the confidence ball on the left side of the driving view."),
+      initial_state=self._params.get_bool("BPShowConfidenceBall"),
+      callback=lambda state: self._toggle_callback(state, "BPShowConfidenceBall"),
+      icon="warning.png"
+    )
+
+    # Animate steering wheel toggle
+    self._animate_steering_wheel = toggle_item(
+      lambda: tr("Animate Steering Wheel"),
+      lambda: tr("Rotate the steering wheel icon to match the current steering angle."),
+      initial_state=self._params.get_bool("BPAnimateSteeringWheel"),
+      callback=lambda state: self._toggle_callback(state, "BPAnimateSteeringWheel"),
+      icon="chffr_wheel.png"
     )
 
     # Ford radar lead overlay toggle
@@ -281,7 +301,9 @@ class BluePilotLayout(Widget):
       self._show_hands_free_ui,
       self._show_blindspot,
       self._show_brake_status,
-      self._show_road_name,
+      self._hide_onroad_border,
+      self._show_confidence_ball,
+      self._animate_steering_wheel,
       self._show_ford_radar_overlay,
       self._show_hybrid_battery_status,
       self._show_hybrid_power_flow,
@@ -324,10 +346,7 @@ class BluePilotLayout(Widget):
 
     # Refresh toggles from params to mirror external changes
     for key, item in self._refresh_toggles:
-      if key == "RoadNameToggle":
-        item.action_item.set_state((ui_state.params.get(key) or "1") == "1")
-      else:
-        item.action_item.set_state(ui_state.params.get_bool(key))
+      item.action_item.set_state(ui_state.params.get_bool(key))
 
     # Update button enabled states
     self._show_web_routes_qr.action_item.set_enabled(ui_state.params.get_bool("BPPortalEnabled"))
@@ -353,7 +372,7 @@ class BluePilotLayout(Widget):
     """Update saved networks list when WiFi networks are updated"""
     self._saved_networks = [n for n in networks if n.is_saved]
     self._preferred_network_action.set_enabled(len(self._saved_networks) > 0)
-    
+
     # Check if preferred network is still saved in NetworkManager
     try:
       favorite_value = self._params.get("WifiFavoriteSSID")
@@ -395,7 +414,7 @@ class BluePilotLayout(Widget):
     """Open dialog to select preferred network from saved networks"""
     if len(self._saved_networks) == 0:
       return
-    
+
     # Get current favorite
     current_favorite = ""
     try:
@@ -407,18 +426,18 @@ class BluePilotLayout(Widget):
           current_favorite = str(favorite_value).strip('\x00')
     except Exception:
       pass
-    
+
     # Build list of network names (add "None" option first)
     network_options = [tr("None")]
     network_options.extend([n.ssid for n in self._saved_networks])
-    
+
     # Create dialog
     self._preferred_network_dialog = MultiOptionDialog(
       tr("Select Preferred Network"),
       network_options,
       current_favorite if current_favorite else tr("None")
     )
-    
+
     def handle_selection(result):
       """Handle selection from dialog"""
       if result == DialogResult.CONFIRM and self._preferred_network_dialog is not None:
@@ -426,19 +445,19 @@ class BluePilotLayout(Widget):
         # Convert "None" back to empty string
         if selection == tr("None"):
           selection = ""
-        
+
         # Save the selection
         self._params.put("WifiFavoriteSSID", selection)
         if selection:
           cloudlog.info(f"Set preferred network: {selection}")
         else:
           cloudlog.info("Cleared preferred network")
-        
+
         # Update button value display
         self._preferred_network_action.set_value(self._get_preferred_network_display())
-      
+
       self._preferred_network_dialog = None
-    
+
     gui_app.set_modal_overlay(self._preferred_network_dialog, callback=handle_selection)
 
   def _render(self, rect):

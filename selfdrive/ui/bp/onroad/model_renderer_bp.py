@@ -1,23 +1,46 @@
 import numpy as np
 import pyray as rl
 from openpilot.common.filter_simple import FirstOrderFilter
-from openpilot.selfdrive.ui.onroad.model_renderer import ModelRenderer, LANE_LINE_COLORS, CLIP_MARGIN, MIN_DRAW_DISTANCE, MAX_DRAW_DISTANCE
+from openpilot.common.params import Params
+from openpilot.selfdrive.ui.onroad.model_renderer import ModelRenderer, CLIP_MARGIN, MIN_DRAW_DISTANCE, MAX_DRAW_DISTANCE
+from openpilot.selfdrive.ui.bp.onroad.chevron_metrics_bp import ChevronMetricsBP
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.system.ui.lib.application import gui_app
-from openpilot.system.ui.lib.shader_polygon import draw_polygon, Gradient
+from openpilot.system.ui.lib.shader_polygon import draw_polygon
+
+# BluePilot: Lane line colors by status (upstream removed LANE_LINE_COLORS dict)
+LANE_LINE_COLORS_BP = {
+  UIStatus.DISENGAGED: rl.Color(0, 0, 0, 255),
+  UIStatus.ENGAGED: rl.Color(128, 216, 166, 255),
+  UIStatus.OVERRIDE: rl.Color(145, 155, 149, 255),
+}
+
+# BluePilot: Radar/vision lead indicator colors
+LEAD_RADAR_GLOW = rl.Color(0, 134, 233, 255)
+LEAD_RADAR_CHEVRON_BASE = rl.Color(0, 100, 200, 255)
+LEAD_VISION_GLOW = rl.Color(218, 202, 37, 255)
+LEAD_VISION_CHEVRON_BASE = rl.Color(201, 34, 49, 255)
 
 
 class ModelRendererBP(ModelRenderer):
-  """BluePilot ModelRenderer with enhanced lane lines, path smoothing, ford overlay, and path edges."""
+  """BluePilot ModelRenderer with enhanced lane lines, path smoothing, and radar overlay."""
 
   def __init__(self):
     super().__init__()
+    self._bp_params = Params()
+
+    # BluePilot: Replace SP chevron metrics with BP version (horizontal boxed layout)
+    self.chevron_metrics = ChevronMetricsBP()
+
     # Path smoothing: store previous smoothed path for temporal damping
     self._previous_path_projected_points = np.empty((0, 2), dtype=np.float32)
     self._path_smoothing_damping = 0.3
 
     # Torque filter for lane line coloring (orange when high torque)
     self._torque_filter = FirstOrderFilter(0, 0.1, 1 / gui_app.target_fps)
+
+    # BluePilot: Track whether each lead is radar-sourced
+    self._lead_is_radar = [False, False]
 
   def _render(self, rect: rl.Rectangle):
     sm = ui_state.sm
@@ -39,29 +62,19 @@ class ModelRendererBP(ModelRenderer):
     from openpilot.selfdrive.locationd.calibrationd import HEIGHT_INIT
     self._path_offset_z = live_calib.height[0] if live_calib.height else HEIGHT_INIT[0]
 
-    # Get carParams
-    car_params = None
-    if sm.valid['carParams']:
-      try:
-        car_params = sm['carParams']
-        self._longitudinal_control = car_params.openpilotLongitudinalControl
-      except (KeyError, AttributeError):
-        pass
+    if self._counter % 60 == 0:
+      self._camera_offset = ui_state.params.get("CameraOffset", return_default=True) if ui_state.active_bundle else 0.0
+    self._counter += 1
 
-    if car_params is None:
-      if ui_state.CP:
-        car_params = ui_state.CP
-        if ui_state.CP.alphaLongitudinalAvailable:
-          self._longitudinal_control = ui_state.has_longitudinal_control
-        else:
-          self._longitudinal_control = ui_state.CP.openpilotLongitudinalControl
+    if sm.updated['carParams']:
+      self._longitudinal_control = sm['carParams'].openpilotLongitudinalControl
 
     model = sm['modelV2']
     radar_state = sm['radarState'] if sm.valid['radarState'] else None
     lead_one = radar_state.leadOne if radar_state else None
 
-    # BP: Ford radar overlay feature
-    ford_overlay_enabled = self._params.get_bool("FordPrefShowRadarLeadOverlay")
+    # BluePilot: Ford radar overlay feature - show leads even without longitudinal control
+    ford_overlay_enabled = self._bp_params.get_bool("FordPrefShowRadarLeadOverlay")
     render_lead_indicator = (self._longitudinal_control or ford_overlay_enabled) and radar_state is not None
 
     model_updated = sm.updated['modelV2']
@@ -75,9 +88,11 @@ class ModelRendererBP(ModelRenderer):
 
       self._update_model(lead_one, path_x_array)
       if render_lead_indicator:
-        self._update_leads(radar_state, path_x_array, ford_overlay_enabled)
+        self._update_leads(radar_state, path_x_array)
+        # BluePilot: Track radar vs vision status for lead coloring
+        self._update_lead_radar_status(radar_state)
 
-      # BP: Update torque filter for lane line coloring
+      # BluePilot: Update torque filter for lane line coloring
       if sm.valid['carOutput']:
         try:
           self._torque_filter.update(-sm['carOutput'].actuatorsOutput.torque)
@@ -91,11 +106,36 @@ class ModelRendererBP(ModelRenderer):
 
     if render_lead_indicator and radar_state:
       self._draw_lead_indicator()
-      self.chevron_metrics.draw_lead_status(sm, radar_state, self._rect, self._lead_vehicles, ford_overlay_enabled=ford_overlay_enabled)
+      # BluePilot: Pass radar/overlay state to BP chevron metrics for boxed layout
+      self.chevron_metrics.ford_overlay_enabled = ford_overlay_enabled
+      self.chevron_metrics.lead_is_radar = self._lead_is_radar
+      self.chevron_metrics.draw_lead_status(sm, radar_state, self._rect, self._lead_vehicles)
+
+  def _update_lead_radar_status(self, radar_state):
+    """Track whether each lead is radar-sourced for coloring."""
+    leads = [radar_state.leadOne, radar_state.leadTwo]
+    for i, lead_data in enumerate(leads):
+      if lead_data and lead_data.status:
+        self._lead_is_radar[i] = getattr(lead_data, 'radar', False)
+      else:
+        self._lead_is_radar[i] = False
 
   def _update_model(self, lead, path_x_array):
-    """Update model with path smoothing."""
+    """Update model with doubled lane line width and path smoothing."""
     super()._update_model(lead, path_x_array)
+
+    # BluePilot: Redo lane lines and road edges with doubled width (0.05 vs upstream 0.025)
+    max_distance = np.clip(path_x_array[-1], MIN_DRAW_DISTANCE, MAX_DRAW_DISTANCE)
+    max_idx = self._get_path_length_idx(self._lane_lines[0].raw_points[:, 0], max_distance)
+
+    for i, lane_line in enumerate(self._lane_lines):
+      lane_line.projected_points = self._map_line_to_polygon(
+        lane_line.raw_points, 0.05 * self._lane_line_probs[i], 0.0, max_idx, max_distance
+      )
+
+    for road_edge in self._road_edges:
+      road_edge.projected_points = self._map_line_to_polygon(road_edge.raw_points, 0.05, 0.0, max_idx, max_distance)
+
     self._apply_smooth_path()
 
   def _apply_smooth_path(self):
@@ -145,7 +185,7 @@ class ModelRendererBP(ModelRenderer):
     """Get lane line color with torque-based coloring."""
     alpha = np.clip(prob, 0.0, 0.7)
     if adjacent:
-      _base_color = LANE_LINE_COLORS.get(ui_state.status, LANE_LINE_COLORS[UIStatus.DISENGAGED])
+      _base_color = LANE_LINE_COLORS_BP.get(ui_state.status, LANE_LINE_COLORS_BP[UIStatus.DISENGAGED])
       color = rl.Color(_base_color.r, _base_color.g, _base_color.b, int(alpha * 255))
 
       torque = self._torque_filter.x
@@ -283,7 +323,7 @@ class ModelRendererBP(ModelRenderer):
     left_edge = points[:mid_point]
     right_edge = points[mid_point:][::-1]
 
-    edge_color = LANE_LINE_COLORS.get(ui_state.status, LANE_LINE_COLORS[UIStatus.DISENGAGED])
+    edge_color = LANE_LINE_COLORS_BP.get(ui_state.status, LANE_LINE_COLORS_BP[UIStatus.DISENGAGED])
 
     for i in range(len(left_edge) - 1):
       rl.draw_line_ex(
@@ -307,17 +347,22 @@ class ModelRendererBP(ModelRenderer):
       )
 
   def _draw_lead_indicator(self):
-    """Draw lead vehicles with dynamic colors based on detection source."""
-    for lead in self._lead_vehicles:
+    """Draw lead vehicles with dynamic colors based on detection source (radar vs vision)."""
+    for i, lead in enumerate(self._lead_vehicles):
       if not lead.glow or not lead.chevron:
         continue
 
-      if lead.is_radar:
-        glow_color = rl.Color(0, 134, 233, 255)
-        chevron_color = rl.Color(0, 100, 200, lead.fill_alpha)
+      is_radar = self._lead_is_radar[i] if i < len(self._lead_is_radar) else False
+
+      # BluePilot: Blue for radar leads, yellow/red for vision leads
+      if is_radar:
+        glow_color = LEAD_RADAR_GLOW
+        chevron_color = rl.Color(LEAD_RADAR_CHEVRON_BASE.r, LEAD_RADAR_CHEVRON_BASE.g,
+                                 LEAD_RADAR_CHEVRON_BASE.b, lead.fill_alpha)
       else:
-        glow_color = rl.Color(218, 202, 37, 255)
-        chevron_color = rl.Color(201, 34, 49, lead.fill_alpha)
+        glow_color = LEAD_VISION_GLOW
+        chevron_color = rl.Color(LEAD_VISION_CHEVRON_BASE.r, LEAD_VISION_CHEVRON_BASE.g,
+                                 LEAD_VISION_CHEVRON_BASE.b, lead.fill_alpha)
 
       rl.draw_triangle_fan(lead.glow, len(lead.glow), glow_color)
       rl.draw_triangle_fan(lead.chevron, len(lead.chevron), chevron_color)

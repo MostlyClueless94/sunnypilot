@@ -7,7 +7,6 @@ from openpilot.selfdrive.ui.layouts.settings.device import DeviceLayout
 from openpilot.selfdrive.ui.layouts.settings.firehose import FirehoseLayout
 from openpilot.selfdrive.ui.layouts.settings.software import SoftwareLayout
 from openpilot.selfdrive.ui.layouts.settings.toggles import TogglesLayout
-from openpilot.selfdrive.ui.bp.layouts.settings.bluepilot import BluePilotLayout
 from openpilot.system.ui.lib.application import gui_app, FontWeight, MousePos
 from openpilot.system.ui.lib.multilang import tr, tr_noop
 from openpilot.system.ui.lib.text_measure import measure_text_cached
@@ -23,12 +22,10 @@ NAV_BTN_HEIGHT = 110
 PANEL_MARGIN = 50
 
 # Colors
-SIDEBAR_COLOR = rl.Color(45, 45, 45, 255)  # Dark grey (matching main sidebar)
+SIDEBAR_COLOR = rl.BLACK
 PANEL_COLOR = rl.Color(41, 41, 41, 255)
-NAV_BTN_COLOR = rl.Color(60, 60, 60, 255)  # Medium grey for navigation buttons
-NAV_BTN_PRESSED = rl.Color(75, 75, 75, 255)  # Slightly lighter when pressed
-CLOSE_BTN_COLOR = rl.Color(60, 60, 60, 255)  # Medium grey for close button
-CLOSE_BTN_PRESSED = rl.Color(75, 75, 75, 255)  # Slightly lighter when pressed
+CLOSE_BTN_COLOR = rl.Color(41, 41, 41, 255)
+CLOSE_BTN_PRESSED = rl.Color(59, 59, 59, 255)
 TEXT_NORMAL = rl.Color(128, 128, 128, 255)
 TEXT_SELECTED = rl.WHITE
 
@@ -37,10 +34,9 @@ class PanelType(IntEnum):
   DEVICE = 0
   NETWORK = 1
   TOGGLES = 2
-  BLUEPILOT = 3
-  SOFTWARE = 4
-  FIREHOSE = 5
-  DEVELOPER = 6
+  SOFTWARE = 3
+  FIREHOSE = 4
+  DEVELOPER = 5
 
 
 @dataclass
@@ -64,7 +60,6 @@ class SettingsLayout(Widget):
       PanelType.NETWORK: PanelInfo(tr_noop("Network"), NetworkUI(wifi_manager)),
       PanelType.TOGGLES: PanelInfo(tr_noop("Toggles"), TogglesLayout()),
       PanelType.SOFTWARE: PanelInfo(tr_noop("Software"), SoftwareLayout()),
-      PanelType.BLUEPILOT: PanelInfo(tr_noop("BluePilot"), BluePilotLayout()),
       PanelType.FIREHOSE: PanelInfo(tr_noop("Firehose"), FirehoseLayout()),
       PanelType.DEVELOPER: PanelInfo(tr_noop("Developer"), DeveloperLayout()),
     }
@@ -98,7 +93,7 @@ class SettingsLayout(Widget):
     pressed = (rl.is_mouse_button_down(rl.MouseButton.MOUSE_BUTTON_LEFT) and
                rl.check_collision_point_rec(rl.get_mouse_position(), close_btn_rect))
     close_color = CLOSE_BTN_PRESSED if pressed else CLOSE_BTN_COLOR
-    rl.draw_rectangle_rounded(close_btn_rect, 0.2, 10, close_color)  # Match button style
+    rl.draw_rectangle_rounded(close_btn_rect, 1.0, 20, close_color)
 
     icon_color = rl.Color(255, 255, 255, 255) if not pressed else rl.Color(220, 220, 220, 255)
     icon_dest = rl.Rectangle(
@@ -121,32 +116,17 @@ class SettingsLayout(Widget):
 
     # Navigation buttons
     y = rect.y + 300
-    mouse_pos = rl.get_mouse_position()
-    mouse_down = rl.is_mouse_button_down(rl.MouseButton.MOUSE_BUTTON_LEFT)
-
     for panel_type, panel_info in self._panels.items():
       button_rect = rl.Rectangle(rect.x + 50, y, rect.width - 150, NAV_BTN_HEIGHT)
 
-      # Button styling - draw rounded rectangle background
+      # Button styling
       is_selected = panel_type == self._current_panel
-      is_pressed = mouse_down and rl.check_collision_point_rec(mouse_pos, button_rect)
-
-      # Choose button background color
-      if is_pressed:
-        btn_bg_color = NAV_BTN_PRESSED
-      else:
-        btn_bg_color = NAV_BTN_COLOR
-
-      # Draw rounded rectangle button background
-      rl.draw_rectangle_rounded(button_rect, 0.2, 10, btn_bg_color)
-
-      # Draw button text (right-aligned)
       text_color = TEXT_SELECTED if is_selected else TEXT_NORMAL
+      # Draw button text (right-aligned)
       panel_name = tr(panel_info.name)
       text_size = measure_text_cached(self._font_medium, panel_name, 65)
       text_pos = rl.Vector2(
-        button_rect.x + button_rect.width - text_size.x - 20,  # Add padding from right edge
-        button_rect.y + (button_rect.height - text_size.y) / 2
+        button_rect.x + button_rect.width - text_size.x, button_rect.y + (button_rect.height - text_size.y) / 2
       )
       rl.draw_text_ex(self._font_medium, panel_name, text_pos, 65, 0, text_color)
 
@@ -165,20 +145,18 @@ class SettingsLayout(Widget):
     if panel.instance:
       panel.instance.render(content_rect)
 
-  def _handle_mouse_release(self, mouse_pos: MousePos) -> bool:
+  def _handle_mouse_release(self, mouse_pos: MousePos) -> None:
     # Check close button
     if rl.check_collision_point_rec(mouse_pos, self._close_btn_rect):
       if self._close_callback:
         self._close_callback()
-      return True
+      return
 
     # Check navigation buttons
     for panel_type, panel_info in self._panels.items():
       if rl.check_collision_point_rec(mouse_pos, panel_info.button_rect):
         self.set_current_panel(panel_type)
-        return True
-
-    return False
+        return
 
   def set_current_panel(self, panel_type: PanelType):
     if panel_type != self._current_panel:

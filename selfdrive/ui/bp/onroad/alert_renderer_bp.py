@@ -9,6 +9,9 @@ from openpilot.system.ui.lib.text_measure import measure_text_cached
 AlertSize = log.SelfdriveState.AlertSize
 AlertStatus = log.SelfdriveState.AlertStatus
 
+# BluePilot: Y center for pill positioning (matching upstream speed display position)
+SPEED_CENTER_Y = 180
+
 # Pill notification constants (for informational notifications)
 PILL_HEIGHT_SINGLE = 110
 PILL_HEIGHT_DOUBLE = 164
@@ -92,7 +95,8 @@ class AlertRendererBP(AlertRenderer):
   def _get_pill_rect(self, rect: rl.Rectangle, alert) -> Optional[rl.Rectangle]:
     """Calculate pill-shaped notification rectangle between speed and steering wheel."""
     wheel_x = rect.x + rect.width - UI_CONFIG.border_size - UI_CONFIG.button_size
-    center_x = self.speed_right
+    # Guard against speed_right not yet set (0) - use center of rect as fallback
+    center_x = self.speed_right if self.speed_right > rect.x else rect.x + rect.width * 0.55
     available_width = wheel_x - center_x
     if available_width < 100:
       return None
@@ -115,7 +119,7 @@ class AlertRendererBP(AlertRenderer):
 
     pill_width = min(text_width + 2 * PILL_PADDING_H, available_width)
     pill_x = center_x + (wheel_x - center_x) / 2 - pill_width / 2 + 10
-    pill_y = rect.y + UI_CONFIG.header_align_center_y - pill_height / 2
+    pill_y = SPEED_CENTER_Y - pill_height / 2
 
     return rl.Rectangle(pill_x, pill_y, pill_width, pill_height)
 

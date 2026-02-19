@@ -89,26 +89,29 @@ class AugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
     # SP fade overlay
     self.update_fade_out_bottom_overlay(self._content_rect)
 
-    # BluePilot: Render confidence ball on left side, inside border (if enabled)
+    # BluePilot: Render confidence ball on left side (narrow rect = ball strip only, not full width)
+    # Using a strip-sized rect avoids the ball widget having a full-width rect that could affect
+    # layout/visibility of driver state and battery when the teal beam is not drawn (ENGAGED).
     if self._show_confidence_ball:
+      ball_strip_width = ConfidenceBallTiciBP.BALL_WIDTH + BALL_BORDER_MARGIN
       ball_rect = rl.Rectangle(
         self._content_rect.x + BALL_BORDER_MARGIN,
         self._content_rect.y,
-        self._content_rect.width,
+        ball_strip_width,
         self._content_rect.height,
       )
       self._confidence_ball.render(ball_rect)
 
-    # BluePilot: Render HUD/alerts/driver state with offset rect (pushed right of ball)
+    # BluePilot: Render HUD, driver state, and battery before alerts so alerts draw on top
     # Header gradient uses full content width, HUD elements use offset rect
     self._hud_renderer.set_gradient_rect(self._content_rect)
     self._hud_renderer.render(ui_rect)
+    self.driver_state_renderer.render(ui_rect)
+    self._battery_gauge_bp.render(self._content_rect, self._content_rect.x + ball_offset)
+
+    # Alerts last so they are never covered by battery or other overlays
     self.alert_renderer.set_speed_right(self._hud_renderer.get_speed_right())
     self.alert_renderer.render(ui_rect)
-    self.driver_state_renderer.render(ui_rect)
-
-    # BluePilot: Render hybrid battery gauge (pushed right of ball)
-    self._battery_gauge_bp.render(self._content_rect, self._content_rect.x + ball_offset)
 
     rl.end_scissor_mode()
 

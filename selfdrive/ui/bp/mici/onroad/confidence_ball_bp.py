@@ -98,14 +98,27 @@ class ConfidenceBallBP(ConfidenceBall):
       # Bar is wide enough - position ball aligned to right edge of bar (original behavior)
       ball_center_x = content_rect.x + content_rect.width - self._status_dot_radius
 
-    if ui_state.status in (UIStatus.LAT_ONLY, UIStatus.LONG_ONLY):
-      color = self.get_lat_long_dot_color()
-      color = rl.Color(color.r, color.g, color.b, 150)  # Set alpha for faded background
+    # BluePilot: Draw MADS beam for LAT_ONLY, LONG_ONLY, and ENGAGED so the draw path is
+    # identical on every frame. On device, skipping the beam when ENGAGED caused the driver
+    # monitor and hybrid battery widgets to disappear (simulator was fine). Always drawing
+    # the beam in any assist-active state avoids device-specific rendering/state issues.
+    if ui_state.status in (UIStatus.LAT_ONLY, UIStatus.LONG_ONLY, UIStatus.ENGAGED):
+      if ui_state.status == UIStatus.ENGAGED:
+        # Use same color logic as dot (teal/amber/red) for ENGAGED beam
+        if self._confidence_filter.x > 0.5:
+          color = rl.Color(0, 255, 204, 150)
+        elif self._confidence_filter.x > 0.2:
+          color = rl.Color(255, 200, 0, 150)
+        else:
+          color = rl.Color(255, 0, 21, 150)
+      else:
+        color = self.get_lat_long_dot_color()
+        color = rl.Color(color.r, color.g, color.b, 150)  # Set alpha for faded background
       self.draw_mads_beam(int(content_rect.x),
-                              int(content_rect.y),
-                              int(content_rect.width),
-                              int(content_rect.height),
-                              color)
+                          int(content_rect.y),
+                          int(content_rect.width),
+                          int(content_rect.height),
+                          color)
 
     draw_circle_gradient(ball_center_x, dot_height, self._status_dot_radius,
                          top_dot_color, bottom_dot_color)

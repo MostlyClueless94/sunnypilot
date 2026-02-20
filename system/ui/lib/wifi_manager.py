@@ -184,7 +184,9 @@ class WifiManager:
 
       self._scan_thread.start()
       self._state_thread.start()
+	  # BluePilot: START
       self._favorite_manager.start()  # BluePilot: START/END - start favorite network auto-connect
+	  # BluePilot: END
 
       if Params is not None and self._tethering_ssid not in self._get_connections():
         self._add_tethering_connection()

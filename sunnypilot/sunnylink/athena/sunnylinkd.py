@@ -32,7 +32,7 @@ from openpilot.sunnypilot.selfdrive.car.sync_car_list_param import update_car_li
 from openpilot.sunnypilot.sunnylink.api import SunnylinkApi
 from openpilot.sunnypilot.sunnylink.utils import sunnylink_need_register, sunnylink_ready, get_param_as_byte, save_param_from_base64_encoded_string
 
-# WiFi network fetching imports
+# BLUEPILOT WiFi network fetching imports
 try:
   from jeepney import DBusAddress, new_method_call
   from jeepney.io.threading import DBusRouter, open_dbus_connection as open_dbus_connection_threading

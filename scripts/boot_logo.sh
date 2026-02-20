@@ -71,11 +71,34 @@ pause_for_user() {
 }
 
 ###############################################################################
+# Device Detection
+###############################################################################
+detect_device_type() {
+    local model_file="/sys/firmware/devicetree/base/model"
+    if [ -f "$model_file" ]; then
+        local model
+        model="$(tr -d '\0' < "$model_file")"
+        # Extract device type from "comma <type>" format
+        echo "${model##*comma }"
+    else
+        echo "unknown"
+    fi
+}
+
+DEVICE_TYPE="$(detect_device_type)"
+
+###############################################################################
 # Path Constants
 ###############################################################################
 readonly BOOT_IMG="/usr/comma/bg.jpg"
-readonly BLUEPILOT_BOOT_IMG="/data/openpilot/selfdrive/assets/img_bluepilot_boot.jpg"
 readonly BOOT_IMG_BKP="${BOOT_IMG}.backup"
+
+# Select the appropriate boot image based on device type
+if [ "$DEVICE_TYPE" = "mici" ]; then
+    readonly BLUEPILOT_BOOT_IMG="/data/openpilot/selfdrive/assets/img_bluepilot_boot_mici.jpg"
+else
+    readonly BLUEPILOT_BOOT_IMG="/data/openpilot/selfdrive/assets/img_bluepilot_boot.jpg"
+fi
 
 ###############################################################################
 # Partition Management Functions
@@ -131,7 +154,8 @@ clean_backups() {
 }
 
 update_boot_image() {
-    print_info "Updating boot image..."
+    print_info "Updating boot image (device: $DEVICE_TYPE)..."
+    print_info "Using image: $BLUEPILOT_BOOT_IMG"
     mount_partition_rw "/"
 
     # Ensure the original file exists before proceeding

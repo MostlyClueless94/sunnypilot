@@ -50,6 +50,12 @@ class AugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
       self._param_counter = 0
       self._show_confidence_ball = self._bp_params.get_bool("BPShowConfidenceBall")
 
+    # TEMPORARY TEST: Disable confidence ball completely to see if DM/battery still disappear when engaged.
+    # If they still disappear, the cause is not the confidence ball. Remove this block after testing.
+    _confidence_ball_disabled_for_test = True
+    if _confidence_ball_disabled_for_test:
+      self._show_confidence_ball = False
+
     self._switch_stream_if_needed(ui_state.sm)
     self._update_calibration()
 

@@ -46,9 +46,9 @@ CATEGORIES = [
 
 _BP_ROOT = os.path.join(os.path.dirname(__file__), '../../..')
 
-CLOSE_CIRCLE_RADIUS = 20
-CLOSE_X_SIZE = 10
-CLOSE_X_WIDTH = 3
+CLOSE_CIRCLE_RADIUS = 32
+CLOSE_X_SIZE = 14
+CLOSE_X_WIDTH = 4
 
 
 class _CloseButton(Widget):

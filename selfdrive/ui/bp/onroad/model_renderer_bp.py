@@ -359,12 +359,36 @@ class ModelRendererBP(ModelRenderer):
           draw_polygon(self._rect, expanded_points, color)
 
   def _expand_polygon(self, points: np.ndarray, width: float) -> np.ndarray:
-    """Expand polygon outward by width pixels for glow effect."""
-    if points.size == 0 or len(points) < 3:
+    """Expand ribbon polygon outward for glow effect, tapering at ends.
+
+    The polygon is a ribbon in [L0..Lk-1, Rk-1..R0] order. The expansion
+    width is scaled proportionally to the local ribbon width so the glow
+    tapers naturally where the line narrows (near the horizon and at the
+    bottom of screen) instead of creating blobs at the ends.
+    """
+    if points.size == 0 or len(points) < 4:
       return np.empty((0, 2), dtype=np.float32)
 
-    expanded = []
     n = len(points)
+    half = n // 2
+
+    # Compute local ribbon width at each paired left/right vertex
+    local_widths = np.empty(half, dtype=np.float32)
+    for i in range(half):
+      local_widths[i] = np.linalg.norm(points[n - 1 - i] - points[i])
+
+    max_width = np.max(local_widths)
+    if max_width < 1e-6:
+      return np.empty((0, 2), dtype=np.float32)
+
+    # Per-vertex scale: proportional to local ribbon width
+    scales = np.empty(n, dtype=np.float32)
+    for i in range(half):
+      s = local_widths[i] / max_width
+      scales[i] = s          # left-side vertex
+      scales[n - 1 - i] = s  # corresponding right-side vertex
+
+    expanded = []
     for i in range(n):
       prev_idx = (i - 1) % n
       next_idx = (i + 1) % n
@@ -385,7 +409,7 @@ class ModelRendererBP(ModelRenderer):
       normal_len = np.linalg.norm(normal)
       if normal_len > 1e-6:
         normal = normal / normal_len
-      expanded.append(p_curr + normal * width)
+      expanded.append(p_curr + normal * width * scales[i])
 
     return np.array(expanded, dtype=np.float32)
 

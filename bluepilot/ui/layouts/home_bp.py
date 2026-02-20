@@ -22,9 +22,9 @@ from bluepilot.ui.lib.colors import BPColors
 from bluepilot.ui.lib.constants import BPConstants
 
 # Badge styling constants
-BADGE_FONT_SIZE = 32
-BADGE_TEXT_PAD_LEFT = 18
-BADGE_TEXT_PAD_RIGHT = 17
+BADGE_FONT_SIZE = 36
+BADGE_TEXT_PAD_LEFT = 20
+BADGE_TEXT_PAD_RIGHT = 19
 BADGE_SPACING = 8
 
 # Badge definitions: (color, ) - text filled at runtime

@@ -5,7 +5,8 @@ Reusable button component with icon and optional label
 
 import pyray as rl
 from collections.abc import Callable
-from openpilot.system.ui.lib.application import gui_app, MousePos
+from openpilot.system.ui.lib.application import gui_app, FontWeight, MousePos
+from openpilot.system.ui.lib.text_measure import measure_text_cached
 from openpilot.system.ui.widgets import Widget
 from bluepilot.ui.lib.colors import BPColors
 from bluepilot.ui.lib.constants import BPConstants
@@ -84,6 +85,49 @@ class IconButton(Widget):
       source_rect = rl.Rectangle(0, 0, self._icon_texture.width, self._icon_texture.height)
       dest_rect = rl.Rectangle(icon_x, icon_y, scaled_width, scaled_height)
       rl.draw_texture_pro(self._icon_texture, source_rect, dest_rect, rl.Vector2(0, 0), 0, tint)
+
+
+class InfoButton(Widget):
+  """
+  A button displaying an "i" info symbol in a circle.
+  Styled to match the BluePilot sidebar buttons.
+  """
+
+  def __init__(self):
+    super().__init__()
+    self._on_click: Callable | None = None
+
+  def set_on_click(self, callback: Callable):
+    self._on_click = callback
+
+  def _handle_mouse_release(self, mouse_pos: MousePos) -> bool:
+    if self._on_click and self.enabled:
+      self._on_click()
+      return True
+    return False
+
+  def _render(self, rect: rl.Rectangle) -> None:
+    bg_color = BPColors.BUTTON_BG_PRESSED if self.is_pressed else BPColors.BUTTON_BG
+    border_color = BPColors.with_alpha(BPColors.WHITE, 80)
+
+    # Button background
+    rl.draw_rectangle_rounded(rect, 0.2, 10, bg_color)
+    rl.draw_rectangle_rounded_lines_ex(rect, 0.2, 10, 2, border_color)
+
+    # Info circle
+    cx = int(rect.x + rect.width / 2)
+    cy = int(rect.y + rect.height / 2)
+    radius = int(min(rect.width, rect.height) * 0.32)
+    icon_color = rl.Color(180, 180, 180, 255) if self.is_pressed else rl.WHITE
+    rl.draw_circle(cx, cy, radius, icon_color)
+
+    # "i" text centered in circle (dark, matching button bg)
+    font = gui_app.font(FontWeight.BOLD)
+    font_size = int(radius * 1.4)
+    text_size = measure_text_cached(font, "i", font_size)
+    text_x = cx - text_size.x / 2
+    text_y = cy - text_size.y / 2
+    rl.draw_text_ex(font, "i", rl.Vector2(int(text_x), int(text_y)), font_size, 0, BPColors.BACKGROUND)
 
 
 class FanWidget(Widget):

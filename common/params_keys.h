@@ -312,6 +312,9 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"BPPortalEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"BPPortalPort", {PERSISTENT | BACKUP, INT, "8088"}},
 
+    // BluePilot UI
+    {"BPLastSeenVersion", {PERSISTENT, STRING}},
+
     // WiFi Management
     {"WifiFavoriteSSID", {PERSISTENT | BACKUP, STRING}},
 };

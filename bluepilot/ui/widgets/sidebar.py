@@ -24,7 +24,8 @@ from bluepilot.ui.lib.colors import BPColors
 from bluepilot.ui.lib.constants import BPConstants, get_carrier_name
 from bluepilot.ui.widgets.metric_card import MetricCard, MetricData
 from bluepilot.ui.widgets.network_card import NetworkCard
-from bluepilot.ui.widgets.icon_button import IconButton, FanWidget
+from bluepilot.ui.widgets.icon_button import IconButton, InfoButton, FanWidget
+from bluepilot.ui.widgets.recent_changes import RecentChangesDialog, _read_bp_version
 
 
 ThermalStatus = log.DeviceState.ThermalStatus
@@ -89,6 +90,7 @@ class SidebarBP(Widget):
     # Callbacks
     self._on_settings_click: Callable | None = None
     self._on_flag_click: Callable | None = None
+    self._on_info_click: Callable | None = None
     self._on_debug_click: Callable | None = None
     self._on_network_click: Callable | None = None
     self._open_settings_callback: Callable | None = None  # For compatibility
@@ -115,6 +117,9 @@ class SidebarBP(Widget):
     self._flag_btn = IconButton("offroad/icon_flag.png")
     self._flag_btn.set_on_click(self._handle_flag_click)
     self._flag_btn.set_scale(0.45)
+
+    self._info_btn = InfoButton()
+    self._info_btn.set_on_click(self._handle_info_click)
 
     self._debug_btn = IconButton("offroad/icon_debug.png")
     self._debug_btn.set_on_click(self._handle_debug_click)
@@ -147,11 +152,12 @@ class SidebarBP(Widget):
       self.hide_event()
 
   def set_callbacks(self, on_settings: Callable = None, on_flag: Callable = None,
-                    on_debug: Callable = None, on_network: Callable = None,
-                    open_settings: Callable = None):
+                    on_info: Callable = None, on_debug: Callable = None,
+                    on_network: Callable = None, open_settings: Callable = None):
     """Set button callbacks - supports both old and new API"""
     self._on_settings_click = on_settings
     self._on_flag_click = on_flag
+    self._on_info_click = on_info
     self._on_debug_click = on_debug
     self._on_network_click = on_network
     self._open_settings_callback = open_settings
@@ -165,6 +171,19 @@ class SidebarBP(Widget):
   def _handle_flag_click(self):
     if self._on_flag_click:
       self._on_flag_click()
+
+  def _handle_info_click(self):
+    if self._on_info_click:
+      self._on_info_click()
+    else:
+      self._show_recent_changes()
+
+  def _show_recent_changes(self):
+    """Show the recent changes dialog."""
+    bp_version = _read_bp_version()
+    if bp_version:
+      dialog = RecentChangesDialog(bp_version)
+      gui_app.set_modal_overlay(dialog)
 
   def _handle_debug_click(self):
     if self._on_debug_click:
@@ -441,26 +460,13 @@ class SidebarBP(Widget):
       ))
       y += BPConstants.METRIC_CARD_STANDARD_HEIGHT + BPConstants.CARD_SPACING
 
-    # Button layout (right side)
+    # Button column constants (right side)
     btn_size = BPConstants.BUTTON_SIZE
-    btn_spacing = BPConstants.BUTTON_SPACING
     btn_margin = BPConstants.BUTTON_MARGIN
-    btn_x = rect.x + rect.width - btn_size - btn_margin
+    self._btn_x = rect.x + rect.width - btn_size - btn_margin
 
     # Fan at top
-    self._button_rects['fan'] = rl.Rectangle(btn_x, rect.y + 10, BPConstants.FAN_SIZE, BPConstants.FAN_SIZE)
-
-    # Buttons from bottom up
-    bottom_y = rect.y + rect.height - btn_margin - btn_size
-
-    self._button_rects['settings'] = rl.Rectangle(btn_x, bottom_y, btn_size, btn_size)
-    bottom_y -= btn_size + btn_spacing
-
-    self._button_rects['flag'] = rl.Rectangle(btn_x, bottom_y, btn_size, btn_size)
-    bottom_y -= btn_size + btn_spacing
-
-    if self._debug_btn:
-      self._button_rects['debug'] = rl.Rectangle(btn_x, bottom_y, btn_size, btn_size)
+    self._button_rects['fan'] = rl.Rectangle(self._btn_x, rect.y + 10, BPConstants.FAN_SIZE, BPConstants.FAN_SIZE)
 
   def _render(self, rect: rl.Rectangle) -> None:
     # Update layout rects if needed
@@ -490,16 +496,28 @@ class SidebarBP(Widget):
     if 'fan' in self._button_rects:
       self._fan_widget.render(self._button_rects['fan'])
 
-    # Draw buttons
-    if 'settings' in self._button_rects:
-      self._settings_btn.render(self._button_rects['settings'])
+    # Draw buttons dynamically stacked from bottom up (no gaps)
+    btn_size = BPConstants.BUTTON_SIZE
+    btn_spacing = BPConstants.BUTTON_SPACING
+    btn_margin = BPConstants.BUTTON_MARGIN
+    bottom_y = self._rect.y + self._rect.height - btn_margin - btn_size
 
-    # Only show flag and debug buttons when onroad
+    # Settings always visible (bottom)
+    self._settings_btn.render(rl.Rectangle(self._btn_x, bottom_y, btn_size, btn_size))
+    bottom_y -= btn_size + btn_spacing
+
+    # Flag only when onroad
     if ui_state.started:
-      if 'flag' in self._button_rects:
-        self._flag_btn.render(self._button_rects['flag'])
-      # if self._debug_btn and 'debug' in self._button_rects:
-      #   self._debug_btn.render(self._button_rects['debug'])
+      self._flag_btn.render(rl.Rectangle(self._btn_x, bottom_y, btn_size, btn_size))
+      bottom_y -= btn_size + btn_spacing
+
+    # Info always visible
+    self._info_btn.render(rl.Rectangle(self._btn_x, bottom_y, btn_size, btn_size))
+    bottom_y -= btn_size + btn_spacing
+
+    # Debug only when onroad
+    if ui_state.started and self._debug_btn:
+      self._debug_btn.render(rl.Rectangle(self._btn_x, bottom_y, btn_size, btn_size))
 
   def _draw_background(self, rect: rl.Rectangle):
     """Draw sidebar background with gradient"""

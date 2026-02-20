@@ -50,6 +50,16 @@ class BPColors:
   BADGE_COMMIT = rl.Color(230, 126, 34, 255)  # Orange - commit
   BADGE_DATE = rl.Color(149, 165, 166, 255)  # Gray - date
 
+  # Recent changes dialog colors (from Qt bp_recent_changes.cc)
+  CHANGES_GREEN = rl.Color(80, 211, 50, 255)        # #50d332 - New features
+  CHANGES_BLUE = rl.Color(33, 150, 243, 255)        # #2196F3 - Bug fixes / version badge
+  CHANGES_ORANGE = rl.Color(255, 124, 48, 255)      # #ff7c30 - Removed features
+  CHANGES_RED = rl.Color(234, 70, 70, 255)          # #EA4646 - Known issues
+  CHANGES_FRAME_BG = rl.Color(36, 36, 36, 255)      # #242424 - Category frame bg
+  CHANGES_HEADER_BG = rl.Color(32, 32, 32, 255)     # #202020 - Header bg
+  CHANGES_TEXT = rl.Color(228, 228, 228, 255)        # #E4E4E4 - Item text
+  CHANGES_AGNOS = rl.Color(156, 39, 176, 255)       # #9C27B0 - AGNOS badge
+
   # Onroad border colors
   BORDER_DISENGAGED = rl.Color(0x17, 0x33, 0x49, 0xC8)  # Blue
   BORDER_OVERRIDE = rl.Color(0x91, 0x9B, 0x95, 0xF1)  # Gray

@@ -6,15 +6,18 @@ header matching the old Qt OffroadHomeSP layout.
 """
 
 import os
+import time
 import pyray as rl
 from collections.abc import Callable
 
 from openpilot.selfdrive.ui.layouts.home import HomeLayout, HomeLayoutState, HEAD_BUTTON_FONT_SIZE, SPACING
+from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import gui_app, FontWeight
 from openpilot.system.ui.lib.text_measure import measure_text_cached
 from openpilot.system.ui.lib.multilang import tr, trn
 from bluepilot.ui.widgets.drive_stats import DriveStatsWidget
 from bluepilot.ui.widgets.model_info import ModelInfoWidget
+from bluepilot.ui.widgets.recent_changes import RecentChangesManager
 from bluepilot.ui.lib.colors import BPColors
 from bluepilot.ui.lib.constants import BPConstants
 
@@ -44,6 +47,14 @@ class HomeLayoutBP(HomeLayout):
     self._bp_version = self._read_bp_version()
     self._badge_parts: tuple[str, ...] | None = None
 
+    # Recent changes auto-show
+    self._changes_manager = RecentChangesManager()
+    self._startup_time = time.monotonic()
+    self._startup_check_done = False
+    # Show on offroad transition (2s delay via frame check)
+    self._offroad_trigger_time: float = 0
+    ui_state.add_offroad_transition_callback(self._on_offroad_transition)
+
   @staticmethod
   def _read_bp_version() -> str:
     try:
@@ -52,6 +63,27 @@ class HomeLayoutBP(HomeLayout):
         return f.readline().strip()
     except Exception:
       return ""
+
+  def _on_offroad_transition(self):
+    """Trigger recent changes check 2s after going offroad."""
+    if not ui_state.started:
+      self._offroad_trigger_time = time.monotonic() + 2.0
+
+  def _update_state(self):
+    super()._update_state()
+    now = time.monotonic()
+
+    # Startup auto-show: 3s after init
+    if not self._startup_check_done and now - self._startup_time > 3.0:
+      self._startup_check_done = True
+      print(f"[RecentChanges] Startup trigger fired ({now - self._startup_time:.1f}s after init)")
+      self._changes_manager.show_if_needed()
+
+    # Offroad transition auto-show
+    if self._offroad_trigger_time > 0 and now > self._offroad_trigger_time:
+      self._offroad_trigger_time = 0
+      print("[RecentChanges] Offroad transition trigger fired")
+      self._changes_manager.show_if_needed()
 
   def set_model_settings_callback(self, callback: Callable[[], None]):
     """Wire model info click to open Models settings panel."""

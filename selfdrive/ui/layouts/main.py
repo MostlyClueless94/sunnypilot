@@ -14,6 +14,7 @@ from bluepilot.ui.lib.constants import BPConstants
 SIDEBAR_WIDTH = BPConstants.SIDEBAR_WIDTH  # noqa: F811
 from bluepilot.ui.layouts.home_bp import HomeLayoutBP as HomeLayout  # noqa: F811
 from openpilot.selfdrive.ui.bp.onroad.augmented_road_view_bp import AugmentedRoadViewBP as AugmentedRoadView  # noqa: F811
+from bluepilot.ui.widgets.debug import ControlsDebugPanel
 # BluePilot: END - BP sidebar, home layout, and onroad overlays
 from openpilot.selfdrive.ui.ui_state import device, ui_state
 from openpilot.system.ui.widgets import Widget
@@ -45,6 +46,10 @@ class MainLayout(Widget):
     self._sidebar_rect = rl.Rectangle(0, 0, 0, 0)
     self._content_rect = rl.Rectangle(0, 0, 0, 0)
 
+    # BluePilot: Debug panel overlay for onroad view
+    self._debug_panel = ControlsDebugPanel()
+    self._debug_toggled_this_frame = False
+
     # Set callbacks
     self._setup_callbacks()
 
@@ -54,12 +59,14 @@ class MainLayout(Widget):
       gui_app.set_modal_overlay(self._onboarding_window)
 
   def _render(self, _):
+    self._debug_toggled_this_frame = False
     self._handle_onroad_transition()
     self._render_main_content()
 
   def _setup_callbacks(self):
     self._sidebar.set_callbacks(on_settings=self._on_settings_clicked,
                                 on_flag=self._on_bookmark_clicked,
+                                on_debug=self._on_debug_clicked,
                                 on_network=lambda: self.open_settings(_settings_mod.PanelType.NETWORK),
                                 open_settings=lambda: self.open_settings(_settings_mod.PanelType.TOGGLES))
     self._layouts[MainState.HOME]._setup_widget.set_open_settings_callback(lambda: self.open_settings(_settings_mod.PanelType.FIREHOSE))
@@ -113,7 +120,17 @@ class MainLayout(Widget):
     self._pm.send('bookmarkButton', user_bookmark)
 
   def _on_onroad_clicked(self):
+    # BluePilot: When debug panel is visible, suppress onroad clicks entirely.
+    # The debug panel has its own close button (X). This prevents click-through
+    # from the debug panel's tab bar to the onroad view underneath.
+    if self._debug_toggled_this_frame or self._debug_panel.is_panel_visible:
+      return
     self._sidebar.set_visible(not self._sidebar.is_visible)
+
+  def _on_debug_clicked(self):
+    """BluePilot: Toggle the onroad debug panel from the sidebar debug button."""
+    self._debug_panel.toggle_visibility()
+    self._debug_toggled_this_frame = True
 
   def _render_main_content(self):
     # Render sidebar
@@ -122,3 +139,7 @@ class MainLayout(Widget):
 
     content_rect = self._content_rect if self._sidebar.is_visible else self._rect
     self._layouts[self._current_mode].render(content_rect)
+
+    # BluePilot: Render debug panel overlay on top of onroad view
+    if self._current_mode == MainState.ONROAD and self._debug_panel.is_panel_visible:
+      self._debug_panel.render(content_rect)

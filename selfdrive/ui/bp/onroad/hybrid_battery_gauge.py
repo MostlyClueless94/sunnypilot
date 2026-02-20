@@ -37,6 +37,9 @@ BACKGROUND_PADDING = 15  # Padding around widget for background box
 BACKGROUND_ROUNDNESS = 0.3  # Roundness for background box
 BACKGROUND_GLOW_EXPANSION = 4  # Soft edge expansion to match unified gauge container treatment
 
+# Dynamic scaling reference (matches unified_gauge.py)
+FULL_CONTENT_WIDTH = 2100.0
+
 # Colors
 BACKGROUND_BOX_COLOR = rl.Color(20, 20, 20, 100)  # Match unified powerflow container fill
 BATTERY_BG_COLOR = rl.Color(40, 40, 40, 220)  # Dark grey background
@@ -150,133 +153,141 @@ class HybridBatteryGauge(Widget):
       
       if not self._should_render():
         return
-      
+
       battery_data = self._get_battery_data()
       if battery_data is None:
         return
-      
+
       soc = battery_data['soc']
       voltage = battery_data['voltage']
       amps = battery_data['amps']
-      
+
       # Use filtered SOC for smooth animation (filter is updated in _update_state)
       animated_soc = self._soc_filter.x
-      
+
+      # Dynamic scale factor: scale down when sidebar narrows the content area
+      s = min(1.0, rect.width / FULL_CONTENT_WIDTH)
+
+      # Scaled dimensions
+      bat_w = BATTERY_WIDTH * s
+      bat_h = BATTERY_HEIGHT * s
+      term_w = BATTERY_TERMINAL_WIDTH * s
+      term_h = BATTERY_TERMINAL_HEIGHT * s
+      border_thick = max(1, BATTERY_BORDER_THICKNESS * s)
+      soc_font = max(20, int(SOC_FONT_SIZE * s))
+      va_font = max(20, int(VOLTAGE_AMPS_FONT_SIZE * s))
+      soc_x_sp = SOC_X_SPACING * s
+      va_y_off = VOLTAGE_AMPS_Y_OFFSET * s
+      va_line_sp = VOLTAGE_AMPS_LINE_SPACING * s
+      bg_pad = BACKGROUND_PADDING * s
+      glow_exp = BACKGROUND_GLOW_EXPANSION * s
+      bat_x_sp = BATTERY_X_SPACING * s
+      bat_y_margin = BATTERY_Y_MARGIN * s
+
       # Calculate battery position: bottom of screen, to the right of driver monitor
-      # Driver monitor button is BTN_SIZE (192px) positioned at offset from left
-      # offset = UI_BORDER_SIZE + BTN_SIZE/2, so right edge ≈ offset + BTN_SIZE/2
-      # For LHD: position_x = left_rect.x + offset, so right edge ≈ left_rect.x + offset + BTN_SIZE/2
-      # Simplified: right edge ≈ left_rect.x + UI_BORDER_SIZE + BTN_SIZE
-      # Use ~250px from left_offset to position between driver monitor and torque bar (which is centered)
-      driver_monitor_right_edge = 250  # Approximate right edge of driver monitor area
-      battery_x_base = left_offset + driver_monitor_right_edge + BATTERY_X_SPACING
-      # Move 25% of battery width to the left, plus 5px further left for layout
-      x = battery_x_base - (BATTERY_WIDTH * 0.25) - 5
+      driver_monitor_right_edge = 250 * s
+      battery_x_base = left_offset + driver_monitor_right_edge + bat_x_sp
+      x = battery_x_base - (bat_w * 0.25) - 5 * s
       # Position at bottom: account for battery height + voltage line + amps line + spacing + margin
-      # Voltage and amps are now on separate lines, so we need 2x font size + line spacing
-      total_height = BATTERY_HEIGHT + VOLTAGE_AMPS_Y_OFFSET + (VOLTAGE_AMPS_FONT_SIZE * 2) + VOLTAGE_AMPS_LINE_SPACING
-      y = rect.y + rect.height - total_height - BATTERY_Y_MARGIN
-      
+      total_height = bat_h + va_y_off + (va_font * 2) + va_line_sp
+      y = rect.y + rect.height - total_height - bat_y_margin
+
       # Calculate text sizes for background box dimensions
       soc_text = f"{int(soc)}%"
-      soc_text_size = measure_text_cached(self._font_bold, soc_text, SOC_FONT_SIZE)
-      
+      soc_text_size = measure_text_cached(self._font_bold, soc_text, soc_font)
+
       # Calculate background box dimensions
-      # Width: from battery left edge to end of SOC text + padding
-      soc_text_end_x = x + BATTERY_WIDTH + BATTERY_TERMINAL_WIDTH + SOC_X_SPACING + soc_text_size.x
-      background_width = soc_text_end_x - x + BACKGROUND_PADDING * 2
-      # Height: from battery top to bottom of amps text (second line) + padding
-      # total_height already accounts for both voltage and amps lines
-      background_height = total_height + BACKGROUND_PADDING * 2
-      background_x = x - BACKGROUND_PADDING
-      background_y = y - BACKGROUND_PADDING
-      
+      soc_text_end_x = x + bat_w + term_w + soc_x_sp + soc_text_size.x
+      background_width = soc_text_end_x - x + bg_pad * 2
+      background_height = total_height + bg_pad * 2
+      background_x = x - bg_pad
+      background_y = y - bg_pad
+
       # Draw background box behind entire widget (matching unified powerflow container style)
       background_rect = rl.Rectangle(background_x, background_y, background_width, background_height)
       glow_rect = rl.Rectangle(
-        background_x - BACKGROUND_GLOW_EXPANSION,
-        background_y - BACKGROUND_GLOW_EXPANSION,
-        background_width + BACKGROUND_GLOW_EXPANSION * 2,
-        background_height + BACKGROUND_GLOW_EXPANSION * 2,
+        background_x - glow_exp,
+        background_y - glow_exp,
+        background_width + glow_exp * 2,
+        background_height + glow_exp * 2,
       )
       rl.draw_rectangle_rounded(
         glow_rect, BACKGROUND_ROUNDNESS, 10, rl.Color(20, 20, 20, int(BACKGROUND_BOX_COLOR.a * 0.3))
       )
       rl.draw_rectangle_rounded(background_rect, BACKGROUND_ROUNDNESS, 10, BACKGROUND_BOX_COLOR)
-      
+
       # Draw battery body (rounded rectangle)
-      battery_body = rl.Rectangle(x, y, BATTERY_WIDTH, BATTERY_HEIGHT)
-      
+      battery_body = rl.Rectangle(x, y, bat_w, bat_h)
+
       # Draw battery background
       rl.draw_rectangle_rounded(battery_body, BATTERY_ROUNDNESS, 10, BATTERY_BG_COLOR)
-      
+
       # Draw battery fill based on animated SOC
-      fill_width = int(BATTERY_WIDTH * (animated_soc / 100.0))
+      fill_width = int(bat_w * (animated_soc / 100.0))
       if fill_width > 0:
-        fill_rect = rl.Rectangle(x, y, fill_width, BATTERY_HEIGHT)
+        fill_rect = rl.Rectangle(x, y, fill_width, bat_h)
         # Use actual SOC for color (not animated) so color changes are immediate
         fill_color = self._get_battery_fill_color(soc)
         rl.draw_rectangle_rounded(fill_rect, BATTERY_ROUNDNESS, 10, fill_color)
-      
+
       # Draw battery border
       rl.draw_rectangle_rounded_lines_ex(
-        battery_body, BATTERY_ROUNDNESS, 10, BATTERY_BORDER_THICKNESS, BATTERY_BORDER_COLOR
+        battery_body, BATTERY_ROUNDNESS, 10, border_thick, BATTERY_BORDER_COLOR
       )
-      
+
       # Draw battery terminal (positive end, on the right)
-      terminal_x = x + BATTERY_WIDTH
-      terminal_y = y + (BATTERY_HEIGHT - BATTERY_TERMINAL_HEIGHT) / 2
-      terminal_rect = rl.Rectangle(terminal_x, terminal_y, BATTERY_TERMINAL_WIDTH, BATTERY_TERMINAL_HEIGHT)
+      terminal_x = x + bat_w
+      terminal_y = y + (bat_h - term_h) / 2
+      terminal_rect = rl.Rectangle(terminal_x, terminal_y, term_w, term_h)
       rl.draw_rectangle_rounded(terminal_rect, 0.5, 10, BATTERY_BG_COLOR)
       rl.draw_rectangle_rounded_lines_ex(
-        terminal_rect, 0.5, 10, BATTERY_BORDER_THICKNESS, BATTERY_BORDER_COLOR
+        terminal_rect, 0.5, 10, border_thick, BATTERY_BORDER_COLOR
       )
-      
+
       # Draw SOC percentage to the right of battery
-      # Note: soc_text and soc_text_size already calculated above for background box
-      soc_x = x + BATTERY_WIDTH + BATTERY_TERMINAL_WIDTH + SOC_X_SPACING
-      soc_y = y + (BATTERY_HEIGHT - soc_text_size.y) / 2
+      soc_x = x + bat_w + term_w + soc_x_sp
+      soc_y = y + (bat_h - soc_text_size.y) / 2
       rl.draw_text_ex(
         self._font_bold,
         soc_text,
         rl.Vector2(soc_x, soc_y),
-        SOC_FONT_SIZE,
+        soc_font,
         0,
         TEXT_COLOR
       )
-      
+
       # Draw voltage and amps below battery on separate lines (truncated to whole numbers)
       voltage_text = f"{int(voltage)}V"
       amps_text = f"{int(amps):+d}A"  # + sign for positive, - for negative
-      
-      voltage_text_size = measure_text_cached(self._font_medium, voltage_text, VOLTAGE_AMPS_FONT_SIZE)
-      amps_text_size = measure_text_cached(self._font_medium, amps_text, VOLTAGE_AMPS_FONT_SIZE)
-      
+
+      voltage_text_size = measure_text_cached(self._font_medium, voltage_text, va_font)
+      amps_text_size = measure_text_cached(self._font_medium, amps_text, va_font)
+
       # Position voltage and amps on left (below battery), on separate lines
       voltage_x = x
       amps_x = x
-      
+
       # Calculate Y positions for separate lines
-      voltage_y = y + BATTERY_HEIGHT + VOLTAGE_AMPS_Y_OFFSET
-      amps_y = voltage_y + VOLTAGE_AMPS_FONT_SIZE + VOLTAGE_AMPS_LINE_SPACING
-      
+      voltage_y = y + bat_h + va_y_off
+      amps_y = voltage_y + va_font + va_line_sp
+
       # Draw voltage (first line, below battery)
       rl.draw_text_ex(
         self._font_medium,
         voltage_text,
         rl.Vector2(voltage_x, voltage_y),
-        VOLTAGE_AMPS_FONT_SIZE,
+        va_font,
         0,
         TEXT_COLOR
       )
-      
+
       # Draw amps (second line, below voltage) with color coding
       amps_color = CHARGING_COLOR if amps > 0 else DISCHARGING_COLOR if amps < 0 else TEXT_COLOR
       rl.draw_text_ex(
         self._font_medium,
         amps_text,
         rl.Vector2(amps_x, amps_y),
-        VOLTAGE_AMPS_FONT_SIZE,
+        va_font,
         0,
         amps_color
       )

@@ -12,7 +12,11 @@ LABEL_HORIZONTAL_PADDING = 40
 
 class BigParamFloatControl(BigButton):
   def __init__(self, text: str, param: str, is_active_param: str = None, min: float = None, max: float = None, step: float = 0.05, tint: rl.Color = rl.WHITE):
-    super().__init__(text, "", tint=tint, is_active=(lambda: Params().get_bool(is_active_param)) if is_active_param is not None else None)
+    # BigButton only accepts (text, value, icon, icon_size, scroll); no tint or is_active
+    super().__init__(text, "")
+    if is_active_param is not None:
+      self.set_enabled(lambda: Params().get_bool(is_active_param))
+    self._tint = tint
     self.min = min
     self.max = max
     self.step = step

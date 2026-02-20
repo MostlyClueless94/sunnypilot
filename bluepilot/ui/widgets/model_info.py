@@ -62,11 +62,14 @@ class ModelInfoWidget(Widget):
     rl.draw_rectangle_rounded(rect, 0.05, 10, CARD_BG)
     rl.draw_rectangle_rounded_lines(rect, 0.05, 10, CARD_BORDER)
 
-    # Title
+    # Title (centered)
     title_font = gui_app.font(FontWeight.BOLD)
-    title_size = 36
-    title_pos = rl.Vector2(rect.x + padding_x, rect.y + padding_top)
-    rl.draw_text_ex(title_font, "Driving Model", title_pos, title_size, 0, rl.WHITE)
+    title_size = 42
+    title_text = "Driving Model"
+    title_text_size = measure_text_cached(title_font, title_text, title_size)
+    title_x = rect.x + (rect.width - title_text_size.x) / 2
+    title_pos = rl.Vector2(title_x, rect.y + padding_top)
+    rl.draw_text_ex(title_font, title_text, title_pos, title_size, 0, rl.WHITE)
 
     # Model name container
     container_top = rect.y + padding_top + title_size + 10
@@ -79,20 +82,32 @@ class ModelInfoWidget(Widget):
     rl.draw_rectangle_rounded(container_rect, 0.08, 10, NAME_CONTAINER_BG)
     rl.draw_rectangle_rounded_lines(container_rect, 0.08, 10, NAME_CONTAINER_BORDER)
 
-    # Model name text (centered, with date pattern splitting and auto-scaling)
+    # Model name text (each line centered, with date pattern splitting and auto-scaling)
     display_name = DATE_PATTERN.sub(r'\n\1', self._model_name)
+    lines = display_name.split('\n')
 
     name_font = gui_app.font(FontWeight.SEMI_BOLD)
-    font_size = 32
+    font_size = 40
     available_width = container_rect.width - 40  # padding inside container
 
-    # Auto-shrink font to fit width
-    text_size = measure_text_cached(name_font, display_name, font_size)
-    while text_size.x > available_width and font_size > 24:
-      font_size -= 2
-      text_size = measure_text_cached(name_font, display_name, font_size)
+    # Auto-shrink font to fit widest line
+    for line in lines:
+      line_size = measure_text_cached(name_font, line.strip(), font_size)
+      while line_size.x > available_width and font_size > 28:
+        font_size -= 2
+        line_size = measure_text_cached(name_font, line.strip(), font_size)
 
-    # Center text in container
-    text_x = container_rect.x + (container_rect.width - text_size.x) / 2
-    text_y = container_rect.y + (container_rect.height - text_size.y) / 2
-    rl.draw_text_ex(name_font, display_name, rl.Vector2(text_x, text_y), font_size, 0, MODEL_NAME_COLOR)
+    # Measure line height and compute total block height
+    line_spacing = int(font_size * 0.3)
+    sample_size = measure_text_cached(name_font, "Ag", font_size)
+    line_height = sample_size.y
+    total_height = line_height * len(lines) + line_spacing * (len(lines) - 1)
+
+    # Draw each line individually centered
+    start_y = container_rect.y + (container_rect.height - total_height) / 2
+    for i, line in enumerate(lines):
+      line_text = line.strip()
+      line_size = measure_text_cached(name_font, line_text, font_size)
+      line_x = container_rect.x + (container_rect.width - line_size.x) / 2
+      line_y = start_y + i * (line_height + line_spacing)
+      rl.draw_text_ex(name_font, line_text, rl.Vector2(line_x, line_y), font_size, 0, MODEL_NAME_COLOR)

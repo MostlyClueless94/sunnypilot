@@ -111,9 +111,9 @@ class DriveStatsWidget(Widget):
     padding_x = int(20 * scale)
     padding_top = int(15 * scale)
 
-    title_size = int(max(20, min(36, 36 * scale)))
-    number_size = int(max(26, min(50, 50 * scale)))
-    unit_size = int(max(18, min(32, 32 * scale)))
+    title_size = int(max(28, min(44, 44 * scale)))
+    number_size = int(max(36, min(58, 58 * scale)))
+    unit_size = int(max(24, min(38, 38 * scale)))
 
     # Title
     title_font = gui_app.font(FontWeight.BOLD)

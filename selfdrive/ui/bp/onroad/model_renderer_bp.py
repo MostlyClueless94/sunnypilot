@@ -39,9 +39,6 @@ class ModelRendererBP(ModelRenderer):
     self._previous_path_projected_points = np.empty((0, 2), dtype=np.float32)
     self._path_smoothing_damping = 0.3
 
-    # Torque filter for lane line coloring (orange when high torque)
-    self._torque_filter = FirstOrderFilter(0, 0.1, 1 / gui_app.target_fps)
-
     # BluePilot: Track whether each lead is radar-sourced
     self._lead_is_radar = [False, False]
 
@@ -112,13 +109,6 @@ class ModelRendererBP(ModelRenderer):
         self._update_leads(radar_state, path_x_array)
         # BluePilot: Track radar vs vision status for lead coloring
         self._update_lead_radar_status(radar_state)
-
-      # BluePilot: Update torque filter for lane line coloring
-      if sm.valid['carOutput']:
-        try:
-          self._torque_filter.update(-sm['carOutput'].actuatorsOutput.torque)
-        except (KeyError, AttributeError):
-          pass
 
       self._transform_dirty = False
 
@@ -256,42 +246,21 @@ class ModelRendererBP(ModelRenderer):
     """Draw lane lines with enhanced rendering and glow effects."""
     self._draw_enhanced_lane_lines()
 
-  def _get_ll_color(self, prob: float, adjacent: bool, left: bool):
-    """Get lane line color with confidence-based brightness and torque-based coloring."""
-    alpha = np.clip(prob, 0.0, 0.9)
-    if adjacent:
-      _base_color = LANE_LINE_COLORS_BP.get(ui_state.status, LANE_LINE_COLORS_BP[UIStatus.DISENGAGED])
+  def _get_ll_color(self, prob: float, is_current_lane: bool) -> rl.Color:
+    """Get lane line color based on UI status with confidence-based brightness.
 
-      # Scale green brightness with confidence: low confidence = dimmer, high confidence = vivid bright green
-      if ui_state.status != UIStatus.DISENGAGED:
-        brightness = np.interp(prob, [0.0, 0.5, 1.0], [0.4, 0.7, 1.0])
-        r = int(_base_color.r * brightness)
-        g = int(_base_color.g * brightness)
-        b = int(_base_color.b * brightness)
-      else:
-        r, g, b = _base_color.r, _base_color.g, _base_color.b
-
-      color = rl.Color(r, g, b, int(alpha * 255))
-
-      torque = self._torque_filter.x
-      high_torque = abs(torque) > 0.6
-      if high_torque and (left == (torque > 0)):
-        orange_color = rl.Color(255, 115, 0, int(alpha * 255))
-        blend_factor = np.interp(abs(torque), [0.6, 0.8], [0.0, 1.0])
-        inv_factor = 1.0 - blend_factor
-        color = rl.Color(
-          int(color.r * inv_factor + orange_color.r * blend_factor),
-          int(color.g * inv_factor + orange_color.g * blend_factor),
-          int(color.b * inv_factor + orange_color.b * blend_factor),
-          color.a
-        )
-    else:
-      color = rl.Color(255, 255, 255, int(alpha * 255))
-
+    Current lanes use status color (green when engaged, gray on override, black when disengaged).
+    Outer lanes use white. All lanes go black when disengaged.
+    """
     if ui_state.status == UIStatus.DISENGAGED:
-      color = rl.Color(0, 0, 0, int(alpha * 255))
+      return rl.Color(0, 0, 0, 255)
 
-    return color
+    if not is_current_lane:
+      return rl.Color(255, 255, 255, 255)
+
+    base = LANE_LINE_COLORS_BP.get(ui_state.status, LANE_LINE_COLORS_BP[UIStatus.DISENGAGED])
+    brightness = np.interp(prob, [0.0, 0.5, 1.0], [0.4, 0.7, 1.0])
+    return rl.Color(int(base.r * brightness), int(base.g * brightness), int(base.b * brightness), 255)
 
   def _draw_enhanced_lane_lines(self):
     """Draw enhanced lane lines with glow effects and confidence-based brightness."""
@@ -299,12 +268,12 @@ class ModelRendererBP(ModelRenderer):
       if lane_line.projected_points.size == 0 or self._lane_line_probs[i] < 0.4:
         continue
 
-      base_alpha = np.clip(self._lane_line_probs[i], 0.4, 0.95)
+      base_alpha = np.clip(self._lane_line_probs[i] * 0.8, 0.3, 0.8)
       is_current_lane = (i == 1 or i == 2)
       if not is_current_lane:
-        base_alpha *= 0.5
+        base_alpha *= 0.4
 
-      base_color = self._get_ll_color(float(self._lane_line_probs[i]), is_current_lane, i in (0, 1))
+      base_color = self._get_ll_color(float(self._lane_line_probs[i]), is_current_lane)
       scaled_alpha = int(base_alpha * 255)
       color = rl.Color(base_color.r, base_color.g, base_color.b, scaled_alpha)
       draw_polygon(self._rect, lane_line.projected_points, color)
@@ -314,7 +283,7 @@ class ModelRendererBP(ModelRenderer):
     for i, road_edge in enumerate(self._road_edges):
       if road_edge.projected_points.size == 0:
         continue
-      edge_alpha = np.clip(1.0 - self._road_edge_stds[i], 0.0, 1.0) * 0.8
+      edge_alpha = np.clip(1.0 - self._road_edge_stds[i], 0.0, 1.0) * 0.6
       color = rl.Color(255, 0, 0, int(edge_alpha * 255))
       draw_polygon(self._rect, road_edge.projected_points, color)
 
@@ -322,17 +291,17 @@ class ModelRendererBP(ModelRenderer):
 
   def _draw_lane_glow_effects(self):
     """Draw glow effects around lane lines with confidence-based brightness."""
-    glow_widths = [24.0, 16.0, 8.0]
-    glow_alphas = [0.12, 0.22, 0.4]
+    glow_widths = [20.0, 12.0, 6.0]
+    glow_alphas = [0.05, 0.10, 0.20]
 
     for i, lane_line in enumerate(self._lane_lines):
       if lane_line.projected_points.size == 0 or self._lane_line_probs[i] < 0.4:
         continue
-      base_alpha = np.clip(self._lane_line_probs[i], 0.4, 0.95)
+      base_alpha = np.clip(self._lane_line_probs[i] * 0.8, 0.3, 0.8)
       is_current_lane = (i == 1 or i == 2)
       if not is_current_lane:
-        base_alpha *= 0.5
-      base_color = self._get_ll_color(float(self._lane_line_probs[i]), is_current_lane, i in (0, 1))
+        base_alpha *= 0.4
+      base_color = self._get_ll_color(float(self._lane_line_probs[i]), is_current_lane)
       for glow_width, glow_alpha in zip(glow_widths, glow_alphas):
         expanded_points = self._expand_polygon(lane_line.projected_points, glow_width)
         if expanded_points.size > 0:
@@ -342,8 +311,8 @@ class ModelRendererBP(ModelRenderer):
 
   def _draw_road_edge_glow_effects(self):
     """Draw glow effects around road edges."""
-    glow_widths = [36.0, 24.0, 12.0]
-    glow_alphas = [0.08, 0.15, 0.28]
+    glow_widths = [28.0, 18.0, 10.0]
+    glow_alphas = [0.03, 0.07, 0.15]
 
     for i, road_edge in enumerate(self._road_edges):
       if road_edge.projected_points.size == 0:

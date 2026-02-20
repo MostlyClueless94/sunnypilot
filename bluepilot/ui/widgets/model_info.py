@@ -64,7 +64,7 @@ class ModelInfoWidget(Widget):
 
     # Title (centered)
     title_font = gui_app.font(FontWeight.BOLD)
-    title_size = 42
+    title_size = 48
     title_text = "Driving Model"
     title_text_size = measure_text_cached(title_font, title_text, title_size)
     title_x = rect.x + (rect.width - title_text_size.x) / 2
@@ -87,7 +87,7 @@ class ModelInfoWidget(Widget):
     lines = display_name.split('\n')
 
     name_font = gui_app.font(FontWeight.SEMI_BOLD)
-    font_size = 40
+    font_size = 46
     available_width = container_rect.width - 40  # padding inside container
 
     # Auto-shrink font to fit widest line

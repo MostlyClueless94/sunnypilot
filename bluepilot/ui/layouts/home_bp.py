@@ -196,9 +196,9 @@ class HomeLayoutBP(HomeLayout):
     """Override: render DriveStats + ModelInfo instead of PrimeWidget."""
     rect = self.left_column_rect
 
-    # DriveStats takes ~60% of height, ModelInfo takes ~40%
-    stats_height = rect.height * 0.6 - SPACING / 2
-    model_height = rect.height * 0.4 - SPACING / 2
+    # DriveStats takes ~70% of height, ModelInfo takes ~30%
+    stats_height = rect.height * 0.7 - SPACING / 2
+    model_height = rect.height * 0.3 - SPACING / 2
 
     stats_rect = rl.Rectangle(rect.x, rect.y, rect.width, stats_height)
     self._drive_stats.render(stats_rect)

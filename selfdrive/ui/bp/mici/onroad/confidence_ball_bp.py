@@ -1,3 +1,4 @@
+import math
 import pyray as rl
 from openpilot.selfdrive.ui.mici.onroad.confidence_ball import ConfidenceBall, draw_circle_gradient
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
@@ -35,12 +36,18 @@ class ConfidenceBallBP(ConfidenceBall):
           transparent   # top-right
       )
 
-  def get_animate_status_probs(self):
-    if ui_state.status == UIStatus.LAT_ONLY:
-      return [p * p for p in ui_state.sm['modelV2'].meta.disengagePredictions.steerOverrideProbs]
+  def _update_state(self):
+    if self._demo:
+      return
 
-    # UIStatus.LONG_ONLY
-    return [p * p for p in ui_state.sm['modelV2'].meta.disengagePredictions.brakeDisengageProbs]
+    # animate status dot in from bottom
+    if ui_state.status == UIStatus.DISENGAGED:
+      self._confidence_filter.update(-0.5)
+    elif ui_state.status in (UIStatus.LAT_ONLY, UIStatus.LONG_ONLY):
+      self._confidence_filter.update(math.pow(1 - max(self.get_animate_status_probs() or [1]),2))
+    else:
+      self._confidence_filter.update((1 - max(ui_state.sm['modelV2'].meta.disengagePredictions.brakeDisengageProbs or [1])) *
+                                                        (1 - max(ui_state.sm['modelV2'].meta.disengagePredictions.steerOverrideProbs or [1])))
 
   def _render(self, _):
     bar_width = self._width
@@ -112,15 +119,14 @@ class ConfidenceBallBP(ConfidenceBall):
                       top_dot_color, bottom_dot_color)
 
   def _draw_circle(self, cx: float, cy: float, radius: float, top: rl.Color, bottom: rl.Color):
-    """Draw the confidence ball circle. Subclasses can override for different renderers."""
-    draw_circle_gradient(cx, cy, radius, top, bottom)
+    """Use GPU shader for smooth anti-aliased circle on TICI's larger display."""
+    draw_shader_circle_gradient(cx, cy, radius, top, bottom)
 
 
 class ConfidenceBallMiciBP(ConfidenceBallBP):
   BALL_WIDTH = 60
   def __init__(self, demo: bool = False):
     ConfidenceBallBP.__init__(self, demo=demo, radius=24, width=self.BALL_WIDTH, align_right=False)
-
 
 TICI_CONFIDENCE_BALL_R = 50
 TICI_CONFIDENCE_BALL_MARGIN = 5
@@ -130,7 +136,3 @@ class ConfidenceBallTiciBP(ConfidenceBallBP):
   BALL_WIDTH = TICI_CONFIDENCE_BALL_W
   def __init__(self, demo: bool = False):
     ConfidenceBallBP.__init__(self, demo=demo, radius=TICI_CONFIDENCE_BALL_R, width=self.BALL_WIDTH, align_right=False)
-
-  def _draw_circle(self, cx: float, cy: float, radius: float, top: rl.Color, bottom: rl.Color):
-    """Use GPU shader for smooth anti-aliased circle on TICI's larger display."""
-    draw_shader_circle_gradient(cx, cy, radius, top, bottom)

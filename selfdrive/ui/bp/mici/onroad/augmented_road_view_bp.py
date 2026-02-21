@@ -48,9 +48,6 @@ class MiciAugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
       self.rect.height,
     )
 
-    # BluePilot: Offset for left-side confidence ball
-    ball_offset = ConfidenceBallMiciBP.BALL_WIDTH + MICI_BALL_BORDER_MARGIN
-
     rl.begin_scissor_mode(
       int(self._content_rect.x),
       int(self._content_rect.y),
@@ -76,7 +73,7 @@ class MiciAugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
     should_draw_dmoji = (not self._hud_renderer.drawing_top_icons() and ui_state.is_onroad() and
                          (ui_state.status != UIStatus.DISENGAGED or ui_state.always_on_dm))
     self._driver_state_renderer.set_should_draw(should_draw_dmoji)
-    self._driver_state_renderer.set_position(self._rect.x + 16 + ball_offset, self._rect.y + 10)
+    self._driver_state_renderer.set_position(self._rect.x + 16, self._rect.y + 10)
     self._driver_state_renderer.render()
 
     # HUD and alerts
@@ -87,26 +84,25 @@ class MiciAugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
       self._alert_renderer.render(self._content_rect)
     self._hud_renderer.render(self._content_rect)
 
-    # BluePilot: Render confidence ball on left side, inside border
-    ball_rect = rl.Rectangle(
-      self._content_rect.x + MICI_BALL_BORDER_MARGIN,
-      self._content_rect.y,
-      self._content_rect.width,
-      self._content_rect.height,
-    )
-    self._confidence_ball.render(ball_rect)
+    rl.end_scissor_mode()
 
     # BluePilot: Conditionally draw MICI rounded border
     if not self._bp_params.get_bool("BPHideOnroadBorder"):
       rl.draw_rectangle_rounded_lines_ex(self._content_rect, 0.2 * 1.02, 10, 50, rl.BLACK)
-
-    rl.end_scissor_mode()
 
     # BluePilot: Blindspot indicators (outside scissor, on screen edges)
     self._draw_blindspot_screen_edges(self.rect, self.BLIND_SPOT_WIDTH)
 
     # BluePilot: Lead car complication widget
     self._complication.render(self._content_rect)
+
+    ball_rect = rl.Rectangle(
+      self._rect.x + self._rect.width - SIDE_PANEL_WIDTH,
+      self._content_rect.y,
+      SIDE_PANEL_WIDTH,
+      self._content_rect.height,
+    )
+    self._confidence_ball.render(ball_rect)
 
     # Bookmark icon
     self._bookmark_icon.render(self.rect)

@@ -1,7 +1,8 @@
+import math
 import pyray as rl
 from openpilot.selfdrive.ui.mici.onroad.confidence_ball import ConfidenceBall
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
-from openpilot.selfdrive.ui.mici.onroad.confidence_ball import draw_circle_gradient
+from openpilot.system.ui.lib.shader_polygon import draw_circle_gradient
 
 class ConfidenceBallBP(ConfidenceBall):
   def __init__(self, demo: bool = False, radius: float=24, width: float = 60, align_right: bool = True):
@@ -35,12 +36,18 @@ class ConfidenceBallBP(ConfidenceBall):
           transparent   # top-right
       )
 
-  def get_animate_status_probs(self):
-    if ui_state.status == UIStatus.LAT_ONLY:
-      return [p * p for p in ui_state.sm['modelV2'].meta.disengagePredictions.steerOverrideProbs]
+  def _update_state(self):
+    if self._demo:
+      return
 
-    # UIStatus.LONG_ONLY
-    return [p * p for p in ui_state.sm['modelV2'].meta.disengagePredictions.brakeDisengageProbs]
+    # animate status dot in from bottom
+    if ui_state.status == UIStatus.DISENGAGED:
+      self._confidence_filter.update(-0.5)
+    elif ui_state.status in (UIStatus.LAT_ONLY, UIStatus.LONG_ONLY):
+      self._confidence_filter.update(math.pow(1 - max(self.get_animate_status_probs() or [1]),2))
+    else:
+      self._confidence_filter.update((1 - max(ui_state.sm['modelV2'].meta.disengagePredictions.brakeDisengageProbs or [1])) *
+                                                        (1 - max(ui_state.sm['modelV2'].meta.disengagePredictions.steerOverrideProbs or [1])))
 
   def _render(self, _):
     bar_width = self._width
@@ -50,6 +57,13 @@ class ConfidenceBallBP(ConfidenceBall):
       self.rect.y,
       bar_width,
       self.rect.height,
+    )
+
+    rl.begin_scissor_mode(
+      int(content_rect.x),
+      int(content_rect.y),
+      int(content_rect.width),
+      int(content_rect.height)
     )
 
     bottom_position = content_rect.height
@@ -98,41 +112,28 @@ class ConfidenceBallBP(ConfidenceBall):
       # Bar is wide enough - position ball aligned to right edge of bar (original behavior)
       ball_center_x = content_rect.x + content_rect.width - self._status_dot_radius
 
-    # BluePilot: Draw MADS beam for LAT_ONLY, LONG_ONLY, and ENGAGED so the draw path is
-    # identical on every frame. On device, skipping the beam when ENGAGED caused the driver
-    # monitor and hybrid battery widgets to disappear (simulator was fine). Always drawing
-    # the beam in any assist-active state avoids device-specific rendering/state issues.
-    if ui_state.status in (UIStatus.LAT_ONLY, UIStatus.LONG_ONLY, UIStatus.ENGAGED):
-      if ui_state.status == UIStatus.ENGAGED:
-        # Use same color logic as dot (teal/amber/red) for ENGAGED beam
-        if self._confidence_filter.x > 0.5:
-          color = rl.Color(0, 255, 204, 150)
-        elif self._confidence_filter.x > 0.2:
-          color = rl.Color(255, 200, 0, 150)
-        else:
-          color = rl.Color(255, 0, 21, 150)
-      else:
-        color = self.get_lat_long_dot_color()
-        color = rl.Color(color.r, color.g, color.b, 150)  # Set alpha for faded background
+    if ui_state.status in (UIStatus.LAT_ONLY, UIStatus.LONG_ONLY):
+      color = self.get_lat_long_dot_color()
+      color = rl.Color(color.r, color.g, color.b, 150)  # Set alpha for faded background
       self.draw_mads_beam(int(content_rect.x),
-                          int(content_rect.y),
-                          int(content_rect.width),
-                          int(content_rect.height),
-                          color)
+                              int(content_rect.y),
+                              int(content_rect.width),
+                              int(content_rect.height),
+                              color)
 
-    draw_circle_gradient(ball_center_x, dot_height, self._status_dot_radius,
+    draw_circle_gradient(content_rect, ball_center_x, dot_height, self._status_dot_radius,
                          top_dot_color, bottom_dot_color)
 
-class ConfidenceBallMiciBP(ConfidenceBallBP):
-  BALL_WIDTH = 60
-  def __init__(self, demo: bool = False):
-    ConfidenceBallBP.__init__(self, demo=demo, radius=24, width=self.BALL_WIDTH, align_right=False)
+    rl.end_scissor_mode()
 
-TICI_CONFIDENCE_BALL_R = 25
+
+class ConfidenceBallMiciBP(ConfidenceBallBP):
+  def __init__(self, demo: bool = False):
+    ConfidenceBallBP.__init__(self, demo=demo, radius=24, width=60, align_right=True)
+
+TICI_CONFIDENCE_BALL_R = 50  # Bar width for TICI (was 50, now 25 for thinner bar - half the original)
 TICI_CONFIDENCE_BALL_MARGIN = 5
 TICI_CONFIDENCE_BALL_W = TICI_CONFIDENCE_BALL_R * 2 + TICI_CONFIDENCE_BALL_MARGIN
-
 class ConfidenceBallTiciBP(ConfidenceBallBP):
-  BALL_WIDTH = TICI_CONFIDENCE_BALL_W
   def __init__(self, demo: bool = False):
-    ConfidenceBallBP.__init__(self, demo=demo, radius=TICI_CONFIDENCE_BALL_R, width=self.BALL_WIDTH, align_right=False)
+    ConfidenceBallBP.__init__(self, demo=demo, radius=TICI_CONFIDENCE_BALL_R, width=TICI_CONFIDENCE_BALL_W, align_right=True)

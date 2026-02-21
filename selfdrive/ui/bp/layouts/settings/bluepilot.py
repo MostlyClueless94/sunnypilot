@@ -177,6 +177,27 @@ class BluePilotLayout(Widget):
       icon="warning.png"
     )
 
+    # Hybrid drive gauge size selector (inline buttons: Small=1, Large=2)
+    try:
+      gauge_size_idx = int(self._params.get("FordPrefHybridDriveGaugeSize", return_default=True))
+    except (TypeError, ValueError):
+      gauge_size_idx = 1
+    # Clamp old 3-tier values to new 2-tier range
+    gauge_size_idx = min(gauge_size_idx, 2)
+    # Ensure default is persisted so consumers read the correct value on first load
+    if self._params.get("FordPrefHybridDriveGaugeSize") is None:
+      self._params.put("FordPrefHybridDriveGaugeSize", gauge_size_idx)
+    # Map 1/2 to button index 0/1
+    self._hybrid_gauge_size_btn = multiple_button_item(
+      lambda: tr("Hybrid/EV Gauge Size"),
+      lambda: tr("Set the size of the battery and power flow gauges."),
+      buttons=[lambda: tr("Small"), lambda: tr("Large")],
+      button_width=225,
+      callback=self._set_hybrid_gauge_size,
+      selected_index=gauge_size_idx - 1,
+      icon="warning.png"
+    )
+
     # Human turn detection toggle
     self._enable_human_turn_detection = toggle_item(
       lambda: tr("Enable Human Turn Detection"),
@@ -326,6 +347,7 @@ class BluePilotLayout(Widget):
       self._radar_overlay_size_btn,
       self._show_hybrid_battery_status,
       self._show_hybrid_power_flow,
+      self._hybrid_gauge_size_btn,
       self._enable_human_turn_detection,
       self._lane_change_factor_high,
       self._enable_lane_positioning,
@@ -375,6 +397,16 @@ class BluePilotLayout(Widget):
     except (TypeError, ValueError):
       overlay_idx = 1
     self._radar_overlay_size_btn.action_item.set_selected_button(overlay_idx)
+    # Hybrid gauge size: enable if either battery or power flow is enabled
+    gauge_either_on = (ui_state.params.get_bool("FordPrefHybridBatteryStatus")
+                       or ui_state.params.get_bool("FordPrefHybridPowerFlow"))
+    self._hybrid_gauge_size_btn.action_item.set_enabled(gauge_either_on)
+    try:
+      gauge_size = int(ui_state.params.get("FordPrefHybridDriveGaugeSize", return_default=True))
+    except (TypeError, ValueError):
+      gauge_size = 1
+    gauge_size = min(gauge_size, 2)  # Clamp old 3-tier values
+    self._hybrid_gauge_size_btn.action_item.set_selected_button(gauge_size - 1)
     self._custom_path_offset.action_item.set_enabled(ui_state.params.get_bool("enable_lane_positioning"))
     self._enable_lane_full_mode.action_item.set_enabled(ui_state.params.get_bool("enable_lane_positioning"))
     self._pc_blend_ratio_high_C.action_item.set_enabled(ui_state.params.get_bool("custom_profile"))
@@ -488,6 +520,10 @@ class BluePilotLayout(Widget):
   def _set_overlay_size(self, button_index: int):
     """Handle overlay size button selection."""
     self._params.put("FordPrefRadarOverlaySize", button_index)
+
+  def _set_hybrid_gauge_size(self, button_index: int):
+    """Handle hybrid gauge size button selection. Buttons are 0/1/2, param stores 1/2/3."""
+    self._params.put("FordPrefHybridDriveGaugeSize", button_index + 1)
 
   def _render(self, rect):
     # Process WiFi manager callbacks

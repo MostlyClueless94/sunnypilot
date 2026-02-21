@@ -1,11 +1,11 @@
 import pyray as rl
 from openpilot.common.params import Params
-from openpilot.selfdrive.ui.sunnypilot.mici.onroad.hud_renderer import HudRendererSP
+from openpilot.selfdrive.ui.mici.onroad.hud_renderer import HudRenderer
 from openpilot.selfdrive.ui.bp.mici.onroad.powerflow_gauge import MiciPowerflowGauge
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 
 
-class MiciHudRendererBP(HudRendererSP):
+class MiciHudRendererBP(HudRenderer):
   """BluePilot MICI HudRenderer with brake status coloring and powerflow gauge."""
 
   def __init__(self):

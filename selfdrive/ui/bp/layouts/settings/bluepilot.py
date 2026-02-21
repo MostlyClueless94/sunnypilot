@@ -146,6 +146,9 @@ class BluePilotLayout(Widget):
       overlay_size_idx = int(self._params.get("FordPrefRadarOverlaySize", return_default=True))
     except (TypeError, ValueError):
       overlay_size_idx = 1
+    # Ensure default is persisted so consumers read the correct value on first load
+    if self._params.get("FordPrefRadarOverlaySize") is None:
+      self._params.put("FordPrefRadarOverlaySize", overlay_size_idx)
     self._radar_overlay_size_btn = multiple_button_item(
       lambda: tr("Radar Overlay Size"),
       lambda: tr("Set the size of the radar lead overlay chevron and info boxes."),

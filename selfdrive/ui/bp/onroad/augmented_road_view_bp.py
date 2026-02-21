@@ -50,12 +50,6 @@ class AugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
       self._param_counter = 0
       self._show_confidence_ball = self._bp_params.get_bool("BPShowConfidenceBall")
 
-    # TEMPORARY TEST: Disable confidence ball completely to see if DM/battery still disappear when engaged.
-    # If they still disappear, the cause is not the confidence ball. Remove this block after testing.
-    _confidence_ball_disabled_for_test = True
-    if _confidence_ball_disabled_for_test:
-      self._show_confidence_ball = False
-
     self._switch_stream_if_needed(ui_state.sm)
     self._update_calibration()
 
@@ -112,6 +106,18 @@ class AugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
     # Header gradient uses full content width, HUD elements use offset rect
     self._hud_renderer.set_gradient_rect(self._content_rect)
     self._hud_renderer.render(ui_rect)
+
+    # Defensive: re-establish scissor before drawing driver state and battery. Some HUD widgets
+    # (e.g. speed limit, brake status, unified gauge) can leave raylib state in a bad way on device,
+    # causing the bottom-left widgets to be clipped or not drawn. Resetting scissor to content_rect
+    # ensures DM and battery always render in the correct clip region.
+    rl.end_scissor_mode()
+    rl.begin_scissor_mode(
+      int(self._content_rect.x),
+      int(self._content_rect.y),
+      int(self._content_rect.width),
+      int(self._content_rect.height)
+    )
     self.driver_state_renderer.render(ui_rect)
     self._battery_gauge_bp.render(self._content_rect, self._content_rect.x + ball_offset)
 

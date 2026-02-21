@@ -24,9 +24,10 @@ from openpilot.selfdrive.ui.sunnypilot.layouts.settings.sunnylink import Sunnyli
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.trips import TripsLayout
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.vehicle import VehicleLayout
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.visuals import VisualsLayout
-# BluePilot: START - BP settings tab import
+# BluePilot: START - BP settings tab imports
 from openpilot.selfdrive.ui.bp.layouts.settings.bluepilot import BluePilotLayout
-# BluePilot: END - BP settings tab import
+from openpilot.selfdrive.ui.bp.layouts.settings.bp_web_panel import BPWebPanel
+# BluePilot: END - BP settings tab imports
 from openpilot.system.ui.lib.application import gui_app, MousePos
 from openpilot.system.ui.lib.multilang import tr_noop
 from openpilot.system.ui.lib.text_measure import measure_text_cached
@@ -54,6 +55,7 @@ OP.PanelType = IntEnum(
     "TRIPS",
     "VEHICLE",
     "BLUEPILOT",  # BluePilot: START/END - BP settings panel type
+    "BP_PORTAL",  # BluePilot: BP Web Portal panel
   ],
   start=0,
 )
@@ -131,6 +133,7 @@ class SettingsLayoutSP(OP.SettingsLayout):
       OP.PanelType.FIREHOSE: PanelInfo(tr_noop("Firehose"), FirehoseLayout(), icon="../../sunnypilot/selfdrive/assets/offroad/icon_firehose.png"),
       OP.PanelType.DEVELOPER: PanelInfo(tr_noop("Developer"), DeveloperLayoutSP(), icon="icons/shell.png"),
       OP.PanelType.BLUEPILOT: PanelInfo(tr_noop("BluePilot"), BluePilotLayout(), icon="icons/chffr_wheel.png"),  # BluePilot: START/END - BP settings panel entry
+      OP.PanelType.BP_PORTAL: PanelInfo(tr_noop("BP Portal"), BPWebPanel(), icon="icons/network.png"),  # BluePilot: BP Web Portal panel
     }
 
   def _draw_sidebar(self, rect: rl.Rectangle):

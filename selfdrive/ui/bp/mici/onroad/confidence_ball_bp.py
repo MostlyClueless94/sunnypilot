@@ -1,8 +1,8 @@
 import math
 import pyray as rl
-from openpilot.selfdrive.ui.mici.onroad.confidence_ball import ConfidenceBall
+from openpilot.selfdrive.ui.mici.onroad.confidence_ball import ConfidenceBall, draw_circle_gradient
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
-from openpilot.system.ui.lib.shader_polygon import draw_circle_gradient
+from openpilot.system.ui.lib.shader_polygon import draw_shader_circle_gradient
 
 class ConfidenceBallBP(ConfidenceBall):
   def __init__(self, demo: bool = False, radius: float=24, width: float = 60, align_right: bool = True):
@@ -59,13 +59,6 @@ class ConfidenceBallBP(ConfidenceBall):
       self.rect.height,
     )
 
-    rl.begin_scissor_mode(
-      int(content_rect.x),
-      int(content_rect.y),
-      int(content_rect.width),
-      int(content_rect.height)
-    )
-
     bottom_position = content_rect.height
     top_position = 0.0
     range_height = bottom_position - top_position
@@ -112,28 +105,34 @@ class ConfidenceBallBP(ConfidenceBall):
       # Bar is wide enough - position ball aligned to right edge of bar (original behavior)
       ball_center_x = content_rect.x + content_rect.width - self._status_dot_radius
 
+    # MADS beam (teal bar) only when LAT_ONLY or LONG_ONLY; no bar when ENGAGED
     if ui_state.status in (UIStatus.LAT_ONLY, UIStatus.LONG_ONLY):
       color = self.get_lat_long_dot_color()
       color = rl.Color(color.r, color.g, color.b, 150)  # Set alpha for faded background
       self.draw_mads_beam(int(content_rect.x),
-                              int(content_rect.y),
-                              int(content_rect.width),
-                              int(content_rect.height),
-                              color)
+                          int(content_rect.y),
+                          int(content_rect.width),
+                          int(content_rect.height),
+                          color)
 
-    draw_circle_gradient(content_rect, ball_center_x, dot_height, self._status_dot_radius,
-                         top_dot_color, bottom_dot_color)
+    self._draw_circle(ball_center_x, dot_height, self._status_dot_radius,
+                      top_dot_color, bottom_dot_color)
 
-    rl.end_scissor_mode()
+  def _draw_circle(self, cx: float, cy: float, radius: float, top: rl.Color, bottom: rl.Color):
+    """Use GPU shader for smooth anti-aliased circle on TICI's larger display."""
+    draw_shader_circle_gradient(cx, cy, radius, top, bottom)
 
 
 class ConfidenceBallMiciBP(ConfidenceBallBP):
+  BALL_WIDTH = 60
   def __init__(self, demo: bool = False):
-    ConfidenceBallBP.__init__(self, demo=demo, radius=24, width=60, align_right=True)
+    ConfidenceBallBP.__init__(self, demo=demo, radius=24, width=self.BALL_WIDTH, align_right=False)
 
-TICI_CONFIDENCE_BALL_R = 50  # Bar width for TICI (was 50, now 25 for thinner bar - half the original)
+TICI_CONFIDENCE_BALL_R = 50
 TICI_CONFIDENCE_BALL_MARGIN = 5
 TICI_CONFIDENCE_BALL_W = TICI_CONFIDENCE_BALL_R * 2 + TICI_CONFIDENCE_BALL_MARGIN
+
 class ConfidenceBallTiciBP(ConfidenceBallBP):
+  BALL_WIDTH = TICI_CONFIDENCE_BALL_W
   def __init__(self, demo: bool = False):
-    ConfidenceBallBP.__init__(self, demo=demo, radius=TICI_CONFIDENCE_BALL_R, width=TICI_CONFIDENCE_BALL_W, align_right=True)
+    ConfidenceBallBP.__init__(self, demo=demo, radius=TICI_CONFIDENCE_BALL_R, width=self.BALL_WIDTH, align_right=False)

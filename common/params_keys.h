@@ -296,6 +296,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"FordPrefHybridDriveOverlay", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"FordPrefHybridBatteryStatus", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"FordPrefHybridPowerFlow", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"FordPrefHybridDriveGaugeSize", {PERSISTENT | BACKUP, INT, "1"}},
     {"FordPrefHevDataAvailable", {CLEAR_ON_MANAGER_START, BOOL, "0"}},
     {"FordPrefHevBattDataAvailable", {CLEAR_ON_MANAGER_START, BOOL, "0"}},
     {"mici_complication", {PERSISTENT | BACKUP, INT, "1"}},
@@ -309,7 +310,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"Blindspot", {PERSISTENT | BACKUP, BOOL, "0"}},
 
     // BluePilot Portal (Web Routes Server)
-    {"BPPortalEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"EnableWebRoutesServer", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"BPPortalPort", {PERSISTENT | BACKUP, INT, "8088"}},
 
     // BluePilot UI

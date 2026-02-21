@@ -1374,7 +1374,11 @@
   },
   "FordPrefHybridPowerFlow": {
     "title": "BluePilot: Show Hybrid/EV Power Flow",
-    "description": "Displays an arch-shaped power flow meter showing regenerative braking (green) and throttle demand (blue) with engine on reason and power flow mode text."
+    "description": "Displays a horizontal center-zero power flow gauge showing regenerative braking (green) and throttle demand (grey-to-orange) with engine on reason and power flow mode text."
+  },
+  "FordPrefHybridDriveGaugeSize": {
+    "title": "BluePilot: Hybrid/EV Gauge Size",
+    "description": "Sets the size of the hybrid/EV power flow and battery gauges. 1=Small (default), 2=Large."
   },
   "FordPrefHybridPowerFlowAlternate": {
     "title": "BluePilot: Use Altername Hybrid/EV Power Flow",

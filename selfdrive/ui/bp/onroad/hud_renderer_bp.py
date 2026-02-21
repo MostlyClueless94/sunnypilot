@@ -1,7 +1,5 @@
 import pyray as rl
 from openpilot.common.params import Params
-from openpilot.selfdrive.ui.bp.onroad.unified_gauge import UnifiedGauge
-from openpilot.selfdrive.ui.bp.onroad.hybrid_battery_gauge import HybridBatteryGauge
 from openpilot.selfdrive.ui.onroad.hud_renderer import UI_CONFIG, FONT_SIZES, COLORS
 from openpilot.selfdrive.ui.sunnypilot.onroad.hud_renderer import HudRendererSP
 from openpilot.selfdrive.ui.ui_state import ui_state
@@ -13,12 +11,15 @@ SPEED_UNIT_CENTER_Y = 290
 
 
 class HudRendererBP(HudRendererSP):
-  """BluePilot HudRenderer with unified gauge and brake status."""
+  """BluePilot HudRenderer with brake status display.
+
+  Note: Torque bar is rendered by TorqueBarRendererBP in AugmentedRoadViewBP,
+  not here. This keeps the torque bar above gauges in draw order and allows
+  repositioning above the battery/power flow gauges.
+  """
 
   def __init__(self):
     super().__init__()
-    self._unified_gauge = UnifiedGauge()
-    self._battery_gauge = HybridBatteryGauge()
     self._bp_params = Params()
     self._brakes_on = False
     self.speed_right = 0
@@ -50,9 +51,6 @@ class HudRendererBP(HudRendererSP):
       self._brakes_on = False
 
   def _render(self, rect: rl.Rectangle) -> None:
-    # Render unified gauge (replaces both powerflow gauge and separate torque bar)
-    self._unified_gauge.render(rect)
-
     # BluePilot: Draw header gradient at full content width (not offset by confidence ball)
     gradient_rect = self._gradient_rect if self._gradient_rect else rect
     rl.draw_rectangle_gradient_v(
@@ -71,7 +69,6 @@ class HudRendererBP(HudRendererSP):
     self._exp_button.render(rl.Rectangle(button_x, button_y, UI_CONFIG.button_size, UI_CONFIG.button_size))
 
     # SP additions (dev UI, road name, speed limit, SCC, turn signals, circular alerts, rocket fuel)
-    # Note: torque bar is now handled by unified_gauge, so we skip the separate render
     self.developer_ui.render(rect)
     self.road_name_renderer.render(rect)
     self.speed_limit_renderer.render(rect)
@@ -97,4 +94,8 @@ class HudRendererBP(HudRendererSP):
     unit_text = "km/h" if ui_state.is_metric else "mph"
     unit_text_size = measure_text_cached(self._font_medium, unit_text, FONT_SIZES.speed_unit)
     unit_pos = rl.Vector2(rect.x + rect.width / 2 - unit_text_size.x / 2, SPEED_UNIT_CENTER_Y - unit_text_size.y / 2)
+    # Draw drop shadow for readability over camera feed
+    shadow_offset = 2
+    shadow_pos = rl.Vector2(unit_pos.x + shadow_offset, unit_pos.y + shadow_offset)
+    rl.draw_text_ex(self._font_medium, unit_text, shadow_pos, FONT_SIZES.speed_unit, 0, rl.Color(0, 0, 0, 150))
     rl.draw_text_ex(self._font_medium, unit_text, unit_pos, FONT_SIZES.speed_unit, 0, COLORS.WHITE_TRANSLUCENT)

@@ -1,17 +1,15 @@
 import pyray as rl
-from collections.abc import Callable
 
 from openpilot.common.params import Params
 from openpilot.common.swaglog import cloudlog
 from openpilot.system.ui.widgets import Widget, DialogResult
-from openpilot.system.ui.widgets.list_view import toggle_item, button_item, text_item, multiple_button_item, ButtonAction, ListItem
+from openpilot.system.ui.widgets.list_view import toggle_item, multiple_button_item, ButtonAction, ListItem
 from openpilot.system.ui.widgets.scroller_tici import Scroller
 from openpilot.system.ui.widgets.option_dialog import MultiOptionDialog
 from openpilot.system.ui.lib.application import gui_app
-from openpilot.system.ui.lib.multilang import tr, tr_noop
+from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.lib.wifi_manager import WifiManager, Network
 from openpilot.selfdrive.ui.ui_state import ui_state
-from openpilot.selfdrive.ui.bp.widgets.web_server_qr_dialog_tici import WebServerQRDialogTici
 from openpilot.selfdrive.ui.bp.widgets.float_control_item import float_control_item
 
 
@@ -37,7 +35,6 @@ class BluePilotLayout(Widget):
 
     # Toggle refresh list
     self._refresh_toggles = (
-      ("BPPortalEnabled", self._enable_web_routes),
       ("send_hands_free_cluster_msg", self._show_hands_free_ui),
       ("BlindSpot", self._show_blindspot),
       ("ShowBrakeStatus", self._show_brake_status),
@@ -59,24 +56,6 @@ class BluePilotLayout(Widget):
 
   def _initialize_items(self):
     """Initialize all BluePilot menu items."""
-
-    # Web routes server toggle
-    self._enable_web_routes = toggle_item(
-      lambda: tr("Enable Web Routes Server"),
-      lambda: tr("Enable the web routes server for viewing logs and videos over WiFi."),
-      initial_state=self._params.get_bool("BPPortalEnabled"),
-      callback=lambda state: self._toggle_callback(state, "BPPortalEnabled"),
-      icon="chffr_wheel.png"
-    )
-
-    # Show QR code button
-    self._show_web_routes_qr = button_item(
-      lambda: tr("Show QR Code"),
-      lambda: tr("SHOW"),
-      lambda: tr("Display QR code for connecting to the web routes server."),
-      callback=self._show_qr_dialog,
-      enabled=lambda: self._params.get_bool("BPPortalEnabled")
-    )
 
     # Hands-free UI toggle
     self._show_hands_free_ui = toggle_item(
@@ -174,6 +153,27 @@ class BluePilotLayout(Widget):
       lambda: tr("Display power flow gauge showing throttle demand and regenerative braking."),
       initial_state=self._params.get_bool("FordPrefHybridPowerFlow"),
       callback=lambda state: self._toggle_callback(state, "FordPrefHybridPowerFlow"),
+      icon="warning.png"
+    )
+
+    # Hybrid drive gauge size selector (inline buttons: Small=1, Large=2)
+    try:
+      gauge_size_idx = int(self._params.get("FordPrefHybridDriveGaugeSize", return_default=True))
+    except (TypeError, ValueError):
+      gauge_size_idx = 1
+    # Clamp old 3-tier values to new 2-tier range
+    gauge_size_idx = min(gauge_size_idx, 2)
+    # Ensure default is persisted so consumers read the correct value on first load
+    if self._params.get("FordPrefHybridDriveGaugeSize") is None:
+      self._params.put("FordPrefHybridDriveGaugeSize", gauge_size_idx)
+    # Map 1/2 to button index 0/1
+    self._hybrid_gauge_size_btn = multiple_button_item(
+      lambda: tr("Hybrid/EV Gauge Size"),
+      lambda: tr("Set the size of the battery and power flow gauges."),
+      buttons=[lambda: tr("Small"), lambda: tr("Large")],
+      button_width=225,
+      callback=self._set_hybrid_gauge_size,
+      selected_index=gauge_size_idx - 1,
       icon="warning.png"
     )
 
@@ -314,8 +314,6 @@ class BluePilotLayout(Widget):
     )
 
     return [
-      self._enable_web_routes,
-      self._show_web_routes_qr,
       self._show_hands_free_ui,
       self._show_blindspot,
       self._show_brake_status,
@@ -326,6 +324,7 @@ class BluePilotLayout(Widget):
       self._radar_overlay_size_btn,
       self._show_hybrid_battery_status,
       self._show_hybrid_power_flow,
+      self._hybrid_gauge_size_btn,
       self._enable_human_turn_detection,
       self._lane_change_factor_high,
       self._enable_lane_positioning,
@@ -353,12 +352,6 @@ class BluePilotLayout(Widget):
     self._params.put_bool(param, state)
     self._update_toggles()
 
-  def _show_qr_dialog(self):
-    """Show QR code dialog for webserver access."""
-    if self._params.get_bool("BPPortalEnabled"):
-      qr_dialog = WebServerQRDialogTici()
-      gui_app.set_modal_overlay(qr_dialog)
-
   def _update_toggles(self):
     """Update toggle states from params."""
     ui_state.update_params()
@@ -368,13 +361,22 @@ class BluePilotLayout(Widget):
       item.action_item.set_state(ui_state.params.get_bool(key))
 
     # Update button enabled states
-    self._show_web_routes_qr.action_item.set_enabled(ui_state.params.get_bool("BPPortalEnabled"))
     self._radar_overlay_size_btn.action_item.set_enabled(ui_state.params.get_bool("FordPrefShowRadarLeadOverlay"))
     try:
       overlay_idx = int(ui_state.params.get("FordPrefRadarOverlaySize", return_default=True))
     except (TypeError, ValueError):
       overlay_idx = 1
     self._radar_overlay_size_btn.action_item.set_selected_button(overlay_idx)
+    # Hybrid gauge size: enable if either battery or power flow is enabled
+    gauge_either_on = (ui_state.params.get_bool("FordPrefHybridBatteryStatus")
+                       or ui_state.params.get_bool("FordPrefHybridPowerFlow"))
+    self._hybrid_gauge_size_btn.action_item.set_enabled(gauge_either_on)
+    try:
+      gauge_size = int(ui_state.params.get("FordPrefHybridDriveGaugeSize", return_default=True))
+    except (TypeError, ValueError):
+      gauge_size = 1
+    gauge_size = min(gauge_size, 2)  # Clamp old 3-tier values
+    self._hybrid_gauge_size_btn.action_item.set_selected_button(gauge_size - 1)
     self._custom_path_offset.action_item.set_enabled(ui_state.params.get_bool("enable_lane_positioning"))
     self._enable_lane_full_mode.action_item.set_enabled(ui_state.params.get_bool("enable_lane_positioning"))
     self._pc_blend_ratio_high_C.action_item.set_enabled(ui_state.params.get_bool("custom_profile"))
@@ -488,6 +490,10 @@ class BluePilotLayout(Widget):
   def _set_overlay_size(self, button_index: int):
     """Handle overlay size button selection."""
     self._params.put("FordPrefRadarOverlaySize", button_index)
+
+  def _set_hybrid_gauge_size(self, button_index: int):
+    """Handle hybrid gauge size button selection. Buttons are 0/1/2, param stores 1/2/3."""
+    self._params.put("FordPrefHybridDriveGaugeSize", button_index + 1)
 
   def _render(self, rect):
     # Process WiFi manager callbacks

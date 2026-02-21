@@ -24,7 +24,7 @@ class WebServerQRDialogTici(Widget):
     
     # Toggle to disable server
     self._disable_toggle = Toggle(
-      initial_state=self._params.get_bool("BPPortalEnabled"),
+      initial_state=self._params.get_bool("EnableWebRoutesServer"),
       callback=self._handle_toggle
     )
     
@@ -108,7 +108,7 @@ class WebServerQRDialogTici(Widget):
 
   def _handle_toggle(self, checked: bool):
     """Handle toggle click - if disabled, close dialog."""
-    self._params.put_bool("BPPortalEnabled", checked)
+    self._params.put_bool("EnableWebRoutesServer", checked)
     if not checked:
       # Server was disabled, close the dialog
       gui_app.set_modal_overlay(None)

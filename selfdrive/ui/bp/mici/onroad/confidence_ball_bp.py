@@ -1,7 +1,7 @@
 import pyray as rl
-from openpilot.selfdrive.ui.mici.onroad.confidence_ball import ConfidenceBall
+from openpilot.selfdrive.ui.mici.onroad.confidence_ball import ConfidenceBall, draw_circle_gradient
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
-from openpilot.selfdrive.ui.mici.onroad.confidence_ball import draw_circle_gradient
+from openpilot.system.ui.lib.shader_polygon import draw_shader_circle_gradient
 
 class ConfidenceBallBP(ConfidenceBall):
   def __init__(self, demo: bool = False, radius: float=24, width: float = 60, align_right: bool = True):
@@ -108,15 +108,21 @@ class ConfidenceBallBP(ConfidenceBall):
                           int(content_rect.height),
                           color)
 
-    draw_circle_gradient(ball_center_x, dot_height, self._status_dot_radius,
-                         top_dot_color, bottom_dot_color)
+    self._draw_circle(ball_center_x, dot_height, self._status_dot_radius,
+                      top_dot_color, bottom_dot_color)
+
+  def _draw_circle(self, cx: float, cy: float, radius: float, top: rl.Color, bottom: rl.Color):
+    """Draw the confidence ball circle. Subclasses can override for different renderers."""
+    draw_circle_gradient(cx, cy, radius, top, bottom)
+
 
 class ConfidenceBallMiciBP(ConfidenceBallBP):
   BALL_WIDTH = 60
   def __init__(self, demo: bool = False):
     ConfidenceBallBP.__init__(self, demo=demo, radius=24, width=self.BALL_WIDTH, align_right=False)
 
-TICI_CONFIDENCE_BALL_R = 25
+
+TICI_CONFIDENCE_BALL_R = 50
 TICI_CONFIDENCE_BALL_MARGIN = 5
 TICI_CONFIDENCE_BALL_W = TICI_CONFIDENCE_BALL_R * 2 + TICI_CONFIDENCE_BALL_MARGIN
 
@@ -124,3 +130,7 @@ class ConfidenceBallTiciBP(ConfidenceBallBP):
   BALL_WIDTH = TICI_CONFIDENCE_BALL_W
   def __init__(self, demo: bool = False):
     ConfidenceBallBP.__init__(self, demo=demo, radius=TICI_CONFIDENCE_BALL_R, width=self.BALL_WIDTH, align_right=False)
+
+  def _draw_circle(self, cx: float, cy: float, radius: float, top: rl.Color, bottom: rl.Color):
+    """Use GPU shader for smooth anti-aliased circle on TICI's larger display."""
+    draw_shader_circle_gradient(cx, cy, radius, top, bottom)

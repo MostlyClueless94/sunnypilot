@@ -103,9 +103,6 @@ class AugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
     # Render the base camera view
     CameraView._render(self, rect)
 
-    # BluePilot: Draw blindspot screen edge indicators (behind other UI elements)
-    self._draw_blindspot_screen_edges(self._content_rect, self.BLIND_SPOT_WIDTH)
-
     # Render model (uses full content rect for camera-space overlays)
     self.model_renderer.render(self._content_rect)
 
@@ -115,6 +112,15 @@ class AugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
     # BluePilot: Render confidence ball on left side (narrow rect = ball strip only, not full width)
     if self._show_confidence_ball:
       ball_strip_width = ConfidenceBallTiciBP.BALL_WIDTH + BALL_BORDER_MARGIN
+      # Semi-transparent dark backdrop so ball is visible against bright camera feed
+      rl.draw_rectangle_gradient_h(
+        int(self._content_rect.x),
+        int(self._content_rect.y),
+        int(ball_strip_width),
+        int(self._content_rect.height),
+        rl.Color(20, 20, 20, 120),  # darker at left edge
+        rl.Color(20, 20, 20, 0),    # fade to transparent at right edge
+      )
       ball_rect = rl.Rectangle(
         self._content_rect.x + BALL_BORDER_MARGIN,
         self._content_rect.y,
@@ -122,6 +128,10 @@ class AugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
         self._content_rect.height,
       )
       self._confidence_ball.render(ball_rect)
+
+    # BluePilot: Draw blindspot screen edge indicators ON TOP of confidence ball backdrop
+    # so the red safety warning is never obscured
+    self._draw_blindspot_screen_edges(self._content_rect, self.BLIND_SPOT_WIDTH)
 
     # BluePilot: Render HUD, driver state before gauges and alerts
     self._hud_renderer.set_gradient_rect(self._content_rect)

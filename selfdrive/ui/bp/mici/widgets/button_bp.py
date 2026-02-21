@@ -61,8 +61,8 @@ class BigButtonBP(BigButton):
 
 class BigToggleBP(BigButtonBP, BigToggle):
   def __init__(self, text: str, value: str = "", initial_state: bool = False, toggle_callback: Callable = None,
-               tint: rl.Color = rl.WHITE):
-    BigButtonBP.__init__(self, text, value, "", tint=tint)
+               tint: rl.Color = rl.WHITE,is_active: Callable[[], bool] = None):
+    BigButtonBP.__init__(self, text, value, "", tint=tint, is_active=is_active)
     BigToggle.__init__(self, text, value, initial_state=initial_state, toggle_callback=toggle_callback)
 
   def _load_images(self):
@@ -71,8 +71,8 @@ class BigToggleBP(BigButtonBP, BigToggle):
 
 class BigMultiToggleBP(BigToggleBP, BigMultiToggle):
   def __init__(self, text: str, options: list[str], toggle_callback: Callable = None,
-               select_callback: Callable = None):
-    BigToggleBP.__init__(self, text, "", toggle_callback=toggle_callback)
+               select_callback: Callable = None, is_active: Callable[[], bool] = None):
+    BigToggleBP.__init__(self, text, "", toggle_callback=toggle_callback, is_active=is_active)
     BigMultiToggle.__init__(self, text, options, toggle_callback=toggle_callback, select_callback=select_callback)
 
   def _load_images(self):
@@ -102,8 +102,8 @@ class BigMultiToggleBP(BigToggleBP, BigMultiToggle):
 
 class BigMultiParamToggleBP(BigMultiToggleBP, BigMultiParamToggle):
   def __init__(self, text: str, param: str, options: list[str], toggle_callback: Callable = None,
-               select_callback: Callable = None, value_size: int = 30):
-    BigMultiToggleBP.__init__(self, text, options, toggle_callback, select_callback)
+               select_callback: Callable = None, value_size: int = 30, is_active: Callable[[], bool] = None):
+    BigMultiToggleBP.__init__(self, text, options, toggle_callback, select_callback, is_active=is_active)
     BigMultiParamToggle.__init__(self, text, param, options, toggle_callback, select_callback)
     self._sub_label.set_font_size(value_size)
 
@@ -119,16 +119,11 @@ class BigMultiParamToggleBP(BigMultiToggleBP, BigMultiParamToggle):
 class BigParamControlBP(BigToggleBP, BigParamControl):
   def __init__(self, text: str, param: str, is_active_param: str = None, toggle_callback: Callable = None,
                tint: rl.Color = rl.WHITE):
-    BigToggleBP.__init__(self, text, "", toggle_callback=toggle_callback, tint=tint)
+    BigToggleBP.__init__(self, text, "", toggle_callback=toggle_callback, tint=tint,
+                         is_active=(lambda: self.params.get_bool(is_active_param)) if is_active_param is not None else None)
     BigParamControl.__init__(self, text, param, toggle_callback=toggle_callback)
-    self.is_active_param = is_active_param
     self.set_checked(self.params.get_bool(self.param, False))
 
   def _load_images(self):
     BigToggleBP._load_images(self)
     BigParamControl._load_images(self) if hasattr(BigParamControl, '_load_images') else None
-
-  def _draw_content(self, btn_y: float):
-    self.set_enabled(lambda: self.params.get_bool(self.is_active_param) if self.is_active_param else True)
-    # don't draw pill from BigToggle
-    BigToggleBP._draw_content(self, btn_y)

@@ -408,7 +408,7 @@
       "max": 2
     },
     {
-      "name": "BPPortalEnabled",
+      "name": "EnableWebRoutesServer",
       "default": false,
       "type": "bool",
       "flags": ["PERSISTENT", "BACKUP"],

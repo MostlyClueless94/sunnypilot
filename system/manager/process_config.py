@@ -103,11 +103,11 @@ def uploader_ready(started: bool, params: Params, CP: car.CarParams) -> bool:
 
 def portal_enabled(started: bool, params: Params, CP: car.CarParams) -> bool:
   """BluePilot Portal - always run when enabled (rate-limited onroad)"""
-  return params.get_bool("BPPortalEnabled")
+  return params.get_bool("EnableWebRoutesServer")
 
 def route_preprocessor_enabled(started: bool, params: Params, CP: car.CarParams) -> bool:
   """Route preprocessor - only run when portal enabled and offroad"""
-  return params.get_bool("BPPortalEnabled") and only_offroad(started, params, CP)
+  return params.get_bool("EnableWebRoutesServer") and only_offroad(started, params, CP)
 
 def or_(*fns):
   return lambda *args: operator.or_(*(fn(*args) for fn in fns))

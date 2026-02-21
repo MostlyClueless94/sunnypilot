@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 params = get_params_with_defaults({
     "IsOnRoad": False,
     "BPPortalPort": "8088",
-    "BPPortalEnabled": True,
+    "EnableWebRoutesServer": True,
 })
 
 
@@ -28,7 +28,7 @@ def is_onroad():
 def should_server_run():
     """Check if server should be running (always runs when enabled, rate-limited onroad)"""
     try:
-        return params.get_bool("BPPortalEnabled")
+        return params.get_bool("EnableWebRoutesServer")
     except:
         return True  # Default to running if we can't check
 

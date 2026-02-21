@@ -18,7 +18,7 @@ class BluePilotLayoutMici(NavWidget):
     self.lane_change_factor_high = float(self._params.get("lane_change_factor_high", return_default=True))
 
     # ******** Main Scroller ********
-    self.enable_web_routes = BigParamControlBP("enable web routes server", "BPPortalEnabled")
+    self.enable_web_routes = BigParamControlBP("enable web routes server", "EnableWebRoutesServer")
     self.show_web_routes_qr = BigButtonBP("show QR code", "", "icons_mici/settings/network/wifi_strength_full.png")
     self.show_web_routes_qr.set_click_callback(self._show_qr_dialog)
     self.show_hands_free_ui = BigParamControlBP("show hands-free ui", "send_hands_free_cluster_msg")
@@ -87,7 +87,7 @@ class BluePilotLayoutMici(NavWidget):
 
     # Toggle lists
     self._refresh_toggles = (
-      ("BPPortalEnabled", self.enable_web_routes),
+      ("EnableWebRoutesServer", self.enable_web_routes),
       ("send_hands_free_cluster_msg", self.show_hands_free_ui),
       ("FordPrefHybridPowerFlow", self.show_hybrid_power_flow),
       ("ShowBrakeStatus", self.show_brake_status),
@@ -122,7 +122,7 @@ class BluePilotLayoutMici(NavWidget):
   def _show_qr_dialog(self):
     """Show QR code dialog for webserver access."""
     # Only show if server is enabled
-    if self._params.get_bool("BPPortalEnabled"):
+    if self._params.get_bool("EnableWebRoutesServer"):
       qr_dialog = WebServerQRDialog(back_callback=lambda: gui_app.set_modal_overlay(None))
       gui_app.set_modal_overlay(qr_dialog)
     # If disabled, could show a message dialog, but for now just do nothing
@@ -134,7 +134,7 @@ class BluePilotLayoutMici(NavWidget):
   def _update_buttons(self):
     """Update button enabled state based on server status."""
     ui_state.update_params()
-    server_enabled = ui_state.params.get_bool("BPPortalEnabled")
+    server_enabled = ui_state.params.get_bool("EnableWebRoutesServer")
     self.show_web_routes_qr.set_enabled(server_enabled)
 
     if self._params.get_bool("FordPrefHybridPowerFlow"):

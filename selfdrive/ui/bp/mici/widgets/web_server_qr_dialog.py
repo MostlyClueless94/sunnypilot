@@ -24,7 +24,7 @@ class WebServerQRDialog(NavWidget):
     self._last_url = ""
     
     # Toggle to disable server (initially enabled since dialog shows when server is on)
-    self._disable_toggle = BigParamControl("web routes server", "BPPortalEnabled",
+    self._disable_toggle = BigParamControl("web routes server", "EnableWebRoutesServer",
                                            toggle_callback=self._handle_toggle)
     # Ensure toggle reflects current state
     self._disable_toggle.refresh()

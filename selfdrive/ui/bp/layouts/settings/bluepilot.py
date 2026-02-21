@@ -1,17 +1,15 @@
 import pyray as rl
-from collections.abc import Callable
 
 from openpilot.common.params import Params
 from openpilot.common.swaglog import cloudlog
 from openpilot.system.ui.widgets import Widget, DialogResult
-from openpilot.system.ui.widgets.list_view import toggle_item, button_item, text_item, multiple_button_item, ButtonAction, ListItem
+from openpilot.system.ui.widgets.list_view import toggle_item, multiple_button_item, ButtonAction, ListItem
 from openpilot.system.ui.widgets.scroller_tici import Scroller
 from openpilot.system.ui.widgets.option_dialog import MultiOptionDialog
 from openpilot.system.ui.lib.application import gui_app
-from openpilot.system.ui.lib.multilang import tr, tr_noop
+from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.lib.wifi_manager import WifiManager, Network
 from openpilot.selfdrive.ui.ui_state import ui_state
-from openpilot.selfdrive.ui.bp.widgets.web_server_qr_dialog_tici import WebServerQRDialogTici
 from openpilot.selfdrive.ui.bp.widgets.float_control_item import float_control_item
 
 
@@ -37,7 +35,6 @@ class BluePilotLayout(Widget):
 
     # Toggle refresh list
     self._refresh_toggles = (
-      ("BPPortalEnabled", self._enable_web_routes),
       ("send_hands_free_cluster_msg", self._show_hands_free_ui),
       ("BlindSpot", self._show_blindspot),
       ("ShowBrakeStatus", self._show_brake_status),
@@ -59,24 +56,6 @@ class BluePilotLayout(Widget):
 
   def _initialize_items(self):
     """Initialize all BluePilot menu items."""
-
-    # Web routes server toggle
-    self._enable_web_routes = toggle_item(
-      lambda: tr("Enable Web Routes Server"),
-      lambda: tr("Enable the web routes server for viewing logs and videos over WiFi."),
-      initial_state=self._params.get_bool("BPPortalEnabled"),
-      callback=lambda state: self._toggle_callback(state, "BPPortalEnabled"),
-      icon="chffr_wheel.png"
-    )
-
-    # Show QR code button
-    self._show_web_routes_qr = button_item(
-      lambda: tr("Show QR Code"),
-      lambda: tr("SHOW"),
-      lambda: tr("Display QR code for connecting to the web routes server."),
-      callback=self._show_qr_dialog,
-      enabled=lambda: self._params.get_bool("BPPortalEnabled")
-    )
 
     # Hands-free UI toggle
     self._show_hands_free_ui = toggle_item(
@@ -335,8 +314,6 @@ class BluePilotLayout(Widget):
     )
 
     return [
-      self._enable_web_routes,
-      self._show_web_routes_qr,
       self._show_hands_free_ui,
       self._show_blindspot,
       self._show_brake_status,
@@ -375,12 +352,6 @@ class BluePilotLayout(Widget):
     self._params.put_bool(param, state)
     self._update_toggles()
 
-  def _show_qr_dialog(self):
-    """Show QR code dialog for webserver access."""
-    if self._params.get_bool("BPPortalEnabled"):
-      qr_dialog = WebServerQRDialogTici()
-      gui_app.set_modal_overlay(qr_dialog)
-
   def _update_toggles(self):
     """Update toggle states from params."""
     ui_state.update_params()
@@ -390,7 +361,6 @@ class BluePilotLayout(Widget):
       item.action_item.set_state(ui_state.params.get_bool(key))
 
     # Update button enabled states
-    self._show_web_routes_qr.action_item.set_enabled(ui_state.params.get_bool("BPPortalEnabled"))
     self._radar_overlay_size_btn.action_item.set_enabled(ui_state.params.get_bool("FordPrefShowRadarLeadOverlay"))
     try:
       overlay_idx = int(ui_state.params.get("FordPrefRadarOverlaySize", return_default=True))

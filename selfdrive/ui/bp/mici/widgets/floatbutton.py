@@ -1,6 +1,6 @@
 
 import pyray as rl
-from openpilot.selfdrive.ui.mici.widgets.button import BigButton
+from openpilot.selfdrive.ui.bp.mici.widgets.button_bp import BigButtonBP
 from openpilot.selfdrive.ui.mici.widgets.dialog import BigInputDialog
 from openpilot.common.params import Params
 from openpilot.system.ui.lib.application import gui_app, MousePos
@@ -10,13 +10,9 @@ LINE_L = 40
 LINE_W = 8
 LABEL_HORIZONTAL_PADDING = 40
 
-class BigParamFloatControl(BigButton):
+class BigParamFloatControl(BigButtonBP):
   def __init__(self, text: str, param: str, is_active_param: str = None, min: float = None, max: float = None, step: float = 0.05, tint: rl.Color = rl.WHITE):
-    # BigButton only accepts (text, value, icon, icon_size, scroll); no tint or is_active
-    super().__init__(text, "")
-    if is_active_param is not None:
-      self.set_enabled(lambda: Params().get_bool(is_active_param))
-    self._tint = tint
+    super().__init__(text, "", tint=tint, is_active=(lambda: Params().get_bool(is_active_param)) if is_active_param is not None else None)
     self.min = min
     self.max = max
     self.step = step
@@ -75,7 +71,13 @@ class BigParamFloatControl(BigButton):
 
   def _get_label_font_size(self):
     font_size = super()._get_label_font_size()
-    return font_size - 6
+    return font_size - 10
+
+  def _draw_content(self, btn_y: float):
+    offset = self.rect_size / 3
+    self.rect.height -= offset
+    super()._draw_content(btn_y + offset)
+    self.rect.height += offset
 
   def _render(self, _):
     super()._render(_)
@@ -91,16 +93,14 @@ class BigParamFloatControl(BigButton):
       self.right - self.rect_size / 2 - CONTENT_MARGIN, self.top - self.rect_size / 2, self.rect_size, self.rect_size
     )
 
-    # rl.draw_rectangle_lines_ex(self.minus_hit_rect, 1, rl.RED)
-    # rl.draw_rectangle_lines_ex(self.plus_hit_rect, 1, rl.GREEN)
+    #rl.draw_rectangle_lines_ex(self.minus_hit_rect, 1, rl.RED)
+    #rl.draw_rectangle_lines_ex(self.plus_hit_rect, 1, rl.GREEN)
 
     rl.draw_line_ex((self.left,self.top), (self.left+LINE_L, self.top), LINE_W, rl.WHITE)
 
     rl.draw_line_ex((self.right-LINE_L,self.top), (self.right, self.top), LINE_W, rl.WHITE)
     m = self.right - LINE_L/2
     rl.draw_line_ex((m,self.top-LINE_L/2), (m, self.top+LINE_L/2), LINE_W, rl.WHITE)
-
-
 
   def minus_clicked(self):
     self.set_param(self.get_param() - self.step)

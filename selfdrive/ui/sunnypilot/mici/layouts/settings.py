@@ -4,10 +4,11 @@ Copyright (c) 2021-, Haibin Wen, sunnypilot, and a number of other contributors.
 This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
+import pyray as rl
 from enum import IntEnum
 
 from openpilot.selfdrive.ui.mici.layouts.settings import settings as OP
-from openpilot.selfdrive.ui.mici.widgets.button import BigButton
+from openpilot.selfdrive.ui.bp.mici.widgets.button_bp import BigButtonBP as BigButton
 from openpilot.selfdrive.ui.sunnypilot.mici.layouts.sunnylink import SunnylinkLayoutMici
 from openpilot.selfdrive.ui.sunnypilot.mici.layouts.models import ModelsLayoutMici
 # BluePilot: START - BP settings tab import
@@ -38,7 +39,7 @@ class SettingsLayoutSP(OP.SettingsLayout):
     models_btn.set_click_callback(lambda: self._set_current_panel(OP.PanelType.MODELS))
 
     # BluePilot: START - BP settings button and panel
-    bluepilot_btn = BigButton("BluePilot", "", "icons/chffr_wheel.png")
+    bluepilot_btn = BigButton("bluepilot", "", "icons_mici/settings/car_icon.png", tint=rl.BLUE)
     bluepilot_btn.set_click_callback(lambda: self._set_current_panel(OP.PanelType.BLUEPILOT))
     # BluePilot: END - BP settings button and panel
 

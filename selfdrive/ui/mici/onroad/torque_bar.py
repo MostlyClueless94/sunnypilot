@@ -18,7 +18,6 @@ TORQUE_ANGLE_SPAN = 12.7
 
 DEBUG = False
 
-
 def quantized_lru_cache(maxsize=128):
   def decorator(func):
     cache = OrderedDict()

@@ -5,6 +5,7 @@ from openpilot.common.params import Params
 from openpilot.selfdrive.ui.mici.onroad import SIDE_PANEL_WIDTH
 from openpilot.selfdrive.ui.mici.onroad.augmented_road_view import AugmentedRoadView
 from openpilot.selfdrive.ui.mici.onroad.cameraview import CameraView
+from openpilot.selfdrive.ui.bp.mici.onroad.model_renderer_bp import ModelRendererBP
 from openpilot.selfdrive.ui.bp.onroad.blindspot_renderer import BlindspotRendererMixin
 from openpilot.selfdrive.ui.bp.mici.onroad.hud_renderer_bp import MiciHudRendererBP
 from openpilot.selfdrive.ui.bp.mici.onroad.complication import MiciComplication
@@ -33,6 +34,8 @@ class MiciAugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
 
     # BluePilot: Add lead car complication widget
     self._complication = MiciComplication()
+
+    self._model_renderer = ModelRendererBP()
 
   def _render(self, _):
     """Override render to place confidence ball on left, offset driver state, and conditionally hide border."""

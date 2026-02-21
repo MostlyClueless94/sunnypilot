@@ -23,8 +23,15 @@ from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.shader_polygon import draw_polygon, Gradient
 
-# Arc geometry
+# Arc geometry (legacy arc — kept for MICI / fallback)
 TORQUE_ANGLE_SPAN = 12.7
+
+# Crown strip geometry (horizontal torque bar inside shared container)
+STRIP_HEIGHT = 11            # Pixels tall for the torque strip
+STRIP_TRACK_COLOR = rl.Color(52, 73, 94, 140)    # Subtle dark track (matches power flow BAR_BG_COLOR)
+STRIP_DIVIDER_COLOR = rl.Color(100, 100, 100, 80) # 1px separator below strip
+STRIP_CENTER_TICK_COLOR = rl.Color(200, 200, 200, 140)
+STRIP_CORNER_SEGMENTS = 10
 
 
 def _quantized_lru_cache(maxsize=128):
@@ -266,3 +273,93 @@ class TorqueBarRendererBP:
       dot_y = effective_rect.y + effective_rect.height - torque_line_offset - torque_line_height / 2
       rl.draw_circle(int(cx), int(dot_y), 10 // 2 * self._scale,
                      rl.Color(182, 182, 182, int(255 * 0.9 * alpha)))
+
+  def render_strip(self, strip_rect: rl.Rectangle):
+    """Render the torque bar as a horizontal crown strip inside a container.
+
+    A thin bidirectional bar that fills from center outward — left for left torque,
+    right for right torque. Uses the same white→yellow→orange gradient as the arc.
+
+    Args:
+        strip_rect: Rectangle allocated for the strip (full inner width, STRIP_HEIGHT tall).
+    """
+    if not ui_state.torque_bar:
+      return
+
+    torque = self._torque_filter.x
+    alpha = self._alpha_filter.x
+
+    if alpha < 0.01:
+      return
+
+    abs_torque = abs(torque)
+    is_active = ui_state.status in (UIStatus.ENGAGED, UIStatus.LAT_ONLY)
+
+    # Pill-shaped roundness for the thin strip
+    roundness = min(1.0, 14.0 / max(1, strip_rect.height))
+
+    # --- Track background ---
+    track_color = rl.Color(STRIP_TRACK_COLOR.r, STRIP_TRACK_COLOR.g,
+                           STRIP_TRACK_COLOR.b, int(STRIP_TRACK_COLOR.a * max(alpha, 0.4)))
+    rl.draw_rectangle_rounded(strip_rect, roundness, STRIP_CORNER_SEGMENTS, track_color)
+
+    # --- Active fill (bidirectional from center) ---
+    if abs_torque > 0.005:
+      center_x = strip_rect.x + strip_rect.width / 2
+      fill_half_width = strip_rect.width * abs_torque / 2
+
+      # Color: same gradient logic as the arc
+      if is_active:
+        high_blend = max(0.0, abs_torque - 0.75) * 4
+        fill_color = blend_colors(
+          rl.Color(255, 255, 255, int(255 * 0.9 * alpha)),
+          rl.Color(255, 200, 0, int(255 * alpha)),
+          high_blend,
+        )
+      else:
+        fill_color = rl.Color(255, 255, 255, int(255 * 0.35 * alpha))
+
+      # Scissor + overshoot for flat inner edge, rounded outer edge (same as PowerFlowGauge)
+      overshoot = strip_rect.height
+      if torque < 0:
+        # Left fill
+        rounded_rect = rl.Rectangle(
+          center_x - fill_half_width, strip_rect.y,
+          fill_half_width + overshoot, strip_rect.height,
+        )
+        rl.begin_scissor_mode(
+          int(center_x - fill_half_width), int(strip_rect.y),
+          int(fill_half_width), int(strip_rect.height),
+        )
+      else:
+        # Right fill
+        rounded_rect = rl.Rectangle(
+          center_x - overshoot, strip_rect.y,
+          fill_half_width + overshoot, strip_rect.height,
+        )
+        rl.begin_scissor_mode(
+          int(center_x), int(strip_rect.y),
+          int(fill_half_width), int(strip_rect.height),
+        )
+
+      if rounded_rect.width > 0:
+        rl.draw_rectangle_rounded(rounded_rect, roundness, STRIP_CORNER_SEGMENTS, fill_color)
+      rl.end_scissor_mode()
+
+    # --- Center tick ---
+    center_x = strip_rect.x + strip_rect.width / 2
+    rl.draw_line_ex(
+      rl.Vector2(center_x, strip_rect.y + 1),
+      rl.Vector2(center_x, strip_rect.y + strip_rect.height - 1),
+      1.5, rl.Color(STRIP_CENTER_TICK_COLOR.r, STRIP_CENTER_TICK_COLOR.g,
+                     STRIP_CENTER_TICK_COLOR.b, int(STRIP_CENTER_TICK_COLOR.a * alpha)),
+    )
+
+    # --- Bottom divider line ---
+    divider_y = strip_rect.y + strip_rect.height
+    rl.draw_line_ex(
+      rl.Vector2(strip_rect.x + 4, divider_y),
+      rl.Vector2(strip_rect.x + strip_rect.width - 4, divider_y),
+      1.0, rl.Color(STRIP_DIVIDER_COLOR.r, STRIP_DIVIDER_COLOR.g,
+                     STRIP_DIVIDER_COLOR.b, int(STRIP_DIVIDER_COLOR.a * alpha)),
+    )

@@ -28,6 +28,10 @@ SHARED_INNER_GAP = 10  # Pixels between battery and power flow gauges inside sha
 SHARED_PADDING = 8     # Padding around inner content in shared container
 SHARED_BORDER_THICKNESS = 2.0  # Power flow mode-colored border thickness
 
+# Torque crown strip (thin torque bar integrated into the top of the shared container)
+TORQUE_STRIP_HEIGHT = 11   # Height of the torque strip inside shared container
+TORQUE_STRIP_GAP = 3       # Gap between strip bottom and gauge content top
+
 # Full screen reference for sidebar detection
 FULL_CONTENT_WIDTH = 2100.0
 
@@ -49,7 +53,7 @@ class AugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
     self._battery_gauge_bp = HybridBatteryGauge()
     self._power_flow_gauge = PowerFlowGauge()
 
-    # BluePilot: Standalone torque bar renderer (smoother, positioned above gauges)
+    # BluePilot: Torque bar renderer (renders as crown strip inside gauge container)
     self._torque_bar = TorqueBarRendererBP(scale=3.0)
 
     # BluePilot: Add confidence ball on left side (MADS beam + enhanced coloring)
@@ -136,15 +140,18 @@ class AugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
     )
     self.driver_state_renderer.render(ui_rect)
 
-    # BluePilot: Render battery + power flow gauges with shared container when both visible
-    gauge_height_offset = self._render_gauges(self._content_rect, ball_offset)
-
-    # BluePilot: Update and render torque bar ABOVE gauges and ON TOP in draw order
+    # BluePilot: Update torque bar filter state (once per frame, before _render_gauges uses it)
     self._torque_bar.update()
-    torque_rect = ui_rect
-    if ui_state.developer_ui in (DeveloperUiRenderer.DEV_UI_BOTTOM, DeveloperUiRenderer.DEV_UI_BOTH):
-      torque_rect = rl.Rectangle(ui_rect.x, ui_rect.y, ui_rect.width, ui_rect.height - DeveloperUiRenderer.BOTTOM_BAR_HEIGHT)
-    self._torque_bar.render(torque_rect, gauge_height_offset=gauge_height_offset)
+
+    # BluePilot: Render gauges + torque crown strip inside shared container
+    gauge_height_offset, hybrid_active = self._render_gauges(self._content_rect, ball_offset)
+
+    # BluePilot: When no hybrid gauge is active, fall back to the stock arc torque bar
+    if not hybrid_active:
+      torque_rect = ui_rect
+      if ui_state.developer_ui in (DeveloperUiRenderer.DEV_UI_BOTTOM, DeveloperUiRenderer.DEV_UI_BOTH):
+        torque_rect = rl.Rectangle(ui_rect.x, ui_rect.y, ui_rect.width, ui_rect.height - DeveloperUiRenderer.BOTTOM_BAR_HEIGHT)
+      self._torque_bar.render(torque_rect, gauge_height_offset=gauge_height_offset)
 
     # Alerts last so they are never covered by gauges or other overlays
     self.alert_renderer.set_speed_right(self._hud_renderer.get_speed_right())
@@ -170,62 +177,63 @@ class AugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
     dev_ui_offset = DeveloperUiRenderer.get_bottom_dev_ui_offset()
     return content_rect.y + content_rect.height - (UI_BORDER_SIZE + BTN_SIZE // 2) - dev_ui_offset
 
-  def _render_gauges(self, content_rect: rl.Rectangle, ball_offset: float) -> float:
-    """Render power flow and battery gauges, vertically centered with the driver monitor.
+  def _render_gauges(self, content_rect: rl.Rectangle, ball_offset: float) -> tuple[float, bool]:
+    """Render power flow, battery gauges, and torque strip, vertically centered with the driver monitor.
 
-    When both are visible:
-    - Horizontally centered as a unit in the content area
-    - Battery on the left, power flow immediately to the right (small gap)
-    - Battery content vertically centered within the shared container
-    - Shared background container wraps both tightly
-    - Power flow mode-colored border wraps the entire shared container
-    - Entire container vertically centered with the driver monitor face icon
+    The torque strip ("crown strip") is a thin horizontal torque bar rendered at the top
+    of the shared container when a hybrid gauge (battery or power flow) is active.
+    When no hybrid gauge is active, the strip is not rendered — the stock arc torque bar
+    is used instead (handled by the caller).
 
     Returns:
-        gauge_height_offset: Pixels from bottom of content_rect to top of gauge area.
-            Used to push the torque bar arc above the gauges. Returns 0 if no gauges visible.
+        (gauge_height_offset, hybrid_active): gauge_height_offset is pixels from bottom of
+            content_rect to top of gauge area (0 if nothing visible). hybrid_active is True
+            when at least one hybrid gauge was rendered (strip was used for torque).
     """
     left_offset = content_rect.x + ball_offset
     sidebar_visible = content_rect.width < (FULL_CONTENT_WIDTH * 0.9)
     content_bottom = content_rect.y + content_rect.height
 
-    # Driver monitor center Y — gauges will be vertically centered to this
+    # Driver monitor center Y — container will be vertically centered to this
     dm_center_y = self._get_dm_center_y(content_rect)
 
-    # Check visibility of each gauge
+    # Check visibility of each element
     battery_rect = self._battery_gauge_bp.get_bounding_rect(content_rect, left_offset)
     pf_visible = self._power_flow_gauge.should_render()
+    hybrid_active = battery_rect is not None or pf_visible
+    torque_strip_visible = ui_state.torque_bar and hybrid_active
 
-    # Track the top of the gauge area for torque bar positioning
-    gauge_top = content_bottom  # default: no gauges, no offset
+    # Strip adds height to the container when visible
+    strip_allocation = (TORQUE_STRIP_HEIGHT + TORQUE_STRIP_GAP) if torque_strip_visible else 0
+
+    # Track the top of the gauge area
+    gauge_top = content_bottom  # default: nothing visible, no offset
 
     if battery_rect is not None and pf_visible:
-      # Both visible: horizontally center the combined container
+      # Both gauges visible: horizontally center the combined container
       pf_rect = self._power_flow_gauge.get_gauge_rect(
         content_rect, sidebar_visible, self._show_confidence_ball,
       )
 
-      # Compute total width: battery + gap + power flow
       total_inner_width = battery_rect.width + SHARED_INNER_GAP + pf_rect.width
-
-      # Center the combined unit horizontally within the content area
       combined_left = content_rect.x + (content_rect.width - total_inner_width) / 2
-      battery_x = combined_left
-      pf_x = battery_x + battery_rect.width + SHARED_INNER_GAP
 
-      # Use the taller gauge's height as the shared container inner height
-      container_inner_height = max(battery_rect.height, pf_rect.height)
+      # Gauge content height (without strip)
+      gauge_content_height = max(battery_rect.height, pf_rect.height)
+      container_inner_height = gauge_content_height + strip_allocation
 
-      # Vertically center with the driver monitor
+      # Vertically center the entire container with driver monitor
       container_top = dm_center_y - container_inner_height / 2
 
-      # Position power flow at the top of the container (it defines the height)
-      pf_y = container_top
+      # Strip at top, gauges below
+      strip_top = container_top
+      gauge_content_top = container_top + strip_allocation
 
-      # Vertically center battery content within the container height
-      battery_y = container_top + (container_inner_height - battery_rect.height) / 2
+      pf_y = gauge_content_top
+      pf_x = combined_left + battery_rect.width + SHARED_INNER_GAP
+      battery_y = gauge_content_top + (gauge_content_height - battery_rect.height) / 2
 
-      # Build the shared container rect with padding
+      # Shared container rect with padding
       shared_rect = rl.Rectangle(
         combined_left - SHARED_PADDING,
         container_top - SHARED_PADDING,
@@ -233,48 +241,101 @@ class AugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
         container_inner_height + SHARED_PADDING * 2,
       )
 
-      # Draw shared background + power flow mode-colored border around both gauges
+      # Draw shared background + power flow mode-colored border
       self._draw_shared_background(shared_rect)
       border_color = self._power_flow_gauge.get_border_color()
       rl.draw_rectangle_rounded_lines_ex(
         shared_rect, SHARED_BG_ROUNDNESS, 10, SHARED_BORDER_THICKNESS, border_color,
       )
 
-      # Render battery at the centered position
-      # Compute offsets relative to the battery's natural position
+      # Torque strip at the top of the inner content
+      if torque_strip_visible:
+        strip_rect = rl.Rectangle(combined_left, strip_top, total_inner_width, TORQUE_STRIP_HEIGHT)
+        self._torque_bar.render_strip(strip_rect)
+
+      # Battery at centered position
       battery_x_offset = combined_left - battery_rect.x
       battery_y_offset = battery_y - battery_rect.y
       self._battery_gauge_bp.render_at(content_rect, left_offset, draw_background=False,
                                        x_offset=battery_x_offset, y_offset=battery_y_offset)
 
-      # Render power flow gauge at adjusted position, without its own background or border
+      # Power flow gauge
       adjusted_pf_rect = rl.Rectangle(pf_x, pf_y, pf_rect.width, pf_rect.height)
       self._power_flow_gauge.render_at(adjusted_pf_rect, draw_background=False, draw_border=False)
 
-      # Gauge area top = top of shared container
       gauge_top = shared_rect.y
 
     elif pf_visible:
-      # Only power flow visible: center with driver monitor
+      # Only power flow visible: shared container with optional strip
       pf_rect = self._power_flow_gauge.get_gauge_rect(
         content_rect, sidebar_visible, self._show_confidence_ball,
       )
-      # Shift to center with DM
-      pf_center_y = pf_rect.y + pf_rect.height / 2
-      y_shift = dm_center_y - pf_center_y
-      centered_pf_rect = rl.Rectangle(pf_rect.x, pf_rect.y + y_shift, pf_rect.width, pf_rect.height)
-      self._power_flow_gauge.render_at(centered_pf_rect, draw_background=True)
-      gauge_top = centered_pf_rect.y
+
+      total_height = pf_rect.height + strip_allocation
+      container_top = dm_center_y - total_height / 2
+
+      strip_top = container_top
+      pf_y = container_top + strip_allocation
+
+      # Shared container around power flow + optional strip
+      shared_rect = rl.Rectangle(
+        pf_rect.x - SHARED_PADDING,
+        container_top - SHARED_PADDING,
+        pf_rect.width + SHARED_PADDING * 2,
+        total_height + SHARED_PADDING * 2,
+      )
+
+      self._draw_shared_background(shared_rect)
+      border_color = self._power_flow_gauge.get_border_color()
+      rl.draw_rectangle_rounded_lines_ex(
+        shared_rect, SHARED_BG_ROUNDNESS, 10, SHARED_BORDER_THICKNESS, border_color,
+      )
+
+      if torque_strip_visible:
+        strip_rect = rl.Rectangle(pf_rect.x, strip_top, pf_rect.width, TORQUE_STRIP_HEIGHT)
+        self._torque_bar.render_strip(strip_rect)
+
+      centered_pf_rect = rl.Rectangle(pf_rect.x, pf_y, pf_rect.width, pf_rect.height)
+      self._power_flow_gauge.render_at(centered_pf_rect, draw_background=False, draw_border=False)
+      gauge_top = shared_rect.y
 
     elif battery_rect is not None:
-      # Only battery visible: center with driver monitor
-      battery_center_y = battery_rect.y + battery_rect.height / 2
-      y_shift = dm_center_y - battery_center_y
-      self._battery_gauge_bp.render(content_rect, left_offset, y_offset=y_shift)
-      # Battery-only: don't push torque bar up — let it sit at its natural low position
+      # Only battery visible
+      if torque_strip_visible:
+        # Wrap battery + strip in a shared container
+        total_height = battery_rect.height + strip_allocation
+        container_top = dm_center_y - total_height / 2
 
-    # Return the offset from the bottom: how many pixels the gauge area occupies
-    return max(0.0, content_bottom - gauge_top)
+        strip_top = container_top
+        battery_content_top = container_top + strip_allocation
+
+        shared_rect = rl.Rectangle(
+          battery_rect.x - SHARED_PADDING,
+          container_top - SHARED_PADDING,
+          battery_rect.width + SHARED_PADDING * 2,
+          total_height + SHARED_PADDING * 2,
+        )
+        self._draw_shared_background(shared_rect)
+        rl.draw_rectangle_rounded_lines_ex(
+          shared_rect, SHARED_BG_ROUNDNESS, 10, SHARED_BORDER_THICKNESS,
+          rl.Color(120, 120, 120, 100),
+        )
+
+        strip_rect = rl.Rectangle(battery_rect.x, strip_top, battery_rect.width, TORQUE_STRIP_HEIGHT)
+        self._torque_bar.render_strip(strip_rect)
+
+        y_shift = battery_content_top - battery_rect.y
+        self._battery_gauge_bp.render_at(content_rect, left_offset, draw_background=False,
+                                         x_offset=0.0, y_offset=y_shift)
+        gauge_top = shared_rect.y
+      else:
+        # Battery only, no strip — original behavior
+        battery_center_y = battery_rect.y + battery_rect.height / 2
+        y_shift = dm_center_y - battery_center_y
+        self._battery_gauge_bp.render(content_rect, left_offset, y_offset=y_shift)
+
+    # Return offset and whether hybrid gauges were active
+    return max(0.0, content_bottom - gauge_top), hybrid_active
 
   def _draw_shared_background(self, rect: rl.Rectangle):
     """Draw shared background container (glow + fill). Border drawn separately."""

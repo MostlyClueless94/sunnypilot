@@ -28,6 +28,15 @@ class MiciHudRendererBP(HudRenderer):
     else:
       self._brakes_on = False
 
+  def _render(self, rect: rl.Rectangle) -> None:
+    """Render HUD elements to the screen."""
+    self._torque_bar.render(rect)
+
+    if self.is_cruise_set:
+      self._draw_set_speed(rect)
+
+    self._draw_steering_wheel(rect)
+
   def _draw_steering_wheel(self, rect: rl.Rectangle) -> None:
     """Override to add brake status coloring to wheel icon and powerflow gauge."""
     wheel_txt = self._txt_wheel_critical if self._show_wheel_critical else self._txt_wheel

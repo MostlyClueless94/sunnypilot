@@ -5,6 +5,7 @@ from openpilot.common.params import Params
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.selfdrive.ui.sunnypilot.onroad.chevron_metrics import ChevronMetrics, ChevronOptions
 from openpilot.system.ui.lib.text_measure import measure_text_cached
+from openpilot.selfdrive.ui.bp.lib.ui_debug_logger import bp_ui_log
 
 # BluePilot: Deadband thresholds for close-proximity mode (in meters)
 CLOSE_MODE_THRESHOLD_M = 50.0 * 0.3048   # 50 feet = 15.24 meters
@@ -34,7 +35,9 @@ class ChevronMetricsBP(ChevronMetrics):
 
   def should_render(self) -> bool:
     # Render if chevron metrics is enabled OR if Ford overlay is enabled
-    return (ui_state.chevron_metrics != ChevronOptions.OFF or self.ford_overlay_enabled) and self._lead_status_alpha > 0.0
+    result = (ui_state.chevron_metrics != ChevronOptions.OFF or self.ford_overlay_enabled) and self._lead_status_alpha > 0.0
+    bp_ui_log.visibility("ChevronMetrics", result, reason=f"ford_overlay={self.ford_overlay_enabled} alpha={self._lead_status_alpha:.2f}")
+    return result
 
   def _draw_lead(self, lead_data, lead_vehicle, v_ego: float, rect: rl.Rectangle, lead_index: int = 0):
     """Draw lead vehicle status with close-proximity mode and boxed layout."""

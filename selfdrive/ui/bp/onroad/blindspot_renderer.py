@@ -5,6 +5,7 @@ from openpilot.common.filter_simple import FirstOrderFilter
 from openpilot.common.params import Params
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import gui_app
+from openpilot.selfdrive.ui.bp.lib.ui_debug_logger import bp_ui_log
 
 
 class BlindspotRendererMixin:
@@ -27,11 +28,15 @@ class BlindspotRendererMixin:
     if not (self._blindspot_params.get_bool("BlindSpot") or self._blindspot_params.get_bool("Blindspot")):
       return
 
+    bp_ui_log.state("Blindspot", "param_enabled", True)
+
     sm = ui_state.sm
     if not sm.valid['carState']:
       return
 
     car_state = sm['carState']
+    bp_ui_log.state("Blindspot", "left", car_state.leftBlindspot)
+    bp_ui_log.state("Blindspot", "right", car_state.rightBlindspot)
     left_blindspot = car_state.leftBlindspot
     right_blindspot = car_state.rightBlindspot
 

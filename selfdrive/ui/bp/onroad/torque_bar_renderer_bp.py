@@ -22,6 +22,7 @@ from openpilot.selfdrive.ui.mici.onroad import blend_colors
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.shader_polygon import draw_polygon, Gradient
+from openpilot.selfdrive.ui.bp.lib.ui_debug_logger import bp_ui_log
 
 # Arc geometry (legacy arc — kept for MICI / fallback)
 TORQUE_ANGLE_SPAN = 12.7
@@ -174,6 +175,8 @@ class TorqueBarRendererBP:
   def _update_alpha(self):
     """Update visibility alpha based on engagement status."""
     self._alpha_filter.update(ui_state.status not in (UIStatus.DISENGAGED, UIStatus.LONG_ONLY))
+    bp_ui_log.state("TorqueBar", "alpha", round(self._alpha_filter.x, 2))
+    bp_ui_log.state("TorqueBar", "ui_status", ui_state.status.name)
 
   def render(self, rect: rl.Rectangle, gauge_height_offset: float = 0.0):
     """Render the torque bar arc.

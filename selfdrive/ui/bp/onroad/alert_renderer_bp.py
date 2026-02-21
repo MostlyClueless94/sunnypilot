@@ -5,6 +5,7 @@ from cereal import log
 from openpilot.selfdrive.ui.onroad.alert_renderer import AlertRenderer
 from openpilot.selfdrive.ui.onroad.hud_renderer import UI_CONFIG
 from openpilot.system.ui.lib.text_measure import measure_text_cached
+from openpilot.selfdrive.ui.bp.lib.ui_debug_logger import bp_ui_log
 
 AlertSize = log.SelfdriveState.AlertSize
 AlertStatus = log.SelfdriveState.AlertStatus
@@ -54,6 +55,9 @@ class AlertRendererBP(AlertRenderer):
   def _render(self, rect: rl.Rectangle):
     from openpilot.selfdrive.ui.ui_state import ui_state
     alert = self.get_alert(ui_state.sm)
+    bp_ui_log.state("AlertRenderer", "has_alert", alert is not None)
+    if alert:
+      bp_ui_log.state("AlertRenderer", "alert_size", alert.size)
     if not alert:
       return
 

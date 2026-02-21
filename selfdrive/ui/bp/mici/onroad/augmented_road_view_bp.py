@@ -11,6 +11,7 @@ from openpilot.selfdrive.ui.bp.mici.onroad.hud_renderer_bp import MiciHudRendere
 from openpilot.selfdrive.ui.bp.mici.onroad.complication import MiciComplication
 from openpilot.selfdrive.ui.bp.mici.onroad.confidence_ball_bp import ConfidenceBallMiciBP
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
+from openpilot.selfdrive.ui.bp.lib.ui_debug_logger import bp_ui_log
 
 # BluePilot: Margin to keep confidence ball inside the MICI rounded border
 MICI_BALL_BORDER_MARGIN = 25  # half of 50px MICI border thickness
@@ -51,6 +52,9 @@ class MiciAugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
       self.rect.height,
     )
 
+    bp_ui_log.scissor("MiciAugRoadView", "begin",
+                       x=int(self._content_rect.x), y=int(self._content_rect.y),
+                       w=int(self._content_rect.width), h=int(self._content_rect.height))
     rl.begin_scissor_mode(
       int(self._content_rect.x),
       int(self._content_rect.y),
@@ -87,6 +91,7 @@ class MiciAugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
       self._alert_renderer.render(self._content_rect)
     self._hud_renderer.render(self._content_rect)
 
+    bp_ui_log.scissor("MiciAugRoadView", "end")
     rl.end_scissor_mode()
 
     # BluePilot: Conditionally draw MICI rounded border

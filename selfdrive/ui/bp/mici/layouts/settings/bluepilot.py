@@ -40,6 +40,7 @@ class BluePilotLayoutMici(NavWidget):
     self.hide_border = BigParamControlBP("hide screen border", "mici_hide_onroad_border")
     self.disable_BP_lat = BigParamControlBP("disable BP lateral control", "disable_BP_lat_UI")
     self.disable_BP_long = BigParamControlBP("bypass BP longitudinal control", "disable_BP_long_UI")
+    self.ui_debug_log = BigParamControlBP("ui debug logging", "BPUIDebugLog")
     self.vbatt_pause_charging = BigParamFloatControl("12V battery limit", "vbatt_pause_charging", min=11.0, max=14.0, step=0.1)
 
     def power_flow_callback(value: str):
@@ -83,6 +84,7 @@ class BluePilotLayoutMici(NavWidget):
       self.vbatt_pause_charging,
       self.disable_BP_lat,
       self.disable_BP_long,
+      self.ui_debug_log,
     ], snap_items=False)
 
     # Toggle lists
@@ -100,6 +102,7 @@ class BluePilotLayoutMici(NavWidget):
       ("disable_BP_lat_UI", self.disable_BP_lat),
       ("disable_BP_long_UI", self.disable_BP_long),
       ("BPAnimateSteeringWheel", self.animate_steering_wheel),
+      ("BPUIDebugLog", self.ui_debug_log),
       ("mici_hide_onroad_fade", self.hide_fade),
       ("BPHideOnroadBorder", self.hide_border),
     )

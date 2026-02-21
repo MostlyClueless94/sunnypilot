@@ -3,6 +3,7 @@ from openpilot.common.params import Params
 from openpilot.selfdrive.ui.mici.onroad.hud_renderer import HudRenderer
 from openpilot.selfdrive.ui.bp.mici.onroad.powerflow_gauge import MiciPowerflowGauge
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
+from openpilot.selfdrive.ui.bp.lib.ui_debug_logger import bp_ui_log
 
 
 class MiciHudRendererBP(HudRenderer):
@@ -27,6 +28,8 @@ class MiciHudRendererBP(HudRenderer):
         self._brakes_on = False
     else:
       self._brakes_on = False
+
+    bp_ui_log.state("MiciHudRenderer", "brakes_on", self._brakes_on)
 
   def _render(self, rect: rl.Rectangle) -> None:
     """Render HUD elements to the screen."""

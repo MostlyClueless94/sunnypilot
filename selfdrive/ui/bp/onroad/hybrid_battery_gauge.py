@@ -17,6 +17,7 @@ from openpilot.system.ui.lib.text_measure import measure_text_cached
 from openpilot.system.ui.widgets import Widget
 from openpilot.common.params import Params
 from openpilot.common.swaglog import cloudlog
+from openpilot.selfdrive.ui.bp.lib.ui_debug_logger import bp_ui_log
 
 
 # Base constants (at scale 1.0, these produce the "natural" size)
@@ -98,18 +99,24 @@ class HybridBatteryGauge(Widget):
     """Check if battery gauge should be rendered"""
     battery_status_enabled = self._params.get_bool("FordPrefHybridBatteryStatus")
     if not battery_status_enabled:
+      bp_ui_log.visibility("HybridBattery", False, reason="param_disabled")
       return False
 
     sm = ui_state.sm
     try:
       if "carStateBP" not in sm.recv_frame:
+        bp_ui_log.visibility("HybridBattery", False, reason="no_recv_frame")
         return False
       recv_frame = sm.recv_frame["carStateBP"]
       if recv_frame < ui_state.started_frame:
+        bp_ui_log.visibility("HybridBattery", False, reason=f"stale_frame recv={recv_frame} started={ui_state.started_frame}")
         return False
       car_state_bp = sm['carStateBP']
-      return car_state_bp.hybridBattery.dataAvailable
-    except (KeyError, AttributeError, TypeError):
+      available = car_state_bp.hybridBattery.dataAvailable
+      bp_ui_log.visibility("HybridBattery", available, reason=f"dataAvailable={available}")
+      return available
+    except (KeyError, AttributeError, TypeError) as e:
+      bp_ui_log.visibility("HybridBattery", False, reason=f"exception: {e}")
       return False
 
   def _get_battery_data(self):

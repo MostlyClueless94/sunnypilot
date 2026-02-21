@@ -4,6 +4,7 @@ from openpilot.selfdrive.ui.onroad.hud_renderer import UI_CONFIG, FONT_SIZES, CO
 from openpilot.selfdrive.ui.sunnypilot.onroad.hud_renderer import HudRendererSP
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.text_measure import measure_text_cached
+from openpilot.selfdrive.ui.bp.lib.ui_debug_logger import bp_ui_log
 
 # BluePilot: Y center for speed display (matching upstream hardcoded values)
 SPEED_CENTER_Y = 180
@@ -49,6 +50,8 @@ class HudRendererBP(HudRendererSP):
         self._brakes_on = False
     else:
       self._brakes_on = False
+
+    bp_ui_log.state("HudRendererBP", "brakes_on", self._brakes_on)
 
   def _render(self, rect: rl.Rectangle) -> None:
     # BluePilot: Draw header gradient at full content width (not offset by confidence ball)

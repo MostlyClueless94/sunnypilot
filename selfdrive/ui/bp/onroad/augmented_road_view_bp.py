@@ -16,6 +16,7 @@ from openpilot.selfdrive.ui.bp.mici.onroad.confidence_ball_bp import ConfidenceB
 from openpilot.selfdrive.ui.onroad.driver_state import BTN_SIZE
 from openpilot.selfdrive.ui.sunnypilot.onroad.developer_ui import DeveloperUiRenderer
 from openpilot.selfdrive.ui.ui_state import ui_state
+from openpilot.selfdrive.ui.bp.lib.ui_debug_logger import bp_ui_log
 
 # BluePilot: Margin to keep confidence ball inside the colored border
 BALL_BORDER_MARGIN = UI_BORDER_SIZE // 2  # 15px
@@ -68,6 +69,7 @@ class AugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
   def _render(self, rect):
     """Override render to add blindspot, gauges, confidence ball on left, and speed_right passing."""
     start_draw = time.monotonic()
+    bp_ui_log.tick()
     if not ui_state.started:
       return
 
@@ -97,6 +99,9 @@ class AugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
       self._content_rect.height,
     )
 
+    bp_ui_log.scissor("AugRoadView", "begin",
+                       x=int(self._content_rect.x), y=int(self._content_rect.y),
+                       w=int(self._content_rect.width), h=int(self._content_rect.height))
     rl.begin_scissor_mode(
       int(self._content_rect.x),
       int(self._content_rect.y),
@@ -141,6 +146,7 @@ class AugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
     self._hud_renderer.set_gradient_rect(self._content_rect)
     self._hud_renderer.render(ui_rect)
 
+    bp_ui_log.scissor("AugRoadView", "reset (defensive)")
     # Defensive: re-establish scissor before drawing driver state and battery. Some HUD widgets
     # (e.g. speed limit, brake status, unified gauge) can leave raylib state in a bad way on device,
     # causing the bottom-left widgets to be clipped or not drawn. Resetting scissor to content_rect
@@ -159,6 +165,8 @@ class AugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
 
     # BluePilot: Render gauges + torque crown strip inside shared container
     gauge_height_offset, hybrid_active = self._render_gauges(self._content_rect, ball_offset)
+    bp_ui_log.state("AugRoadView", "hybrid_active", hybrid_active)
+    bp_ui_log.state("AugRoadView", "gauge_height_offset", round(gauge_height_offset))
 
     # BluePilot: When no hybrid gauge is active, fall back to the stock arc torque bar
     if not hybrid_active:
@@ -171,6 +179,7 @@ class AugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
     self.alert_renderer.set_speed_right(self._hud_renderer.get_speed_right())
     self.alert_renderer.render(ui_rect)
 
+    bp_ui_log.scissor("AugRoadView", "end")
     rl.end_scissor_mode()
 
     # BluePilot: Conditionally draw border

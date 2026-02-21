@@ -50,6 +50,7 @@ class BluePilotLayout(Widget):
       ("custom_profile", self._custom_profile),
       ("disable_BP_lat_UI", self._disable_BP_lat),
       ("disable_BP_long_UI", self._disable_BP_long),
+      ("BPUIDebugLog", self._ui_debug_log),
     )
 
     ui_state.add_offroad_transition_callback(self._update_toggles)
@@ -285,6 +286,15 @@ class BluePilotLayout(Widget):
       icon="warning.png"
     )
 
+    # UI Debug Logging toggle
+    self._ui_debug_log = toggle_item(
+      lambda: tr("UI Debug Logging"),
+      lambda: tr("Log UI state transitions for diagnosing rendering issues on device."),
+      initial_state=self._params.get_bool("BPUIDebugLog"),
+      callback=lambda state: self._toggle_callback(state, "BPUIDebugLog"),
+      icon="warning.png"
+    )
+
     # Disable BP lateral control toggle
     self._disable_BP_lat = toggle_item(
       lambda: tr("Disable BP Lateral Control"),
@@ -338,6 +348,7 @@ class BluePilotLayout(Widget):
       self._disable_BP_lat,
       self._disable_BP_long,
       self._preferred_network_btn,
+      self._ui_debug_log,
     ]
 
   def _get_float_param(self, param: str, default: float) -> float:

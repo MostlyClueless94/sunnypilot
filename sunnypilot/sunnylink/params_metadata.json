@@ -1509,6 +1509,10 @@
     "title": "BluePilot: Animate Steering Wheel",
     "description": "Rotate the steering wheel icon to match the current steering angle."
   },
+  "BPUIDebugLog": {
+    "title": "BluePilot: UI Debug Logging",
+    "description": "Log UI state transitions for diagnosing rendering issues on device."
+  },
   "Blindspot": {
     "title": "BluePilot: Show Blindspot warnings",
     "description": "Show a red indication is a car is in your blindspot"

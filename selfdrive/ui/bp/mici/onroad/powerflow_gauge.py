@@ -8,6 +8,7 @@ from openpilot.selfdrive.ui.mici.onroad import blend_colors
 from openpilot.system.ui.lib.shader_polygon import draw_polygon, Gradient
 from opendbc.car.ford.helpers import get_hev_power_flow_text, get_hev_engine_on_reason_text
 from openpilot.common.filter_simple import FirstOrderFilter
+from openpilot.selfdrive.ui.bp.lib.ui_debug_logger import bp_ui_log
 
 SEGMENTS = 50
 LINES = 20
@@ -66,6 +67,7 @@ class MiciPowerflowGauge(Widget):
     power_flow_enabled = params.get_bool("FordPrefHybridPowerFlow")
     self._power_flow_use_alternate = params.get_bool("FordPrefHybridPowerFlowAlternate")
     if not power_flow_enabled:
+      bp_ui_log.visibility("MiciPowerflow", False, reason="param_disabled")
       return False
 
     if DEMO:
@@ -75,15 +77,20 @@ class MiciPowerflowGauge(Widget):
     try:
       # Check if message exists and is recent enough
       if "carStateBP" not in sm.recv_frame:
+        bp_ui_log.visibility("MiciPowerflow", False, reason="no_recv_frame")
         return False
 
       recv_frame = sm.recv_frame["carStateBP"]
       if recv_frame < ui_state.started_frame:
+        bp_ui_log.visibility("MiciPowerflow", False, reason=f"stale_frame recv={recv_frame} started={ui_state.started_frame}")
         return False
 
       car_state_bp = sm['carStateBP']
-      return car_state_bp.hybridDrive.dataAvailable
-    except (KeyError, AttributeError, TypeError):
+      available = car_state_bp.hybridDrive.dataAvailable
+      bp_ui_log.visibility("MiciPowerflow", available, reason=f"dataAvailable={available}")
+      return available
+    except (KeyError, AttributeError, TypeError) as e:
+      bp_ui_log.visibility("MiciPowerflow", False, reason=f"exception: {e}")
       return False
 
   def set_wheel_rect(self, rect: rl.Rectangle):

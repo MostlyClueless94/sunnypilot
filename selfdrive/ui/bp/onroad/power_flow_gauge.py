@@ -16,6 +16,7 @@ from openpilot.system.ui.lib.application import FontWeight, gui_app
 from openpilot.system.ui.lib.text_measure import measure_text_cached
 from openpilot.system.ui.widgets import Widget
 from opendbc.car.ford.helpers import get_hev_engine_on_reason_text, get_hev_power_flow_text
+from openpilot.selfdrive.ui.bp.lib.ui_debug_logger import bp_ui_log
 
 # --- Size presets (width_ratio, height) for each gauge_scale ---
 # Small (1) = default, matches original gauge size; Large (2) = bigger
@@ -129,14 +130,20 @@ class PowerFlowGauge(Widget):
 
   def _should_render(self) -> bool:
     if not self._powerflow_enabled:
+      bp_ui_log.visibility("PowerFlowGauge", False, reason="param_disabled")
       return False
     try:
       if "carStateBP" not in ui_state.sm.recv_frame:
+        bp_ui_log.visibility("PowerFlowGauge", False, reason="no_recv_frame")
         return False
       if ui_state.sm.recv_frame["carStateBP"] < ui_state.started_frame:
+        bp_ui_log.visibility("PowerFlowGauge", False, reason=f"stale_frame recv={ui_state.sm.recv_frame['carStateBP']} started={ui_state.started_frame}")
         return False
-      return ui_state.sm["carStateBP"].hybridDrive.dataAvailable
-    except (KeyError, AttributeError, TypeError):
+      available = ui_state.sm["carStateBP"].hybridDrive.dataAvailable
+      bp_ui_log.visibility("PowerFlowGauge", available, reason=f"dataAvailable={available}")
+      return available
+    except (KeyError, AttributeError, TypeError) as e:
+      bp_ui_log.visibility("PowerFlowGauge", False, reason=f"exception: {e}")
       return False
 
   def _update_bracket_animation(self, current_value, threshold):
@@ -297,6 +304,9 @@ class PowerFlowGauge(Widget):
           fill_half_width + overshoot, bar_rect.height,
         )
         # Clip to the actual fill area so the overshoot is hidden
+        bp_ui_log.scissor("PowerFlowGauge", "begin",
+                           x=int(center_x - fill_half_width), y=int(bar_rect.y),
+                           w=int(fill_half_width), h=int(bar_rect.height))
         rl.begin_scissor_mode(
           int(center_x - fill_half_width), int(bar_rect.y),
           int(fill_half_width), int(bar_rect.height),
@@ -304,6 +314,7 @@ class PowerFlowGauge(Widget):
         if rounded_rect.width > 0:
           rl.draw_rectangle_rounded(rounded_rect, roundness, 10, fill_color)
         rl.end_scissor_mode()
+        bp_ui_log.scissor("PowerFlowGauge", "end")
       else:
         fill_color = self._get_demand_color(value, is_ev)
         # Demand: fills rightward from center. Outer edge = right side.
@@ -314,6 +325,9 @@ class PowerFlowGauge(Widget):
           fill_half_width + overshoot, bar_rect.height,
         )
         # Clip to the actual fill area so the overshoot is hidden
+        bp_ui_log.scissor("PowerFlowGauge", "begin",
+                           x=int(center_x), y=int(bar_rect.y),
+                           w=int(fill_half_width), h=int(bar_rect.height))
         rl.begin_scissor_mode(
           int(center_x), int(bar_rect.y),
           int(fill_half_width), int(bar_rect.height),
@@ -321,6 +335,7 @@ class PowerFlowGauge(Widget):
         if rounded_rect.width > 0:
           rl.draw_rectangle_rounded(rounded_rect, roundness, 10, fill_color)
         rl.end_scissor_mode()
+        bp_ui_log.scissor("PowerFlowGauge", "end")
 
     # Center line
     rl.draw_line_ex(

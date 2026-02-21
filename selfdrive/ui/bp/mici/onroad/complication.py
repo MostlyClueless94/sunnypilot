@@ -10,6 +10,7 @@ from openpilot.system.ui.widgets import Widget
 from openpilot.common.params import Params
 from opendbc.car import structs
 from openpilot.sunnypilot import IntEnumBase
+from openpilot.selfdrive.ui.bp.lib.ui_debug_logger import bp_ui_log
 
 FONT_SIZE = 68
 DIST_FONT_SIZE = 55
@@ -45,6 +46,7 @@ class MiciComplication(Widget):
 
   def _update_state(self):
      self._render_type = self.params.get("mici_complication")
+     bp_ui_log.state("MiciComplication", "render_type", self._render_type)
 
   def _render(self, rect: rl.Rectangle) -> None:
     """Draw the first lead vehicle speed and unit."""

@@ -7,6 +7,7 @@ from openpilot.selfdrive.ui.bp.onroad.chevron_metrics_bp import ChevronMetricsBP
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.shader_polygon import draw_polygon
+from openpilot.selfdrive.ui.bp.lib.ui_debug_logger import bp_ui_log
 
 # BluePilot: Lane line colors by status (upstream removed LANE_LINE_COLORS dict)
 LANE_LINE_COLORS_BP = {
@@ -63,7 +64,10 @@ class ModelRendererBP(ModelRenderer):
 
     if (sm.recv_frame["liveCalibration"] < ui_state.started_frame or
         sm.recv_frame["modelV2"] < ui_state.started_frame):
+      bp_ui_log.visibility("ModelRenderer", False, reason=f"stale calib={sm.recv_frame['liveCalibration']} model={sm.recv_frame['modelV2']} started={ui_state.started_frame}")
       return
+
+    bp_ui_log.state("ModelRenderer", "render_active", True)
 
     self._clip_region = rl.Rectangle(
       rect.x - CLIP_MARGIN, rect.y - CLIP_MARGIN, rect.width + 2 * CLIP_MARGIN, rect.height + 2 * CLIP_MARGIN
@@ -94,6 +98,7 @@ class ModelRendererBP(ModelRenderer):
     # BluePilot: Ford radar overlay feature - show leads even without longitudinal control
     ford_overlay_enabled = self._bp_params.get_bool("FordPrefShowRadarLeadOverlay")
     render_lead_indicator = (self._longitudinal_control or ford_overlay_enabled) and radar_state is not None
+    bp_ui_log.state("ModelRenderer", "render_lead", render_lead_indicator)
 
     model_updated = sm.updated['modelV2']
     if model_updated or sm.updated['radarState'] or self._transform_dirty:

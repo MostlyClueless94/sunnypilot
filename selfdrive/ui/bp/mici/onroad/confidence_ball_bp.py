@@ -3,6 +3,7 @@ import pyray as rl
 from openpilot.selfdrive.ui.mici.onroad.confidence_ball import ConfidenceBall, draw_circle_gradient
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.system.ui.lib.shader_polygon import draw_shader_circle_gradient
+from openpilot.selfdrive.ui.bp.lib.ui_debug_logger import bp_ui_log
 
 class ConfidenceBallBP(ConfidenceBall):
   def __init__(self, demo: bool = False, radius: float=24, width: float = 60, align_right: bool = True):
@@ -48,6 +49,9 @@ class ConfidenceBallBP(ConfidenceBall):
     else:
       self._confidence_filter.update((1 - max(ui_state.sm['modelV2'].meta.disengagePredictions.brakeDisengageProbs or [1])) *
                                                         (1 - max(ui_state.sm['modelV2'].meta.disengagePredictions.steerOverrideProbs or [1])))
+
+    bp_ui_log.state("ConfidenceBall", "status", ui_state.status.name)
+    bp_ui_log.state("ConfidenceBall", "confidence", round(self._confidence_filter.x, 2))
 
   def _render(self, _):
     bar_width = self._width

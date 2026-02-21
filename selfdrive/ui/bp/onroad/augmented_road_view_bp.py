@@ -122,6 +122,18 @@ class AugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
     # BluePilot: Render HUD, driver state before gauges and alerts
     self._hud_renderer.set_gradient_rect(self._content_rect)
     self._hud_renderer.render(ui_rect)
+
+    # Defensive: re-establish scissor before drawing driver state and battery. Some HUD widgets
+    # (e.g. speed limit, brake status, unified gauge) can leave raylib state in a bad way on device,
+    # causing the bottom-left widgets to be clipped or not drawn. Resetting scissor to content_rect
+    # ensures DM and battery always render in the correct clip region.
+    rl.end_scissor_mode()
+    rl.begin_scissor_mode(
+      int(self._content_rect.x),
+      int(self._content_rect.y),
+      int(self._content_rect.width),
+      int(self._content_rect.height)
+    )
     self.driver_state_renderer.render(ui_rect)
 
     # BluePilot: Render battery + power flow gauges with shared container when both visible

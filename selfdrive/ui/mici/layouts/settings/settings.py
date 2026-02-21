@@ -34,7 +34,6 @@ class SettingsBigButton(BigButton):
   def _get_label_font_size(self):
     return 64
 
-
 class SettingsLayout(NavWidget):
   def __init__(self):
     super().__init__()

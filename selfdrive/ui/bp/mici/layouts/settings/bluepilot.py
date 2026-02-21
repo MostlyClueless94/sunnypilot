@@ -1,15 +1,11 @@
 import pyray as rl
 from collections.abc import Callable
 
-from openpilot.common.time_helpers import system_time_valid
 from openpilot.system.ui.widgets.scroller import Scroller
-from openpilot.selfdrive.ui.mici.widgets.button import BigButton, BigParamControl, BigMultiParamToggle, BigMultiToggle
-from openpilot.system.ui.widgets.label import gui_label, MiciLabel, UnifiedLabel
+from openpilot.selfdrive.ui.bp.mici.widgets.button_bp import BigButtonBP, BigParamControlBP, BigMultiToggleBP, BigMultiParamToggleBP
 from openpilot.selfdrive.ui.bp.mici.widgets.floatbutton import BigParamFloatControl
-from openpilot.selfdrive.ui.mici.widgets.dialog import BigDialogBase
-from openpilot.system.ui.lib.application import gui_app, MousePos
-from openpilot.system.ui.widgets import NavWidget, DialogResult
-from openpilot.selfdrive.ui.layouts.settings.common import restart_needed_callback
+from openpilot.system.ui.lib.application import gui_app
+from openpilot.system.ui.widgets import NavWidget
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.common.params import Params
 from openpilot.selfdrive.ui.bp.mici.widgets.web_server_qr_dialog import WebServerQRDialog
@@ -22,29 +18,28 @@ class BluePilotLayoutMici(NavWidget):
     self.lane_change_factor_high = float(self._params.get("lane_change_factor_high", return_default=True))
 
     # ******** Main Scroller ********
-    self.enable_web_routes = BigParamControl("enable web routes server", "BPPortalEnabled")
-    self.show_web_routes_qr = BigButton("show QR code", "", "icons_mici/settings/network/wifi_strength_full.png")
+    self.enable_web_routes = BigParamControlBP("enable web routes server", "BPPortalEnabled")
+    self.show_web_routes_qr = BigButtonBP("show QR code", "", "icons_mici/settings/network/wifi_strength_full.png")
     self.show_web_routes_qr.set_click_callback(self._show_qr_dialog)
-    self.show_hands_free_ui = BigParamControl("show hands-free ui", "send_hands_free_cluster_msg")
-    self.show_lead_vehicle = BigMultiParamToggle("Lower Right Display", "mici_complication", ["off", "lead car speed", "speed", "lead car distance", "time to lead car"])
-    self.show_brake_status = BigParamControl("show brake status", "ShowBrakeStatus")
-    self.show_blindspot_ui = BigParamControl("show blindspot warning", "BlindSpot")
-    self.rainbow_mode = BigParamControl("rainbow mode", "RainbowMode")
-    self.enable_human_turn_detection = BigParamControl("enable human turn detection", "enable_human_turn_detection")
+    self.show_hands_free_ui = BigParamControlBP("show hands-free ui", "send_hands_free_cluster_msg")
+    self.show_lead_vehicle = BigMultiParamToggleBP("Lower Right Display", "mici_complication", ["off", "lead car speed", "speed", "lead car distance", "time to lead car"])
+    self.show_brake_status = BigParamControlBP("show brake status", "ShowBrakeStatus")
+    self.show_blindspot_ui = BigParamControlBP("show blindspot warning", "Blindspot")
+    self.rainbow_mode = BigParamControlBP("rainbow mode", "RainbowMode")
+    self.enable_human_turn_detection = BigParamControlBP("enable human turn detection", "enable_human_turn_detection")
     self.lane_change_factor_high = BigParamFloatControl("lane change factor high", "lane_change_factor_high", min=0.5, max=1.0)
-    # BigParamControl does not support tint or is_active_param; BigParamFloatControl handles is_active_param via set_enabled
-    self.enable_lane_positioning = BigParamControl("enable lane positioning", "enable_lane_positioning")
-    self.custom_path_offset = BigParamFloatControl("in-lane offset", "custom_path_offset", is_active_param="enable_lane_positioning", min=-0.5, max=0.5)
-    self.enable_lane_full_mode = BigParamControl("enable lanefull mode", "enable_lane_full_mode")
-    self.custom_profile = BigParamControl("use custom tuning profile", "custom_profile")
+    self.enable_lane_positioning = BigParamControlBP("enable lane positioning", "enable_lane_positioning", tint=rl.GREEN)
+    self.custom_path_offset = BigParamFloatControl("in-lane offset", "custom_path_offset", is_active_param="enable_lane_positioning", min=-0.5, max=0.5, tint=rl.GREEN)
+    self.enable_lane_full_mode = BigParamControlBP("enable lanefull mode", "enable_lane_full_mode", is_active_param="enable_lane_positioning", tint=rl.GREEN)
+    self.custom_profile = BigParamControlBP("use custom tuning profile", "custom_profile", tint=rl.BLUE)
     self.pc_blend_ratio_high_C = BigParamFloatControl("predicted curvature blend ratio high", "pc_blend_ratio_high_C_UI", is_active_param="custom_profile", min=0.0, max=1.0, tint=rl.BLUE)
     self.pc_blend_ratio_low_C = BigParamFloatControl("predicted curvature blend ratio low", "pc_blend_ratio_low_C_UI", is_active_param="custom_profile", min=0.0, max=1.0, tint=rl.BLUE)
     self.LC_PID_gain = BigParamFloatControl("low curvature PID gain", "LC_PID_gain_UI", is_active_param="custom_profile", min=0.0, max=5.0, tint=rl.BLUE)
-    self.animate_steering_wheel = BigParamControl("animate steering wheel", "BPAnimateSteeringWheel")
-    self.hide_fade = BigParamControl("hide onroad fade", "mici_hide_onroad_fade")
-    self.hide_border = BigParamControl("hide screen border", "BPHideOnroadBorder")
-    self.disable_BP_lat = BigParamControl("disable BP lateral control", "disable_BP_lat_UI")
-    self.disable_BP_long = BigParamControl("bypass BP longitudinal control", "disable_BP_long_UI")
+    self.animate_steering_wheel = BigParamControlBP("animate steering wheel", "BPAnimateSteeringWheel")
+    self.hide_fade = BigParamControlBP("hide onroad fade", "mici_hide_onroad_fade")
+    self.hide_border = BigParamControlBP("hide screen border", "mici_hide_onroad_border")
+    self.disable_BP_lat = BigParamControlBP("disable BP lateral control", "disable_BP_lat_UI")
+    self.disable_BP_long = BigParamControlBP("bypass BP longitudinal control", "disable_BP_long_UI")
     self.vbatt_pause_charging = BigParamFloatControl("12V battery limit", "vbatt_pause_charging", min=11.0, max=14.0, step=0.1)
 
     def power_flow_callback(value: str):
@@ -59,7 +54,7 @@ class BluePilotLayoutMici(NavWidget):
           self._params.put_bool("FordPrefHybridPowerFlow", True)
           self._params.put_bool("FordPrefHybridPowerFlowAlternate", True)
 
-    self.show_hybrid_power_flow = BigMultiToggle("show hybrid/EV power flow", ["off", "bar", "circular"], select_callback=power_flow_callback)
+    self.show_hybrid_power_flow = BigMultiToggleBP("show hybrid/EV power flow", ["off", "bar", "circular"], select_callback=power_flow_callback)
 
     #self.charging_btn = BigButton("charging", "", "icons_mici/settings/charge_icon.png")
     #self.charging_btn.set_click_callback(lambda: self._show_charging_view())

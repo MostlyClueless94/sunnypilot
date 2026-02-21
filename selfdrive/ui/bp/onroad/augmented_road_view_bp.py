@@ -61,6 +61,10 @@ class AugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
     self._show_confidence_ball = self._bp_params.get_bool("BPShowConfidenceBall")
     self._param_counter = 0
 
+  def update_fade_out_bottom_overlay(self, _content_rect):
+    """BluePilot: Skip MICI fade overlay on TICI — causes unwanted black gradient at bottom."""
+    pass
+
   def _render(self, rect):
     """Override render to add blindspot, gauges, confidence ball on left, and speed_right passing."""
     start_draw = time.monotonic()

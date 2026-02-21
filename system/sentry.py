@@ -129,6 +129,7 @@ def init(project: SentryProject) -> bool:
   sentry_sdk.init(project.value,
                   default_integrations=False,
                   release=get_version(),
+                  enable_logs=True,
                   integrations=integrations,
                   traces_sample_rate=1.0,
                   max_value_length=8192,

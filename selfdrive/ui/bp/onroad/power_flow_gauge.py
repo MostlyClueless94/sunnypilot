@@ -7,7 +7,7 @@ Flat styling matching the battery gauge container.
 import numpy as np
 import pyray as rl
 
-from openpilot.common.filter_simple import FirstOrderFilter
+from openpilot.common.filter_simple import FirstOrderFilter, BounceFilter
 from openpilot.common.params import Params
 from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.ui.sunnypilot.onroad.developer_ui import DeveloperUiRenderer
@@ -37,6 +37,10 @@ BACKGROUND_PADDING = 15
 
 # Bar styling
 BAR_BG_COLOR = rl.Color(52, 73, 94, 200)
+BAR_INSET_COLOR = rl.Color(0, 0, 0, 40)
+BAR_BORDER_COLOR = rl.Color(189, 195, 199, 120)
+BAR_BORDER_THICKNESS = 1.5
+BAR_HIGHLIGHT_ALPHA = 30  # Top-half highlight on active fill
 BAR_ROUND_RADIUS = 28.0  # Rounded track ends
 BAR_MARGIN = 8
 
@@ -79,9 +83,9 @@ class PowerFlowGauge(Widget):
     self._params = Params()
     self._font_bold = gui_app.font(FontWeight.BOLD)
 
-    # Smooth filters
-    self._powerflow_filter = FirstOrderFilter(0.0, 0.5, 1.0 / gui_app.target_fps)
-    self._bracket_scale_filter = FirstOrderFilter(1.0, 0.15, 1.0 / gui_app.target_fps)
+    # Smooth filters — low RC for snappy response (Qt used raw values with no filter)
+    self._powerflow_filter = FirstOrderFilter(0.0, 0.05, 1.0 / gui_app.target_fps)
+    self._bracket_scale_filter = BounceFilter(1.0, 0.08, 1.0 / gui_app.target_fps, bounce=3)
 
     # State
     self._power_flow_mode_value = 0
@@ -283,59 +287,75 @@ class PowerFlowGauge(Widget):
     # Track background
     if is_ev and threshold > 0:
       ev_width = bar_rect.width * (threshold / 100.0)
-      ev_rect = rl.Rectangle(
+      track_rect = rl.Rectangle(
         center_x - ev_width / 2, bar_rect.y,
         ev_width, bar_rect.height,
       )
-      rl.draw_rectangle_rounded(ev_rect, roundness, 10, BAR_BG_COLOR)
+      rl.draw_rectangle_rounded(track_rect, roundness, 10, BAR_BG_COLOR)
     else:
+      track_rect = bar_rect
       rl.draw_rectangle_rounded(bar_rect, roundness, 10, BAR_BG_COLOR)
 
-    # Active fill bar — flat inner edge (center-facing), rounded outer edge only
+    # Inset shadow inside track (matches Qt)
+    inset_rect = rl.Rectangle(track_rect.x + 2, track_rect.y + 2, track_rect.width - 4, track_rect.height - 4)
+    inset_roundness = min(1.0, max(0, BAR_ROUND_RADIUS - 2) / max(1, inset_rect.height))
+    rl.draw_rectangle_rounded(inset_rect, inset_roundness, 10, BAR_INSET_COLOR)
+
+    # Light border around bar track
+    rl.draw_rectangle_rounded_lines_ex(track_rect, roundness, 10, BAR_BORDER_THICKNESS, BAR_BORDER_COLOR)
+
+    # Active fill bar — mirrored from center, rounded outer edges, flat at center
     if abs(value) > 0.005:
       fill_half_width = bar_rect.width * abs(value) / 2
       if value < 0:
         fill_color = COLOR_REGEN
-        # Regen: fills leftward from center. Outer edge = left side.
-        # Draw a wider rounded rect that extends past center so only the left end shows rounding
-        overshoot = bar_rect.height  # extend right side past center to hide its rounding
-        rounded_rect = rl.Rectangle(
-          center_x - fill_half_width, bar_rect.y,
-          fill_half_width + overshoot, bar_rect.height,
-        )
-        # Clip to the actual fill area so the overshoot is hidden
-        bp_ui_log.scissor("PowerFlowGauge", "begin",
-                           x=int(center_x - fill_half_width), y=int(bar_rect.y),
-                           w=int(fill_half_width), h=int(bar_rect.height))
-        rl.begin_scissor_mode(
-          int(center_x - fill_half_width), int(bar_rect.y),
-          int(fill_half_width), int(bar_rect.height),
-        )
-        if rounded_rect.width > 0:
-          rl.draw_rectangle_rounded(rounded_rect, roundness, 10, fill_color)
-        rl.end_scissor_mode()
-        bp_ui_log.scissor("PowerFlowGauge", "end")
       else:
         fill_color = self._get_demand_color(value, is_ev)
-        # Demand: fills rightward from center. Outer edge = right side.
-        # Draw a wider rounded rect that extends past center so only the right end shows rounding
-        overshoot = bar_rect.height  # extend left side past center to hide its rounding
-        rounded_rect = rl.Rectangle(
-          center_x - overshoot, bar_rect.y,
-          fill_half_width + overshoot, bar_rect.height,
-        )
-        # Clip to the actual fill area so the overshoot is hidden
-        bp_ui_log.scissor("PowerFlowGauge", "begin",
-                           x=int(center_x), y=int(bar_rect.y),
-                           w=int(fill_half_width), h=int(bar_rect.height))
-        rl.begin_scissor_mode(
-          int(center_x), int(bar_rect.y),
-          int(fill_half_width), int(bar_rect.height),
-        )
-        if rounded_rect.width > 0:
-          rl.draw_rectangle_rounded(rounded_rect, roundness, 10, fill_color)
-        rl.end_scissor_mode()
-        bp_ui_log.scissor("PowerFlowGauge", "end")
+      overshoot = bar_rect.height
+
+      # Left half: rounded left end, clipped flat at center
+      rounded_rect_l = rl.Rectangle(
+        center_x - fill_half_width, bar_rect.y,
+        fill_half_width + overshoot, bar_rect.height,
+      )
+      bp_ui_log.scissor("PowerFlowGauge", "begin",
+                         x=int(center_x - fill_half_width), y=int(bar_rect.y),
+                         w=int(fill_half_width), h=int(bar_rect.height))
+      rl.begin_scissor_mode(
+        int(center_x - fill_half_width), int(bar_rect.y),
+        int(fill_half_width), int(bar_rect.height),
+      )
+      if rounded_rect_l.width > 0:
+        rl.draw_rectangle_rounded(rounded_rect_l, roundness, 10, fill_color)
+      rl.end_scissor_mode()
+      bp_ui_log.scissor("PowerFlowGauge", "end")
+
+      # Right half: clipped flat at center, rounded right end
+      rounded_rect_r = rl.Rectangle(
+        center_x - overshoot, bar_rect.y,
+        fill_half_width + overshoot, bar_rect.height,
+      )
+      bp_ui_log.scissor("PowerFlowGauge", "begin",
+                         x=int(center_x), y=int(bar_rect.y),
+                         w=int(fill_half_width), h=int(bar_rect.height))
+      rl.begin_scissor_mode(
+        int(center_x), int(bar_rect.y),
+        int(fill_half_width), int(bar_rect.height),
+      )
+      if rounded_rect_r.width > 0:
+        rl.draw_rectangle_rounded(rounded_rect_r, roundness, 10, fill_color)
+      rl.end_scissor_mode()
+      bp_ui_log.scissor("PowerFlowGauge", "end")
+
+      # Top-half highlight on active fill for 3D effect (matches Qt)
+      fill_rect_full = rl.Rectangle(
+        center_x - fill_half_width, bar_rect.y + 2,
+        fill_half_width * 2, bar_rect.height // 2 - 2,
+      )
+      rl.draw_rectangle_rounded(
+        fill_rect_full, roundness, 10,
+        rl.Color(255, 255, 255, BAR_HIGHLIGHT_ALPHA),
+      )
 
     # Center line
     rl.draw_line_ex(
@@ -392,7 +412,7 @@ class PowerFlowGauge(Widget):
 
       # Top bracket: horizontal + vertical
       rl.draw_line_ex(
-        rl.Vector2(bx + side * bracket_width, bar_rect.y + 1),
+        rl.Vector2(bx - side * bracket_width, bar_rect.y + 1),
         rl.Vector2(bx, bar_rect.y + 1),
         line_thick, bracket_color,
       )
@@ -404,7 +424,7 @@ class PowerFlowGauge(Widget):
 
       # Bottom bracket: horizontal + vertical
       rl.draw_line_ex(
-        rl.Vector2(bx + side * bracket_width, bar_rect.y + bar_rect.height - 1),
+        rl.Vector2(bx - side * bracket_width, bar_rect.y + bar_rect.height - 1),
         rl.Vector2(bx, bar_rect.y + bar_rect.height - 1),
         line_thick, bracket_color,
       )

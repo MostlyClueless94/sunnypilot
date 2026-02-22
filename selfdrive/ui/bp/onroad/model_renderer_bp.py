@@ -389,6 +389,7 @@ class ModelRendererBP(ModelRenderer):
 
   def _draw_path(self, sm):
     """Draw path with status-colored edges."""
+    bp_ui_log.state("ModelRendererBP", "draw_path_experimental", self._experimental_mode)
 
     if ui_state.rainbow_path:
       draw_polygon(self._rect, self._path.projected_points, rainbow=True, rainbow_v=self._rainbow_v)

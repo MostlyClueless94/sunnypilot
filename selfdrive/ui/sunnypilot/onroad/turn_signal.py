@@ -79,9 +79,7 @@ class TurnSignalController:
 
   @staticmethod
   def _update_signal(signal, blindspot, blinker):
-    if ui_state.blindspot and blindspot:
-      signal.activate('blind_spot')
-    elif ui_state.turn_signals and blinker:
+    if ui_state.turn_signals and blinker:
       signal.activate('signal')
     else:
       signal.deactivate()
@@ -93,7 +91,7 @@ class TurnSignalController:
     self._update_signal(self._right_signal, CS.rightBlindspot, CS.rightBlinker)
 
   def render(self, rect: rl.Rectangle):
-    if not ui_state.turn_signals and not ui_state.blindspot:
+    if not ui_state.turn_signals:
       return
 
     x = rect.x + rect.width / 2

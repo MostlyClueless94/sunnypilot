@@ -73,6 +73,7 @@ TEXT_COLOR = rl.Color(236, 240, 241, 220)
 FULL_CONTENT_WIDTH = 2100.0
 PARAM_REFRESH_FRAMES = 60
 BORDER_THICKNESS = 2.0
+VISIBILITY_HOLD_FRAMES = 20
 
 
 class PowerFlowGauge(Widget):
@@ -96,6 +97,14 @@ class PowerFlowGauge(Widget):
     self._powerflow_enabled = False
     self._gauge_size = 1
     self._param_frame_counter = PARAM_REFRESH_FRAMES
+    self._last_visible_frame = -1
+
+  def _current_ui_frame(self) -> int:
+    """Best-effort UI frame number for short visibility hysteresis."""
+    try:
+      return int(ui_state.sm.frame)
+    except (AttributeError, TypeError, ValueError):
+      return -1
 
   # --- State updates ---
 
@@ -136,19 +145,31 @@ class PowerFlowGauge(Widget):
     if not self._powerflow_enabled:
       bp_ui_log.visibility("PowerFlowGauge", False, reason="param_disabled")
       return False
+    frame_id = self._current_ui_frame()
+    available = False
+    reason = "unknown"
     try:
       if "carStateBP" not in ui_state.sm.recv_frame:
-        bp_ui_log.visibility("PowerFlowGauge", False, reason="no_recv_frame")
-        return False
-      if ui_state.sm.recv_frame["carStateBP"] < ui_state.started_frame:
-        bp_ui_log.visibility("PowerFlowGauge", False, reason=f"stale_frame recv={ui_state.sm.recv_frame['carStateBP']} started={ui_state.started_frame}")
-        return False
-      available = ui_state.sm["carStateBP"].hybridDrive.dataAvailable
-      bp_ui_log.visibility("PowerFlowGauge", available, reason=f"dataAvailable={available}")
-      return available
+        reason = "no_recv_frame"
+      elif ui_state.sm.recv_frame["carStateBP"] < ui_state.started_frame:
+        reason = f"stale_frame recv={ui_state.sm.recv_frame['carStateBP']} started={ui_state.started_frame}"
+      else:
+        available = bool(ui_state.sm["carStateBP"].hybridDrive.dataAvailable)
+        reason = f"dataAvailable={available}"
     except (KeyError, AttributeError, TypeError) as e:
-      bp_ui_log.visibility("PowerFlowGauge", False, reason=f"exception: {e}")
-      return False
+      reason = f"exception: {e}"
+
+    if available:
+      self._last_visible_frame = frame_id
+      bp_ui_log.visibility("PowerFlowGauge", True, reason=reason)
+      return True
+
+    if frame_id >= 0 and self._last_visible_frame >= 0 and (frame_id - self._last_visible_frame) <= VISIBILITY_HOLD_FRAMES:
+      bp_ui_log.visibility("PowerFlowGauge", True, reason=f"{reason}; hold={frame_id - self._last_visible_frame}/{VISIBILITY_HOLD_FRAMES}")
+      return True
+
+    bp_ui_log.visibility("PowerFlowGauge", False, reason=reason)
+    return False
 
   def _update_bracket_animation(self, current_value, threshold):
     """Smooth bracket scale animation when demand approaches EV threshold."""
@@ -206,8 +227,10 @@ class PowerFlowGauge(Widget):
     """
     self._update_state()
     if not self._should_render():
+      bp_ui_log.state("PowerFlowGauge", "render_at_drawing", False)
       return
 
+    bp_ui_log.state("PowerFlowGauge", "render_at_drawing", True)
     try:
       if draw_background:
         self._draw_background(gauge_rect)
@@ -318,34 +341,37 @@ class PowerFlowGauge(Widget):
         center_x - fill_half_width, bar_rect.y,
         fill_half_width + overshoot, bar_rect.height,
       )
-      bp_ui_log.scissor("PowerFlowGauge", "begin",
-                         x=int(center_x - fill_half_width), y=int(bar_rect.y),
-                         w=int(fill_half_width), h=int(bar_rect.height))
-      rl.begin_scissor_mode(
-        int(center_x - fill_half_width), int(bar_rect.y),
-        int(fill_half_width), int(bar_rect.height),
-      )
-      if rounded_rect_l.width > 0:
-        rl.draw_rectangle_rounded(rounded_rect_l, roundness, 10, fill_color)
-      rl.end_scissor_mode()
-      bp_ui_log.scissor("PowerFlowGauge", "end")
+      scissor_w = int(fill_half_width)
+      scissor_h = int(bar_rect.height)
+      if scissor_w > 0 and scissor_h > 0:
+        bp_ui_log.scissor("PowerFlowGauge", "begin",
+                           x=int(center_x - fill_half_width), y=int(bar_rect.y),
+                           w=scissor_w, h=scissor_h)
+        rl.begin_scissor_mode(
+          int(center_x - fill_half_width), int(bar_rect.y),
+          scissor_w, scissor_h,
+        )
+        if rounded_rect_l.width > 0:
+          rl.draw_rectangle_rounded(rounded_rect_l, roundness, 10, fill_color)
+        rl.end_scissor_mode()
+        bp_ui_log.scissor("PowerFlowGauge", "end")
 
-      # Right half: clipped flat at center, rounded right end
-      rounded_rect_r = rl.Rectangle(
-        center_x - overshoot, bar_rect.y,
-        fill_half_width + overshoot, bar_rect.height,
-      )
-      bp_ui_log.scissor("PowerFlowGauge", "begin",
-                         x=int(center_x), y=int(bar_rect.y),
-                         w=int(fill_half_width), h=int(bar_rect.height))
-      rl.begin_scissor_mode(
-        int(center_x), int(bar_rect.y),
-        int(fill_half_width), int(bar_rect.height),
-      )
-      if rounded_rect_r.width > 0:
-        rl.draw_rectangle_rounded(rounded_rect_r, roundness, 10, fill_color)
-      rl.end_scissor_mode()
-      bp_ui_log.scissor("PowerFlowGauge", "end")
+        # Right half: clipped flat at center, rounded right end
+        rounded_rect_r = rl.Rectangle(
+          center_x - overshoot, bar_rect.y,
+          fill_half_width + overshoot, bar_rect.height,
+        )
+        bp_ui_log.scissor("PowerFlowGauge", "begin",
+                           x=int(center_x), y=int(bar_rect.y),
+                           w=scissor_w, h=scissor_h)
+        rl.begin_scissor_mode(
+          int(center_x), int(bar_rect.y),
+          scissor_w, scissor_h,
+        )
+        if rounded_rect_r.width > 0:
+          rl.draw_rectangle_rounded(rounded_rect_r, roundness, 10, fill_color)
+        rl.end_scissor_mode()
+        bp_ui_log.scissor("PowerFlowGauge", "end")
 
       # Top-half highlight on active fill for 3D effect (matches Qt)
       fill_rect_full = rl.Rectangle(

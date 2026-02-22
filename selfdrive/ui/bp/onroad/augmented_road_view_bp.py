@@ -9,7 +9,6 @@ from openpilot.selfdrive.ui.bp.onroad.blindspot_renderer import BlindspotRendere
 from openpilot.selfdrive.ui.bp.onroad.hud_renderer_bp import HudRendererBP
 from openpilot.selfdrive.ui.bp.onroad.alert_renderer_bp import AlertRendererBP
 from openpilot.selfdrive.ui.bp.onroad.model_renderer_bp import ModelRendererBP
-from openpilot.selfdrive.ui.bp.onroad.driver_state_renderer_bp import DriverStateRendererBP
 from openpilot.selfdrive.ui.bp.onroad.hybrid_battery_gauge import HybridBatteryGauge
 from openpilot.selfdrive.ui.bp.onroad.power_flow_gauge import PowerFlowGauge
 from openpilot.selfdrive.ui.bp.onroad.torque_bar_renderer_bp import TorqueBarRendererBP
@@ -52,7 +51,6 @@ class AugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
     self.model_renderer = ModelRendererBP()
     self._hud_renderer = HudRendererBP()
     self.alert_renderer = AlertRendererBP()
-    self.driver_state_renderer = DriverStateRendererBP()
     self._battery_gauge_bp = HybridBatteryGauge()
     self._power_flow_gauge = PowerFlowGauge()
 
@@ -160,11 +158,6 @@ class AugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
       int(self._content_rect.width),
       int(self._content_rect.height)
     )
-
-    # BluePilot: Log experimental mode state for gauge visibility debugging
-    exp_mode = ui_state.sm['selfdriveState'].experimentalMode if ui_state.sm.valid.get('selfdriveState', False) else False
-    bp_ui_log.state("AugRoadView", "experimental_mode", exp_mode)
-
     self.driver_state_renderer.render(ui_rect)
 
     # BluePilot: Update torque bar filter state (once per frame, before _render_gauges uses it)
@@ -233,12 +226,6 @@ class AugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
     hybrid_active = battery_rect is not None or pf_visible
     torque_strip_visible = ui_state.torque_bar and hybrid_active
 
-    # Debug: log gauge visibility decision details
-    bp_ui_log.state("_render_gauges", "battery_rect_exists", battery_rect is not None)
-    bp_ui_log.state("_render_gauges", "pf_visible", pf_visible)
-    bp_ui_log.state("_render_gauges", "dm_center_y", round(dm_center_y))
-    bp_ui_log.state("_render_gauges", "content_bottom", round(content_bottom))
-
     # Strip adds height to the container when visible
     strip_allocation = (TORQUE_STRIP_HEIGHT + TORQUE_STRIP_GAP) if torque_strip_visible else 0
 
@@ -247,7 +234,6 @@ class AugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
 
     if battery_rect is not None and pf_visible:
       # Both gauges visible: horizontally center the combined container
-      bp_ui_log.state("_render_gauges", "render_branch", "both")
       pf_rect = self._power_flow_gauge.get_gauge_rect(
         content_rect, sidebar_visible, self._show_confidence_ball,
       )
@@ -304,7 +290,6 @@ class AugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
 
     elif pf_visible:
       # Only power flow visible: shared container with optional strip
-      bp_ui_log.state("_render_gauges", "render_branch", "pf_only")
       pf_rect = self._power_flow_gauge.get_gauge_rect(
         content_rect, sidebar_visible, self._show_confidence_ball,
       )
@@ -339,7 +324,6 @@ class AugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
 
     elif battery_rect is not None:
       # Only battery visible
-      bp_ui_log.state("_render_gauges", "render_branch", "bat_only")
       if torque_strip_visible:
         # Wrap battery + strip in a shared container
         total_height = battery_rect.height + strip_allocation
@@ -372,9 +356,6 @@ class AugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
         battery_center_y = battery_rect.y + battery_rect.height / 2
         y_shift = dm_center_y - battery_center_y
         self._battery_gauge_bp.render(content_rect, left_offset, y_offset=y_shift)
-
-    if not hybrid_active:
-      bp_ui_log.state("_render_gauges", "render_branch", "none")
 
     # Return offset and whether hybrid gauges were active
     return max(0.0, content_bottom - gauge_top), hybrid_active

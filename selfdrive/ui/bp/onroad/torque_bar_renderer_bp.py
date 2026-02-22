@@ -330,22 +330,24 @@ class TorqueBarRendererBP:
           center_x - fill_half_width, strip_rect.y,
           fill_half_width + overshoot, strip_rect.height,
         )
-        scissor_x = int(center_x - fill_half_width)
+        rl.begin_scissor_mode(
+          int(center_x - fill_half_width), int(strip_rect.y),
+          int(fill_half_width), int(strip_rect.height),
+        )
       else:
         # Right fill
         rounded_rect = rl.Rectangle(
           center_x - overshoot, strip_rect.y,
           fill_half_width + overshoot, strip_rect.height,
         )
-        scissor_x = int(center_x)
+        rl.begin_scissor_mode(
+          int(center_x), int(strip_rect.y),
+          int(fill_half_width), int(strip_rect.height),
+        )
 
-      scissor_w = int(fill_half_width)
-      scissor_h = int(strip_rect.height)
-      if scissor_w > 0 and scissor_h > 0:
-        rl.begin_scissor_mode(scissor_x, int(strip_rect.y), scissor_w, scissor_h)
-        if rounded_rect.width > 0:
-          rl.draw_rectangle_rounded(rounded_rect, roundness, STRIP_CORNER_SEGMENTS, fill_color)
-        rl.end_scissor_mode()
+      if rounded_rect.width > 0:
+        rl.draw_rectangle_rounded(rounded_rect, roundness, STRIP_CORNER_SEGMENTS, fill_color)
+      rl.end_scissor_mode()
 
     # --- Center tick ---
     center_x = strip_rect.x + strip_rect.width / 2

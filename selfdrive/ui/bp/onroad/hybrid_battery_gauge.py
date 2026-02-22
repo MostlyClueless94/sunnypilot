@@ -59,7 +59,6 @@ CHARGING_COLOR = rl.Color(100, 255, 100, 255)
 DISCHARGING_COLOR = rl.Color(255, 100, 100, 255)
 
 PARAM_REFRESH_FRAMES = 60
-VISIBILITY_HOLD_FRAMES = 20
 
 
 class HybridBatteryGauge(Widget):
@@ -81,14 +80,6 @@ class HybridBatteryGauge(Widget):
     # Gauge size param
     self._gauge_size = 1
     self._param_frame_counter = PARAM_REFRESH_FRAMES
-    self._last_visible_frame = -1
-
-  def _current_ui_frame(self) -> int:
-    """Best-effort UI frame number for short visibility hysteresis."""
-    try:
-      return int(ui_state.sm.frame)
-    except (AttributeError, TypeError, ValueError):
-      return -1
 
   def _update_state(self):
     """Update battery state and animate SOC changes"""
@@ -112,34 +103,21 @@ class HybridBatteryGauge(Widget):
       return False
 
     sm = ui_state.sm
-    frame_id = self._current_ui_frame()
-    available = False
-    reason = "unknown"
     try:
       if "carStateBP" not in sm.recv_frame:
-        reason = "no_recv_frame"
-      else:
-        recv_frame = sm.recv_frame["carStateBP"]
-        if recv_frame < ui_state.started_frame:
-          reason = f"stale_frame recv={recv_frame} started={ui_state.started_frame}"
-        else:
-          car_state_bp = sm['carStateBP']
-          available = bool(car_state_bp.hybridBattery.dataAvailable)
-          reason = f"dataAvailable={available}"
+        bp_ui_log.visibility("HybridBattery", False, reason="no_recv_frame")
+        return False
+      recv_frame = sm.recv_frame["carStateBP"]
+      if recv_frame < ui_state.started_frame:
+        bp_ui_log.visibility("HybridBattery", False, reason=f"stale_frame recv={recv_frame} started={ui_state.started_frame}")
+        return False
+      car_state_bp = sm['carStateBP']
+      available = car_state_bp.hybridBattery.dataAvailable
+      bp_ui_log.visibility("HybridBattery", available, reason=f"dataAvailable={available}")
+      return available
     except (KeyError, AttributeError, TypeError) as e:
-      reason = f"exception: {e}"
-
-    if available:
-      self._last_visible_frame = frame_id
-      bp_ui_log.visibility("HybridBattery", True, reason=reason)
-      return True
-
-    if frame_id >= 0 and self._last_visible_frame >= 0 and (frame_id - self._last_visible_frame) <= VISIBILITY_HOLD_FRAMES:
-      bp_ui_log.visibility("HybridBattery", True, reason=f"{reason}; hold={frame_id - self._last_visible_frame}/{VISIBILITY_HOLD_FRAMES}")
-      return True
-
-    bp_ui_log.visibility("HybridBattery", False, reason=reason)
-    return False
+      bp_ui_log.visibility("HybridBattery", False, reason=f"exception: {e}")
+      return False
 
   def _get_battery_data(self):
     """Get battery data from carStateBP message"""
@@ -215,10 +193,7 @@ class HybridBatteryGauge(Widget):
     self._draw_background_flag = draw_background
     self._update_state()
     if self._should_render():
-      bp_ui_log.state("HybridBattery", "render_at_drawing", True)
       self._render(rect)
-    else:
-      bp_ui_log.state("HybridBattery", "render_at_drawing", False)
 
   def get_bounding_rect(self, rect: rl.Rectangle, left_offset: int = 0,
                        x_offset: float = 0.0, y_offset: float = 0.0):

@@ -44,8 +44,8 @@ BACKGROUND_GLOW_EXPANSION = 4
 FULL_CONTENT_WIDTH = 2100.0
 
 # Target heights for each gauge size tier (matching power flow gauge)
-# Small (1) = default, matches original gauge size; Large (2) = bigger
-GAUGE_SIZE_HEIGHTS = {1: 120, 2: 155}
+# Small (1) = previous large; Large (2) = new bigger tier
+GAUGE_SIZE_HEIGHTS = {1: 155, 2: 195}
 
 # Colors
 BACKGROUND_BOX_COLOR = rl.Color(20, 20, 20, 100)

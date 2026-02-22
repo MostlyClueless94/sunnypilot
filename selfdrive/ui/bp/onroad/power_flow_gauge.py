@@ -19,14 +19,14 @@ from opendbc.car.ford.helpers import get_hev_engine_on_reason_text, get_hev_powe
 from openpilot.selfdrive.ui.bp.lib.ui_debug_logger import bp_ui_log
 
 # --- Size presets (width_ratio, height) for each gauge_scale ---
-# Small (1) = default, matches original gauge size; Large (2) = bigger
+# Small (1) = previous large; Large (2) = new bigger tier; bar_ratio reduced for a thinner bar
 SIZE_PRESETS = {
-    1: {"width_ratio": 0.25, "height": 120, "font_size": 26, "bar_ratio": 0.50},
-    2: {"width_ratio": 0.32, "height": 155, "font_size": 30, "bar_ratio": 0.50},
+    1: {"width_ratio": 0.32, "height": 155, "font_size": 30, "bar_ratio": 0.40},
+    2: {"width_ratio": 0.38, "height": 195, "font_size": 34, "bar_ratio": 0.40},
 }
 SIZE_PRESETS_SIDEBAR = {
-    1: {"width_ratio": 0.22, "height": 120, "font_size": 26, "bar_ratio": 0.50},
-    2: {"width_ratio": 0.28, "height": 155, "font_size": 30, "bar_ratio": 0.50},
+    1: {"width_ratio": 0.28, "height": 155, "font_size": 30, "bar_ratio": 0.40},
+    2: {"width_ratio": 0.34, "height": 195, "font_size": 34, "bar_ratio": 0.40},
 }
 
 # Background (matching battery gauge style)

@@ -112,7 +112,6 @@ class DriverStateRenderer(Widget):
     if not self.is_visible:
       return
 
-
     # Get monitoring state
     dm_state = sm["driverMonitoringState"]
     self.is_active = dm_state.isActiveMode

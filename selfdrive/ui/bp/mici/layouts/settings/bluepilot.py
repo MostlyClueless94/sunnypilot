@@ -35,6 +35,8 @@ class BluePilotLayoutMici(NavWidget):
     self.pc_blend_ratio_high_C = BigParamFloatControl("predicted curvature blend ratio high", "pc_blend_ratio_high_C_UI", is_active_param="custom_profile", min=0.0, max=1.0, tint=rl.BLUE)
     self.pc_blend_ratio_low_C = BigParamFloatControl("predicted curvature blend ratio low", "pc_blend_ratio_low_C_UI", is_active_param="custom_profile", min=0.0, max=1.0, tint=rl.BLUE)
     self.LC_PID_gain = BigParamFloatControl("low curvature PID gain", "LC_PID_gain_UI", is_active_param="custom_profile", min=0.0, max=5.0, tint=rl.BLUE)
+    self.disable_lane_change_under_speed = BigParamControlBP("disable auto lane change under speed", "BlinkerPauseLaneChange")
+    self.blinker_min_speed = BigParamFloatControl("blinker min lane change speed", "BlinkerMinLateralControlSpeed", min=5, max=50, step=5.0)
     self.animate_steering_wheel = BigParamControlBP("animate steering wheel", "BPAnimateSteeringWheel")
     self.hide_fade = BigParamControlBP("hide onroad fade", "mici_hide_onroad_fade")
     self.hide_border = BigParamControlBP("hide screen border", "mici_hide_onroad_border")
@@ -71,6 +73,8 @@ class BluePilotLayoutMici(NavWidget):
       self.rainbow_mode,
       self.enable_human_turn_detection,
       self.lane_change_factor_high,
+      self.disable_lane_change_under_speed,
+      self.blinker_min_speed,
       self.enable_lane_positioning,
       self.custom_path_offset,
       self.enable_lane_full_mode,
@@ -96,6 +100,7 @@ class BluePilotLayoutMici(NavWidget):
       ("ShowBlindspotOverlay", self.show_blindspot_ui),
       ("RainbowMode", self.rainbow_mode),
       ("enable_human_turn_detection", self.enable_human_turn_detection),
+      ("BlinkerPauseLaneChange", self.disable_lane_change_under_speed),
       ("enable_lane_positioning", self.enable_lane_positioning),
       ("enable_lane_full_mode", self.enable_lane_full_mode),
       ("custom_profile", self.custom_profile),

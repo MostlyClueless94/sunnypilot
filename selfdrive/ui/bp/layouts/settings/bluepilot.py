@@ -36,7 +36,7 @@ class BluePilotLayout(Widget):
     # Toggle refresh list
     self._refresh_toggles = (
       ("send_hands_free_cluster_msg", self._show_hands_free_ui),
-      ("BlindSpot", self._show_blindspot),
+      ("ShowBlindspotOverlay", self._show_blindspot),
       ("ShowBrakeStatus", self._show_brake_status),
       ("BPHideOnroadBorder", self._hide_onroad_border),
       ("BPShowConfidenceBall", self._show_confidence_ball),
@@ -67,12 +67,12 @@ class BluePilotLayout(Widget):
       icon="monitoring.png"
     )
 
-    # Blindspot overlay toggle
+    # Blindspot overlay toggle (BluePilot red edge overlay; SunnyPilot BSM is controlled by Visuals → BlindSpot)
     self._show_blindspot = toggle_item(
       lambda: tr("Show Blindspot Overlay"),
       lambda: tr("Display red overlay when vehicle is detected in blindspot."),
-      initial_state=self._params.get_bool("BlindSpot"),
-      callback=lambda state: self._toggle_callback(state, "BlindSpot"),
+      initial_state=self._params.get_bool("ShowBlindspotOverlay"),
+      callback=lambda state: self._toggle_callback(state, "ShowBlindspotOverlay"),
       icon="warning.png"
     )
 

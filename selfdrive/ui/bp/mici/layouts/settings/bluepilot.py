@@ -34,7 +34,14 @@ class BluePilotLayoutMici(NavWidget):
     self.custom_profile = BigParamControlBP("use custom tuning profile", "custom_profile", tint=rl.BLUE)
     self.pc_blend_ratio_high_C = BigParamFloatControl("predicted curvature blend ratio high", "pc_blend_ratio_high_C_UI", is_active_param="custom_profile", min=0.0, max=1.0, tint=rl.BLUE)
     self.pc_blend_ratio_low_C = BigParamFloatControl("predicted curvature blend ratio low", "pc_blend_ratio_low_C_UI", is_active_param="custom_profile", min=0.0, max=1.0, tint=rl.BLUE)
-    self.LC_PID_gain = BigParamFloatControl("low curvature PID gain", "LC_PID_gain_UI", is_active_param="custom_profile", min=0.0, max=5.0, tint=rl.BLUE)
+    self.LC_PID_gain = BigParamFloatControl(
+      "low curvature PID gain",
+      "LC_PID_gain_UI",
+      is_active=lambda: self._params.get_bool("enable_lane_positioning") and self._params.get_bool("custom_profile"),
+      min=0.0,
+      max=5.0,
+      tint=rl.BLUE,
+    )
     self.disable_lane_change_under_speed = BigParamControlBP("disable auto lane change under speed", "BlinkerPauseLaneChange")
     self.blinker_min_speed = BigParamIntControl("blinker min lane change speed", "BlinkerMinLateralControlSpeed", min=5, max=50, step=5.0)
     self.animate_steering_wheel = BigParamControlBP("animate steering wheel", "BPAnimateSteeringWheel")
@@ -140,14 +147,30 @@ class BluePilotLayoutMici(NavWidget):
     self.hybrid_power_flow_style._load_value()
 
   def _update_buttons(self):
-    """Update button enabled state based on server status."""
+    """Update button enabled state based on server status and parameter dependencies (see MICI_MENU.csv)."""
     ui_state.update_params()
+    p = self._params
+
+    # Web routes QR: only when server enabled
     server_enabled = ui_state.params.get_bool("EnableWebRoutesServer")
     self.show_web_routes_qr.set_enabled(server_enabled)
 
-    # Hybrid power flow style (flat/round): only active when power flow is enabled
-    power_flow_enabled = self._params.get_bool("FordPrefHybridPowerFlow")
+    # Hybrid/EV power flow style (flat/round): only when power flow is enabled
+    power_flow_enabled = p.get_bool("FordPrefHybridPowerFlow")
     self.hybrid_power_flow_style.set_enabled(power_flow_enabled)
+
+    # Lane positioning–dependent controls (prereq: Enable Advanced Lane Positioning)
+    lane_positioning_enabled = p.get_bool("enable_lane_positioning")
+    self.custom_path_offset.set_enabled(lane_positioning_enabled)
+    self.enable_lane_full_mode.set_enabled(lane_positioning_enabled)
+
+    # Custom profile–dependent controls (prereq: Use Custom Tuning Profile)
+    custom_profile_enabled = p.get_bool("custom_profile")
+    self.pc_blend_ratio_high_C.set_enabled(custom_profile_enabled)
+    self.pc_blend_ratio_low_C.set_enabled(custom_profile_enabled)
+
+    # Low Curvature PID Gain: requires BOTH lane positioning AND custom profile
+    self.LC_PID_gain.set_enabled(lane_positioning_enabled and custom_profile_enabled)
 
   def _update_toggles(self):
     ui_state.update_params()

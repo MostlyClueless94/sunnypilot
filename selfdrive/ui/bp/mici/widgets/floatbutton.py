@@ -1,5 +1,6 @@
 
 import pyray as rl
+from collections.abc import Callable
 from openpilot.selfdrive.ui.bp.mici.widgets.button_bp import BigButtonBP
 from openpilot.selfdrive.ui.bp.mici.widgets.big_input_dialog_bp import BigInputDialogBP
 from openpilot.common.params import Params
@@ -11,8 +12,12 @@ LINE_W = 8
 LABEL_HORIZONTAL_PADDING = 40
 
 class BigParamFloatControl(BigButtonBP):
-  def __init__(self, text: str, param: str, is_active_param: str = None, min: float = None, max: float = None, step: float = 0.05, tint: rl.Color = rl.WHITE):
-    super().__init__(text, "", tint=tint, is_active=(lambda: Params().get_bool(is_active_param)) if is_active_param is not None else None)
+  def __init__(self, text: str, param: str, is_active_param: str = None, is_active: Callable[[], bool] = None,
+               min: float = None, max: float = None, step: float = 0.05, tint: rl.Color = rl.WHITE):
+    active_fn = is_active
+    if active_fn is None and is_active_param is not None:
+      active_fn = lambda: Params().get_bool(is_active_param)
+    super().__init__(text, "", tint=tint, is_active=active_fn)
     self.min = min
     self.max = max
     self.step = step

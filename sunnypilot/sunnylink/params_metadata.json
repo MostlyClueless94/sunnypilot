@@ -1385,8 +1385,12 @@
     "description": "Sets the visual style of the hybrid/EV power flow and battery gauges (e.g. flat)."
   },
   "FordPrefHybridPowerFlowAlternate": {
-    "title": "BluePilot: Use Alternate Hybrid/EV Power Flow (C3X, C4)",
-    "description": "C3X: display power flow around the steering wheel. C4: circular gauge around steering wheel when on; off uses the bar layout."
+    "title": "BluePilot: Hybrid/EV Power Flow Style (C4)",
+    "description": "Flat: horizontal bar. Round: circular gauge around steering wheel.",
+    "options": [
+      {"value": 0, "label": "Flat"},
+      {"value": 1, "label": "Round"}
+    ]
   },
   "ShowBrakeStatus": {
     "title": "BluePilot: Show Brake Light Status",
@@ -1469,7 +1473,7 @@
   },
   "mici_complication": {
     "title": "BluePilot: Comma 4 Lower Right (C4)",
-    "description": "Show data in the lower right of the Comma 4 UI.",
+    "description": "Show data in the lower right of the UI.",
     "options": [
       {
         "value": 0,
@@ -1495,11 +1499,11 @@
   },
   "mici_hide_onroad_fade": {
     "title": "BluePilot: Hide Comma 4 Onroad Fade (C4)",
-    "description": "remove the fade at the bottom of the screen"
+    "description": "Remove the fade at the bottom of the screen."
   },
   "mici_hide_onroad_border": {
     "title": "BluePilot: Hide Comma 4 Onroad Border (C4)",
-    "description": "remove the from the screen"
+    "description": "Remove the border from the screen."
   },
   "BPHideOnroadBorder": {
     "title": "BluePilot: Hide Onroad Border (C3X)",
@@ -1541,5 +1545,13 @@
   "disable_downhill_comp_UI": {
     "title": "BluePilot: Disable Downhill Compensation",
     "description": "Disable BluePilot downhill compensation for longitudinal control."
+  },
+  "BPPortalPort": {
+    "title": "BluePilot: BP Web Portal Port",
+    "description": "HTTP port for the BluePilot web portal (default 8088)."
+  },
+  "EnableWebRoutesServer": {
+    "title": "BluePilot: Enable Web Route Server",
+    "description": "Enable the BluePilot web route server for viewing routes and videos from a browser."
   }
 }

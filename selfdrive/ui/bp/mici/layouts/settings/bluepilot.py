@@ -46,19 +46,20 @@ class BluePilotLayoutMici(NavWidget):
     self.ui_debug_log = BigParamControlBP("ui debug logging", "BPUIDebugLog")
     self.vbatt_pause_charging = BigParamFloatControl("12V battery limit", "vbatt_pause_charging", min=11.0, max=14.0, step=0.1)
 
-    def power_flow_callback(value: str):
-      match value:
-        case "off":
-          self._params.put_bool("FordPrefHybridPowerFlow", False)
-          self._params.put_bool("FordPrefHybridPowerFlowAlternate", False)
-        case "bar":
-          self._params.put_bool("FordPrefHybridPowerFlow", True)
-          self._params.put_bool("FordPrefHybridPowerFlowAlternate", False)
-        case "circular":
-          self._params.put_bool("FordPrefHybridPowerFlow", True)
-          self._params.put_bool("FordPrefHybridPowerFlowAlternate", True)
+    # Hybrid/EV power flow: enable toggle (like C3X) + style dropdown Flat/Round (C4)
+    self.show_hybrid_power_flow = BigParamControlBP("show hybrid/EV power flow", "FordPrefHybridPowerFlow")
 
-    self.show_hybrid_power_flow = BigMultiToggleBP("show hybrid/EV power flow", ["off", "bar", "circular"], select_callback=power_flow_callback)
+    def power_flow_style_callback(value: str):
+      if value == "flat":
+        self._params.put_bool("FordPrefHybridPowerFlowAlternate", False)
+      else:
+        self._params.put_bool("FordPrefHybridPowerFlowAlternate", True)
+
+    self.hybrid_power_flow_style = BigMultiToggleBP(
+      "hybrid/EV power flow style",
+      ["flat", "round"],
+      select_callback=power_flow_style_callback
+    )
 
     #self.charging_btn = BigButton("charging", "", "icons_mici/settings/charge_icon.png")
     #self.charging_btn.set_click_callback(lambda: self._show_charging_view())
@@ -71,6 +72,7 @@ class BluePilotLayoutMici(NavWidget):
       self.show_brake_status,
       self.show_blindspot_ui,
       self.show_hybrid_power_flow,
+      self.hybrid_power_flow_style,
       self.rainbow_mode,
       self.enable_human_turn_detection,
       self.lane_change_factor_high,
@@ -148,13 +150,13 @@ class BluePilotLayoutMici(NavWidget):
     server_enabled = ui_state.params.get_bool("EnableWebRoutesServer")
     self.show_web_routes_qr.set_enabled(server_enabled)
 
-    if self._params.get_bool("FordPrefHybridPowerFlow"):
-      if self._params.get_bool("FordPrefHybridPowerFlowAlternate"):
-        self.show_hybrid_power_flow.set_value("circular")
-      else:
-        self.show_hybrid_power_flow.set_value("bar")
-    else:
-      self.show_hybrid_power_flow.set_value("off")
+    # Hybrid power flow style (flat/round): only active when power flow is enabled
+    power_flow_enabled = self._params.get_bool("FordPrefHybridPowerFlow")
+    self.hybrid_power_flow_style.set_enabled(power_flow_enabled)
+    if power_flow_enabled:
+      self.hybrid_power_flow_style.set_value(
+        "round" if self._params.get_bool("FordPrefHybridPowerFlowAlternate") else "flat"
+      )
 
   def _update_toggles(self):
     ui_state.update_params()

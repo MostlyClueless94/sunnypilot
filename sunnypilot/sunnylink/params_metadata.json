@@ -1361,31 +1361,35 @@
     "description": "Enables hands-free (BlueCruise icon) on the gauge cluster for supported vehicles."
   },
   "FordPrefShowRadarLeadOverlay": {
-    "title": "BluePilot: Show Radar Lead Overlay (Ford ACC)",
+    "title": "BluePilot: Show Radar Lead Overlay (Ford ACC) (C3X)",
     "description": "Displays a chevron with lead vehicle info (distance, speed, time) when using Ford stock ACC."
   },
   "FordPrefRadarOverlaySize": {
-    "title": "BluePilot: Radar Overlay Size",
+    "title": "BluePilot: Radar Overlay Size (C3X)",
     "description": "Sets the size of the radar lead overlay chevron and info boxes. 0=Small, 1=Medium, 2=Large."
   },
   "FordPrefHybridBatteryStatus": {
-    "title": "BluePilot: Show Hybrid/EV Battery Status",
+    "title": "BluePilot: Show Hybrid/EV Battery Status (C3X)",
     "description": "Displays hybrid/EV battery status including state of charge (SOC), voltage, and current (amps) on the UI."
   },
   "FordPrefHybridPowerFlow": {
-    "title": "BluePilot: Show Hybrid/EV Power Flow",
-    "description": "Displays a horizontal center-zero power flow gauge showing regenerative braking (green) and throttle demand (grey-to-orange) with engine on reason and power flow mode text."
+    "title": "BluePilot: Show Hybrid/EV Power Flow (C3X, C4)",
+    "description": "Enables the hybrid/EV power flow gauge. C3X: horizontal bar with regen (green) and throttle demand. C4: choose bar or circular (around steering wheel) via the alternate option below."
   },
   "FordPrefHybridDriveGaugeSize": {
-    "title": "BluePilot: Hybrid/EV Gauge Size",
+    "title": "BluePilot: Hybrid/EV Gauge Size (C3X)",
     "description": "Sets the size of the hybrid/EV power flow and battery gauges. 1=Small (default), 2=Large."
   },
+  "FordPrefHybridGaugeStyle": {
+    "title": "BluePilot: Hybrid/EV Gauge Style (C3X)",
+    "description": "Sets the visual style of the hybrid/EV power flow and battery gauges (e.g. flat)."
+  },
   "FordPrefHybridPowerFlowAlternate": {
-    "title": "BluePilot: Use Altername Hybrid/EV Power Flow",
-    "description": "Displays Hybrid/EV Power Flow around the steering wheel indicator"
+    "title": "BluePilot: Use Alternate Hybrid/EV Power Flow (C3X, C4)",
+    "description": "C3X: display power flow around the steering wheel. C4: circular gauge around steering wheel when on; off uses the bar layout."
   },
   "ShowBrakeStatus": {
-    "title": "BluePilot: Show Brake light status",
+    "title": "BluePilot: Show Brake Light Status",
     "description": "Displays Brake light indication"
   },
   "enable_human_turn_detection": {
@@ -1457,14 +1461,14 @@
     "description": "Use stock openpilot lateral controls."
   },
   "vbatt_pause_charging": {
-    "title": "BluePilot: Low Battery voltage shutdown",
+    "title": "BluePilot: Low Battery Voltage Shutdown",
     "min": 11.0,
     "max": 14.0,
     "step": 0.1,
     "description": "Voltage at which BluePilot will shutdown and avoid draining the car battery."
   },
   "mici_complication": {
-    "title": "BluePilot: Comma 4 Lower Right",
+    "title": "BluePilot: Comma 4 Lower Right (C4)",
     "description": "Show data in the lower right of the Comma 4 UI.",
     "options": [
       {
@@ -1490,19 +1494,19 @@
     ]
   },
   "mici_hide_onroad_fade": {
-    "title": "BluePilot: Hide Comma 4 onroad fade",
+    "title": "BluePilot: Hide Comma 4 Onroad Fade (C4)",
     "description": "remove the fade at the bottom of the screen"
   },
   "mici_hide_onroad_border": {
-    "title": "BluePilot: Hide Comma 4 onroad border",
+    "title": "BluePilot: Hide Comma 4 Onroad Border (C4)",
     "description": "remove the from the screen"
   },
   "BPHideOnroadBorder": {
-    "title": "BluePilot: Hide Onroad Border",
+    "title": "BluePilot: Hide Onroad Border (C3X)",
     "description": "Hide the colored status border around the driving view on both TICI and MICI."
   },
   "BPShowConfidenceBall": {
-    "title": "BluePilot: Show Confidence Ball",
+    "title": "BluePilot: Show Confidence Ball (C3X)",
     "description": "Display the confidence ball on the left side of the driving view on TICI."
   },
   "BPAnimateSteeringWheel": {
@@ -1510,12 +1514,12 @@
     "description": "Rotate the steering wheel icon to match the current steering angle."
   },
   "BPUIDebugLog": {
-    "title": "BluePilot: UI Debug Logging",
+    "title": "BluePilot: UI Debug Logging (C3X)",
     "description": "Log UI state transitions for diagnosing rendering issues on device."
   },
   "Blindspot": {
-    "title": "BluePilot: Show Blindspot warnings",
-    "description": "Show a red indication is a car is in your blindspot"
+    "title": "BluePilot: Show Blind Spot Warnings",
+    "description": "Show a red indication if a car is in your blind spot."
   },
   "WifiFavoriteSSID": {
     "title": "BluePilot: Preferred WiFi Network",
@@ -1523,7 +1527,19 @@
     "optionsEndpoint": "getSavedWifiNetworks"
   },
   "BlinkerPauseLaneChange": {
-    "title": "BluePilot: Disable lane change under certain speed",
+    "title": "BluePilot: Disable Lane Change Under Certain Speed",
     "description": "Use 'Blinker Min Lateral Control Speed' to specify speed"
+  },
+  "ShowBlindspotOverlay": {
+    "title": "BluePilot: Show Blindspot Overlay",
+    "description": "Display red overlay when a vehicle is detected in your blind spot."
+  },
+  "disable_BP_long_UI": {
+    "title": "BluePilot: Bypass BP Longitudinal Control",
+    "description": "Use stock openpilot longitudinal control instead of BluePilot longitudinal control."
+  },
+  "disable_downhill_comp_UI": {
+    "title": "BluePilot: Disable Downhill Compensation",
+    "description": "Disable BluePilot downhill compensation for longitudinal control."
   }
 }

@@ -1522,7 +1522,7 @@
     "description": "Log UI state transitions for diagnosing rendering issues on device."
   },
   "Blindspot": {
-    "title": "BluePilot: Show Blind Spot Warnings",
+    "title": "SunnyPilot: Show Blind Spot Warnings",
     "description": "Show a red indication if a car is in your blind spot."
   },
   "WifiFavoriteSSID": {

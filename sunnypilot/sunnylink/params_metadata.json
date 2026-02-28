@@ -1361,7 +1361,7 @@
     "description": "Enables hands-free (BlueCruise icon) on the gauge cluster for supported vehicles."
   },
   "FordPrefShowRadarLeadOverlay": {
-    "title": "BluePilot: Show Radar Lead Overlay (Ford ACC) (C3X)",
+    "title": "BluePilot: Show Radar Lead Overlay (C3X)",
     "description": "Displays a chevron with lead vehicle info (distance, speed, time) when using Ford stock ACC."
   },
   "FordPrefRadarOverlaySize": {
@@ -1381,11 +1381,15 @@
     "description": "Sets the size of the hybrid/EV power flow and battery gauges. 1=Small (default), 2=Large."
   },
   "FordPrefHybridGaugeStyle": {
-    "title": "BluePilot: Hybrid/EV Gauge Style (C3X)",
-    "description": "Sets the visual style of the hybrid/EV power flow and battery gauges (e.g. flat)."
+    "title": "BluePilot: Hybrid/EV Power Flow Style (C3X)",
+    "description": "Flat: horizontal bar in shared container. Arched: arch above torque bar.",
+    "options": [
+      {"value": "flat", "label": "Flat"},
+      {"value": "arched", "label": "Arched"}
+    ]
   },
   "FordPrefHybridPowerFlowAlternate": {
-    "title": "BluePilot: Hybrid/EV Power Flow Style (C4)",
+    "title": "BluePilot: Hybrid/EV Gauge Style (C4)",
     "description": "Flat: horizontal bar. Round: circular gauge around steering wheel.",
     "options": [
       {"value": 0, "label": "Flat"},
@@ -1472,7 +1476,7 @@
     "description": "Voltage at which BluePilot will shutdown and avoid draining the car battery."
   },
   "mici_complication": {
-    "title": "BluePilot: Comma 4 Lower Right (C4)",
+    "title": "BluePilot: Lower Right Corner Display (C4)",
     "description": "Show data in the lower right of the UI.",
     "options": [
       {
@@ -1498,11 +1502,11 @@
     ]
   },
   "mici_hide_onroad_fade": {
-    "title": "BluePilot: Hide Comma 4 Onroad Fade (C4)",
+    "title": "BluePilot: Hide Onroad Fade (C4)",
     "description": "Remove the fade at the bottom of the screen."
   },
   "mici_hide_onroad_border": {
-    "title": "BluePilot: Hide Comma 4 Onroad Border (C4)",
+    "title": "BluePilot: Hide Onroad Border (C4)",
     "description": "Remove the border from the screen."
   },
   "BPHideOnroadBorder": {
@@ -1518,7 +1522,7 @@
     "description": "Rotate the steering wheel icon to match the current steering angle."
   },
   "BPUIDebugLog": {
-    "title": "BluePilot: UI Debug Logging (C3X)",
+    "title": "BluePilot: UI Debug Logging",
     "description": "Log UI state transitions for diagnosing rendering issues on device."
   },
   "Blindspot": {

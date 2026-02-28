@@ -2,7 +2,7 @@ import pyray as rl
 from collections.abc import Callable
 
 from openpilot.system.ui.widgets.scroller import Scroller
-from openpilot.selfdrive.ui.bp.mici.widgets.button_bp import BigButtonBP, BigParamControlBP, BigMultiToggleBP, BigMultiParamToggleBP
+from openpilot.selfdrive.ui.bp.mici.widgets.button_bp import BigButtonBP, BigParamControlBP, BigMultiToggleBP, BigMultiParamToggleBP, BigMultiParamToggleBoolBP
 from openpilot.selfdrive.ui.bp.mici.widgets.floatbutton import BigParamFloatControl, BigParamIntControl
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.widgets import NavWidget
@@ -46,19 +46,13 @@ class BluePilotLayoutMici(NavWidget):
     self.ui_debug_log = BigParamControlBP("ui debug logging", "BPUIDebugLog")
     self.vbatt_pause_charging = BigParamFloatControl("12V battery limit", "vbatt_pause_charging", min=11.0, max=14.0, step=0.1)
 
-    # Hybrid/EV power flow: enable toggle (like C3X) + style dropdown Flat/Round (C4)
+    # Hybrid/EV power flow: enable toggle (like C3X) + style dropdown Flat/Round (C4), same pattern as Lower Right Display
     self.show_hybrid_power_flow = BigParamControlBP("show hybrid/EV power flow", "FordPrefHybridPowerFlow")
 
-    def power_flow_style_callback(value: str):
-      if value == "flat":
-        self._params.put_bool("FordPrefHybridPowerFlowAlternate", False)
-      else:
-        self._params.put_bool("FordPrefHybridPowerFlowAlternate", True)
-
-    self.hybrid_power_flow_style = BigMultiToggleBP(
+    self.hybrid_power_flow_style = BigMultiParamToggleBoolBP(
       "hybrid/EV power flow style",
-      ["flat", "round"],
-      select_callback=power_flow_style_callback
+      "FordPrefHybridPowerFlowAlternate",
+      ["flat", "round"]
     )
 
     #self.charging_btn = BigButton("charging", "", "icons_mici/settings/charge_icon.png")
@@ -143,6 +137,7 @@ class BluePilotLayoutMici(NavWidget):
   def _update_state(self):
     super()._update_state()
     self.show_lead_vehicle._load_value()
+    self.hybrid_power_flow_style._load_value()
 
   def _update_buttons(self):
     """Update button enabled state based on server status."""
@@ -153,10 +148,6 @@ class BluePilotLayoutMici(NavWidget):
     # Hybrid power flow style (flat/round): only active when power flow is enabled
     power_flow_enabled = self._params.get_bool("FordPrefHybridPowerFlow")
     self.hybrid_power_flow_style.set_enabled(power_flow_enabled)
-    if power_flow_enabled:
-      self.hybrid_power_flow_style.set_value(
-        "round" if self._params.get_bool("FordPrefHybridPowerFlowAlternate") else "flat"
-      )
 
   def _update_toggles(self):
     ui_state.update_params()

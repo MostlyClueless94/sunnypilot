@@ -116,6 +116,14 @@ class BigMultiParamToggleBP(BigMultiToggleBP, BigMultiParamToggle):
     self.set_value(self._options[self._params.get(self._param) or 0])
 
 
+class BigMultiParamToggleBoolBP(BigMultiParamToggleBP):
+  """Like BigMultiParamToggleBP but for a BOOL param: index 0 = False, index 1 = True."""
+
+  def _load_value(self):
+    idx = 1 if self._params.get_bool(self._param) else 0
+    self.set_value(self._options[idx])
+
+
 class BigParamControlBP(BigToggleBP, BigParamControl):
   def __init__(self, text: str, param: str, is_active_param: str = None, toggle_callback: Callable = None,
                tint: rl.Color = rl.WHITE):

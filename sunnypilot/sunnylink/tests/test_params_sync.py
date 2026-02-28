@@ -9,7 +9,7 @@ import os
 import pytest
 
 from openpilot.common.params import Params
-from openpilot.sunnypilot.sunnylink.athena.sunnylinkd import METADATA_PATH
+from openpilot.sunnypilot.sunnylink.athena.sunnylinkd import METADATA_PATH, HIDDEN_PARAMS
 
 
 def test_metadata_json_exists():
@@ -64,7 +64,7 @@ def test_all_params_have_metadata():
   with open(METADATA_PATH) as f:
     metadata = json.load(f)
 
-  missing_keys = [key for key in all_keys if key not in metadata]
+  missing_keys = [key for key in all_keys if key not in metadata and key not in HIDDEN_PARAMS]
 
   if missing_keys:
     pytest.fail(

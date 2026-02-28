@@ -70,6 +70,12 @@ BLOCKED_PARAMS = {
   "HasAcceptedTermsSP",
 }
 
+# Parameters that exist in Params but should not be shown in SunnyLink UI (orphans / device-only tuning)
+HIDDEN_PARAMS = {
+  "FordFollowingAccelROC",
+  "FordFollowingGasROC",
+}
+
 
 def handle_long_poll(ws: WebSocket, exit_event: threading.Event | None) -> None:
   cloudlog.info("sunnylinkd.handle_long_poll started")
@@ -211,7 +217,7 @@ def toggleLogUpload(enabled: bool):
 @dispatcher.add_method
 def getParamsAllKeys() -> list[str]:
   keys: list[str] = [k.decode('utf-8') for k in Params().all_keys()]
-  return keys
+  return [k for k in keys if k not in HIDDEN_PARAMS]
 
 
 @dispatcher.add_method
@@ -224,6 +230,7 @@ def getParamsAllKeysV1() -> dict[str, str]:
     metadata = {}
 
   available_keys: list[str] = [k.decode('utf-8') for k in Params().all_keys()]
+  available_keys = [k for k in available_keys if k not in HIDDEN_PARAMS]
 
   params_dict: dict[str, list[dict[str, str | bool | int | object | dict | None]]] = {"params": []}
   for key in available_keys:

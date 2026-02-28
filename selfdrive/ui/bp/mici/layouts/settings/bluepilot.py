@@ -24,7 +24,7 @@ class BluePilotLayoutMici(NavWidget):
     self.show_hands_free_ui = BigParamControlBP("show hands-free ui", "send_hands_free_cluster_msg")
     self.show_lead_vehicle = BigMultiParamToggleBP("Lower Right Display", "mici_complication", ["off", "lead car speed", "speed", "lead car distance", "time to lead car"])
     self.show_brake_status = BigParamControlBP("show brake status", "ShowBrakeStatus")
-    self.show_blindspot_ui = BigParamControlBP("show blindspot warning", "ShowBlindspotOverlay")
+    self.show_blindspot_ui = BigParamControlBP("show blindspot overlay", "ShowBlindspotOverlay")
     self.rainbow_mode = BigParamControlBP("rainbow mode", "RainbowMode")
     self.enable_human_turn_detection = BigParamControlBP("enable human turn detection", "enable_human_turn_detection")
     self.lane_change_factor_high = BigParamFloatControl("lane change factor high", "lane_change_factor_high", min=0.5, max=1.0)

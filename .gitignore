@@ -66,9 +66,7 @@ flycheck_*
 cppcheck_report.txt
 comma*.sh
 
-selfdrive/modeld/models/*.pkl
-sunnypilot/modeld*/thneed/compile
-sunnypilot/modeld*/models/*.thneed
+selfdrive/modeld/models/*.pkl*
 sunnypilot/modeld*/models/*.pkl
 
 # openpilot log files
@@ -101,6 +99,11 @@ Pipfile
 .history
 .ionide
 
+.claude/
+.context/
+PLAN.md
+TASK.md
+
 ### JetBrains ###
 !.idea/customTargets.xml
 !.idea/tools/*
@@ -108,3 +111,4 @@ Pipfile
 
 ### Agent Info ###
 bluepilot/agent_info/
+bluepilot/agent_tools/

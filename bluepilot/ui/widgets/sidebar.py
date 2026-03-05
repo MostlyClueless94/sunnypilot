@@ -182,8 +182,11 @@ class SidebarBP(Widget):
     """Show the recent changes dialog."""
     bp_version = _read_bp_version()
     if bp_version:
-      dialog = RecentChangesDialog(bp_version)
-      gui_app.set_modal_overlay(dialog)
+      params = Params()
+      def _on_dismiss():
+        params.put("BPLastSeenVersion", bp_version)
+      dialog = RecentChangesDialog(bp_version, dismiss_callback=_on_dismiss)
+      gui_app.push_widget(dialog)
 
   def _handle_debug_click(self):
     if self._on_debug_click:

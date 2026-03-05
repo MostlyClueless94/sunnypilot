@@ -97,9 +97,10 @@ def _load_changes_json() -> dict:
 class RecentChangesDialog(Widget):
   """Fullscreen modal overlay displaying recent changes for a given BP version."""
 
-  def __init__(self, version: str):
+  def __init__(self, version: str, dismiss_callback=None):
     super().__init__()
     self._version = version
+    self._dismiss_callback = dismiss_callback
     self._result = DialogResult.NO_ACTION
     self._scroll_panel = GuiScrollPanel()
     self._close_btn = _CloseButton(self._on_close)
@@ -123,6 +124,9 @@ class RecentChangesDialog(Widget):
 
   def _on_close(self):
     self._result = DialogResult.CONFIRM
+    if self._dismiss_callback:
+      self._dismiss_callback()
+    gui_app.pop_widget()
 
   def show_event(self):
     super().show_event()
@@ -318,13 +322,13 @@ class RecentChangesManager:
   def show_if_needed(self):
     if not self.should_show():
       return
-    # Don't interrupt another modal (e.g. onboarding)
-    if gui_app._modal_overlay.overlay is not None:
-      print("[RecentChanges] Blocked — another modal is active")
+    # Don't interrupt another overlay (e.g. onboarding) - use nav stack depth
+    if hasattr(gui_app, "_nav_stack") and len(gui_app._nav_stack) > 1:
+      print("[RecentChanges] Blocked — another overlay is active")
       return
     print(f"[RecentChanges] Showing dialog for version {self._bp_version}")
-    dialog = RecentChangesDialog(self._bp_version)
-    gui_app.set_modal_overlay(dialog, callback=self._on_dismissed)
+    dialog = RecentChangesDialog(self._bp_version, dismiss_callback=self._on_dismissed)
+    gui_app.push_widget(dialog)
     self._shown = True
 
   def _on_dismissed(self, _result):

@@ -272,9 +272,6 @@ class SpeedLimitAssist:
 
         # PRE_ACTIVE
         elif self.state == SpeedLimitAssistState.preActive:
-<<<<<<< HEAD
-          if self.target_set_speed_confirmed:
-=======
           # For PCM cars using ICBM, check target_set_speed_confirmed directly
           # ICBM adjusts cluster via CAN, so button events won't be in CS.buttonEvents
           # We need to check if cluster matches target after ICBM has adjusted it
@@ -287,7 +284,6 @@ class SpeedLimitAssist:
               # Timeout - session ended
               self.state = SpeedLimitAssistState.inactive
           elif self.target_set_speed_confirmed:
->>>>>>> 08859d28d1 (Ford ICBM-SLA: Fix button detection for ICBM vehicles)
             self._update_confirmed_state()
           elif self.pre_active_timer <= 0:
             # Timeout - session ended

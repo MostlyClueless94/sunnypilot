@@ -129,6 +129,13 @@ class VCruiseHelper(VCruiseHelperSP):
     self.v_cruise_kph = np.clip(round(self.v_cruise_kph, 1), self.v_cruise_min, V_CRUISE_MAX)
 
   def update_button_timers(self, CS, enabled):
+    # Clear button timers when cruise is disabled to prevent stale presses
+    # This ensures that when cruise is re-enabled, stale button timers don't trigger speed changes
+    if not enabled:
+      for k in self.button_timers:
+        self.button_timers[k] = 0
+      return
+
     # increment timer for buttons still pressed
     for k in self.button_timers:
       if self.button_timers[k] > 0:

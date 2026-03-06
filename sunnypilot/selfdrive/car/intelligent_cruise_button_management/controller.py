@@ -58,6 +58,21 @@ class IntelligentCruiseButtonManagement:
     self.v_target = round(self.v_target_ms_last * speed_conv)
     self.v_cruise_min = get_minimum_set_speed(self.is_metric)
     self.v_cruise_cluster = round(CS.cruiseState.speedCluster * speed_conv)
+    
+    # BluePilot: Debug logging
+    debug_log_path = "/data/icbm_debug.log"
+    try:
+      import os
+      os.makedirs(os.path.dirname(debug_log_path), exist_ok=True)
+      with open(debug_log_path, "a") as f:
+        f.write(f"ICBM.update_calculations: LP_SP.vTarget={LP_SP.vTarget}, v_target={self.v_target}, "
+                f"v_cruise_cluster={self.v_cruise_cluster}, speedCluster={CS.cruiseState.speedCluster}\n")
+    except Exception as e:
+      try:
+        with open("/tmp/icbm_debug.log", "a") as f:
+          f.write(f"ICBM.update_calculations: /data failed ({e})\n")
+      except Exception:
+        pass
 
   def update_state_machine(self) -> custom.IntelligentCruiseButtonManagement.SendButtonState:
     self.pre_active_timer = max(0, self.pre_active_timer - 1)
@@ -71,11 +86,29 @@ class IntelligentCruiseButtonManagement:
         # PRE_ACTIVE
         if self.state == State.preActive:
           if self.pre_active_timer <= 0:
+            # BluePilot: Debug logging for state transitions
+            debug_log_path = "/data/icbm_debug.log"
+            try:
+              import os
+              os.makedirs(os.path.dirname(debug_log_path), exist_ok=True)
+              with open(debug_log_path, "a") as f:
+                f.write(f"ICBM.preActive: v_target={self.v_target}, v_cruise_cluster={self.v_cruise_cluster}, "
+                        f"v_cruise_equal={self.v_cruise_equal}, v_cruise_min={self.v_cruise_min}\n")
+            except Exception:
+              pass
+            
             if self.v_cruise_equal:
               self.state = State.holding
 
             elif self.v_target > self.v_cruise_cluster:
               self.state = State.increasing
+              try:
+                import os
+                os.makedirs(os.path.dirname(debug_log_path), exist_ok=True)
+                with open(debug_log_path, "a") as f:
+                  f.write(f"ICBM: Transitioning to INCREASING (v_target={self.v_target} > v_cruise_cluster={self.v_cruise_cluster})\n")
+              except Exception:
+                pass
 
             elif self.v_target < self.v_cruise_cluster and self.v_cruise_cluster > self.v_cruise_min:
               self.state = State.decreasing

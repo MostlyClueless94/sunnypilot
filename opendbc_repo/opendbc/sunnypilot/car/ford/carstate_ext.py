@@ -93,7 +93,6 @@ class CarStateExt:
             button_events.append(event)
             # Remember which event type we emitted for this signal
             self.last_emitted_event[button.can_msg] = event_type
-            cloudlog.warning(f"Ford ButtonEvent: type={event_type}, pressed={signal_state}, signal={button.can_msg}={signal_value}, cruise_enabled={cruise_enabled}")
 
           # Update state for both event types
           self.button_states[3] = signal_state  # accelCruise
@@ -108,7 +107,6 @@ class CarStateExt:
             event.type = last_emitted
             event.pressed = False
             button_events.append(event)
-            cloudlog.warning(f"Ford ButtonEvent: type={last_emitted}, pressed=False, signal={button.can_msg} (release)")
           # Clear the tracking
           self.last_emitted_event.pop(button.can_msg, None)
           # Update state for both event types
@@ -138,7 +136,6 @@ class CarStateExt:
             button_events.append(event)
             # Remember which event type we emitted for this signal
             self.last_emitted_event[button.can_msg] = event_type
-            cloudlog.warning(f"Ford ButtonEvent: type={event_type}, pressed={signal_state}, signal={button.can_msg}={signal_value}, cruise_enabled={cruise_enabled}")
 
           # Update state for both event types
           self.button_states[4] = signal_state  # decelCruise
@@ -153,7 +150,6 @@ class CarStateExt:
             event.type = last_emitted
             event.pressed = False
             button_events.append(event)
-            cloudlog.warning(f"Ford ButtonEvent: type={last_emitted}, pressed=False, signal={button.can_msg} (release)")
           # Clear the tracking
           self.last_emitted_event.pop(button.can_msg, None)
           # Update state for both event types
@@ -183,7 +179,6 @@ class CarStateExt:
             button_events.append(event)
             # Remember which event type we emitted for this signal
             self.last_emitted_event[button.can_msg] = event_type
-            cloudlog.warning(f"Ford ButtonEvent: type={event_type}, pressed={signal_state}, signal={button.can_msg}={signal_value}, cruise_enabled={cruise_enabled}")
 
           # Update state for both event types
           self.button_states[5] = signal_state  # cancel
@@ -198,7 +193,6 @@ class CarStateExt:
             event.type = last_emitted
             event.pressed = False
             button_events.append(event)
-            cloudlog.warning(f"Ford ButtonEvent: type={last_emitted}, pressed=False, signal={button.can_msg} (release)")
           # Clear the tracking
           self.last_emitted_event.pop(button.can_msg, None)
           # Update state for both event types
@@ -215,9 +209,6 @@ class CarStateExt:
         # Track if mainCruise button was just pressed (transition from not pressed to pressed)
         if button.event_type == structs.CarState.ButtonEvent.Type.mainCruise and state:
           main_cruise_just_pressed = True
-        # Debug: log button events
-        if button.event_type in (3, 9, 5, 10, 8):  # accelCruise, setCruise, cancel, resumeCruise, mainCruise
-          cloudlog.warning(f"Ford ButtonEvent: type={button.event_type}, pressed={state}, signal={button.can_msg}={signal_value}")
 
       # Update stored state for this ButtonEvent type
       self.button_states[button.event_type] = state

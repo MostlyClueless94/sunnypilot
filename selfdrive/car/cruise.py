@@ -51,26 +51,6 @@ class VCruiseHelper(VCruiseHelperSP):
 
     _enabled = self.update_enabled_state(CS, enabled)
 
-    # BluePilot: Debug logging
-    debug_log_path = "/data/icbm_debug.log"
-    try:
-      import os
-      os.makedirs(os.path.dirname(debug_log_path), exist_ok=True)
-      with open(debug_log_path, "a") as f:
-        f.write(f"update_v_cruise: enabled={enabled}, _enabled={_enabled}, "
-                f"pcmCruise={self.CP.pcmCruise}, pcmCruiseSpeed={self.CP_SP.pcmCruiseSpeed}, "
-                f"icbmAvailable={self.CP_SP.intelligentCruiseButtonManagementAvailable}, "
-                f"cruiseState.available={CS.cruiseState.available}, "
-                f"cruiseState.speed={CS.cruiseState.speed}, "
-                f"cruiseState.speedCluster={CS.cruiseState.speedCluster}\n")
-    except Exception as e:
-      # Try alternative log location if /data fails
-      try:
-        with open("/tmp/icbm_debug.log", "a") as f:
-          f.write(f"update_v_cruise: /data failed ({e}), enabled={enabled}\n")
-      except Exception:
-        pass
-
     if CS.cruiseState.available:
       if not self.CP.pcmCruise or (not self.CP_SP.pcmCruiseSpeed and _enabled):
         # if stock cruise is completely disabled, then we can use our own set speed logic
@@ -101,21 +81,6 @@ class VCruiseHelper(VCruiseHelperSP):
     if not enabled:
       return
 
-    # BluePilot: Debug logging
-    debug_log_path = "/data/icbm_debug.log"
-    try:
-      import os
-      os.makedirs(os.path.dirname(debug_log_path), exist_ok=True)
-      with open(debug_log_path, "a") as f:
-        f.write(f"_update_v_cruise_non_pcm: enabled={enabled}, timers={dict(self.button_timers)}, "
-                f"v_cruise_kph={self.v_cruise_kph}, v_cruise_kph_last={self.v_cruise_kph_last}\n")
-    except Exception as e:
-      try:
-        with open("/tmp/icbm_debug.log", "a") as f:
-          f.write(f"_update_v_cruise_non_pcm: /data failed ({e}), enabled={enabled}\n")
-      except Exception:
-        pass
-
     long_press = False
     button_type = None
 
@@ -136,19 +101,6 @@ class VCruiseHelper(VCruiseHelperSP):
 
     if button_type is None:
       return
-
-    try:
-      import os
-      os.makedirs(os.path.dirname(debug_log_path), exist_ok=True)
-      with open(debug_log_path, "a") as f:
-        f.write(f"_update_v_cruise_non_pcm: button_type={button_type}, long_press={long_press}, "
-                f"v_cruise_kph before={self.v_cruise_kph}\n")
-    except Exception as e:
-      try:
-        with open("/tmp/icbm_debug.log", "a") as f:
-          f.write(f"_update_v_cruise_non_pcm: button_type={button_type}, /data failed ({e})\n")
-      except Exception:
-        pass
 
     # Don't adjust speed when pressing resume to exit standstill
     cruise_standstill = self.button_change_states[button_type]["standstill"] or CS.cruiseState.standstill
@@ -178,38 +130,11 @@ class VCruiseHelper(VCruiseHelperSP):
     self.v_cruise_kph = np.clip(round(self.v_cruise_kph, 1), self.v_cruise_min, V_CRUISE_MAX)
 
   def update_button_timers(self, CS, enabled):
-    # BluePilot: Debug logging for button timer issues
-    debug_log_path = "/data/icbm_debug.log"
-    try:
-      import os
-      os.makedirs(os.path.dirname(debug_log_path), exist_ok=True)
-      with open(debug_log_path, "a") as f:
-        f.write(f"update_button_timers: enabled={enabled}, timers_before={dict(self.button_timers)}, "
-                f"buttonEvents={[(b.type.raw, b.pressed) for b in CS.buttonEvents if b.type.raw in self.button_timers]}\n")
-    except Exception as e:
-      # Try alternative log location if /data fails
-      try:
-        with open("/tmp/icbm_debug.log", "a") as f:
-          f.write(f"update_button_timers: /data failed ({e}), enabled={enabled}, timers={dict(self.button_timers)}\n")
-      except Exception:
-        pass
-
     # BluePilot: Clear button timers when cruise is disabled to prevent stale presses
     # This ensures that when cruise is re-enabled, stale button timers don't trigger speed changes
     if not enabled:
       for k in self.button_timers:
         self.button_timers[k] = 0
-      try:
-        import os
-        os.makedirs(os.path.dirname(debug_log_path), exist_ok=True)
-        with open(debug_log_path, "a") as f:
-          f.write(f"update_button_timers: Cleared timers (enabled=False), timers_after={dict(self.button_timers)}\n")
-      except Exception as e:
-        try:
-          with open("/tmp/icbm_debug.log", "a") as f:
-            f.write(f"update_button_timers: Cleared timers (enabled=False), /data failed ({e})\n")
-        except Exception:
-          pass
       return
 
     # increment timer for buttons still pressed
@@ -222,18 +147,6 @@ class VCruiseHelper(VCruiseHelperSP):
         # Start/end timer and store current state on change of button pressed
         self.button_timers[b.type.raw] = 1 if b.pressed else 0
         self.button_change_states[b.type.raw] = {"standstill": CS.cruiseState.standstill, "enabled": enabled}
-
-    try:
-      import os
-      os.makedirs(os.path.dirname(debug_log_path), exist_ok=True)
-      with open(debug_log_path, "a") as f:
-        f.write(f"update_button_timers: timers_after={dict(self.button_timers)}\n")
-    except Exception as e:
-      try:
-        with open("/tmp/icbm_debug.log", "a") as f:
-          f.write(f"update_button_timers: timers_after={dict(self.button_timers)}, /data failed ({e})\n")
-      except Exception:
-        pass
 
   def initialize_v_cruise(self, CS, experimental_mode: bool, dynamic_experimental_control: bool) -> None:
     # BluePilot: For PCM cars with ICBM, we still need to initialize v_cruise_kph

@@ -58,21 +58,6 @@ class IntelligentCruiseButtonManagement:
     self.v_target = round(self.v_target_ms_last * speed_conv)
     self.v_cruise_min = get_minimum_set_speed(self.is_metric)
     self.v_cruise_cluster = round(CS.cruiseState.speedCluster * speed_conv)
-    
-    # BluePilot: Debug logging
-    debug_log_path = "/data/icbm_debug.log"
-    try:
-      import os
-      os.makedirs(os.path.dirname(debug_log_path), exist_ok=True)
-      with open(debug_log_path, "a") as f:
-        f.write(f"ICBM.update_calculations: LP_SP.vTarget={LP_SP.vTarget}, v_target={self.v_target}, "
-                f"v_cruise_cluster={self.v_cruise_cluster}, speedCluster={CS.cruiseState.speedCluster}\n")
-    except Exception as e:
-      try:
-        with open("/tmp/icbm_debug.log", "a") as f:
-          f.write(f"ICBM.update_calculations: /data failed ({e})\n")
-      except Exception:
-        pass
 
   def update_state_machine(self) -> custom.IntelligentCruiseButtonManagement.SendButtonState:
     self.pre_active_timer = max(0, self.pre_active_timer - 1)
@@ -86,17 +71,6 @@ class IntelligentCruiseButtonManagement:
         # PRE_ACTIVE
         if self.state == State.preActive:
           if self.pre_active_timer <= 0:
-            # BluePilot: Debug logging for state transitions
-            debug_log_path = "/data/icbm_debug.log"
-            try:
-              import os
-              os.makedirs(os.path.dirname(debug_log_path), exist_ok=True)
-              with open(debug_log_path, "a") as f:
-                f.write(f"ICBM.preActive: v_target={self.v_target}, v_cruise_cluster={self.v_cruise_cluster}, "
-                        f"v_cruise_equal={self.v_cruise_equal}, v_cruise_min={self.v_cruise_min}\n")
-            except Exception:
-              pass
-            
             if self.v_cruise_equal:
               self.state = State.holding
 
@@ -108,22 +82,8 @@ class IntelligentCruiseButtonManagement:
               if self.v_cruise_cluster == 0 or self.v_target >= MAX_REASONABLE_TARGET:
                 # Don't increase - stay in preActive or go to holding
                 self.state = State.holding
-                try:
-                  import os
-                  os.makedirs(os.path.dirname(debug_log_path), exist_ok=True)
-                  with open(debug_log_path, "a") as f:
-                    f.write(f"ICBM: BLOCKED increase (cluster={self.v_cruise_cluster}, target={self.v_target} >= max={MAX_REASONABLE_TARGET})\n")
-                except Exception:
-                  pass
               else:
                 self.state = State.increasing
-                try:
-                  import os
-                  os.makedirs(os.path.dirname(debug_log_path), exist_ok=True)
-                  with open(debug_log_path, "a") as f:
-                    f.write(f"ICBM: Transitioning to INCREASING (v_target={self.v_target} > v_cruise_cluster={self.v_cruise_cluster})\n")
-                except Exception:
-                  pass
 
             elif self.v_target < self.v_cruise_cluster and self.v_cruise_cluster > self.v_cruise_min:
               self.state = State.decreasing
@@ -154,23 +114,6 @@ class IntelligentCruiseButtonManagement:
     return send_button
 
   def update_readiness(self, CS: car.CarState, CC: car.CarControl) -> None:
-    import os
-    debug_log_path = "/data/icbm_debug.log"
-    
-    try:
-      os.makedirs(os.path.dirname(debug_log_path), exist_ok=True)
-      with open(debug_log_path, "a") as f:
-        f.write(f"ICBM.update_readiness: timers_before={dict(self.cruise_button_timers)}, "
-                f"CC.enabled={CC.enabled}, override={CC.cruiseControl.override}, "
-                f"cancel={CC.cruiseControl.cancel}, resume={CC.cruiseControl.resume}\n")
-    except Exception as e:
-      # Try alternative log location if /data fails
-      try:
-        with open("/tmp/icbm_debug.log", "a") as f:
-          f.write(f"ICBM.update_readiness: /data failed ({e}), timers={dict(self.cruise_button_timers)}\n")
-      except Exception:
-        pass
-
     update_manual_button_timers(CS, self.cruise_button_timers)
 
     ready = CC.enabled and not CC.cruiseControl.override and not CC.cruiseControl.cancel and not CC.cruiseControl.resume
@@ -181,30 +124,8 @@ class IntelligentCruiseButtonManagement:
     if not ready:
       for k in self.cruise_button_timers:
         self.cruise_button_timers[k] = 0
-      try:
-        os.makedirs(os.path.dirname(debug_log_path), exist_ok=True)
-        with open(debug_log_path, "a") as f:
-          f.write(f"ICBM.update_readiness: Cleared timers (ready=False), timers_after={dict(self.cruise_button_timers)}\n")
-      except Exception as e:
-        try:
-          with open("/tmp/icbm_debug.log", "a") as f:
-            f.write(f"ICBM.update_readiness: Cleared timers, /data failed ({e})\n")
-        except Exception:
-          pass
 
     self.is_ready = ready and not button_pressed
-    
-    try:
-      os.makedirs(os.path.dirname(debug_log_path), exist_ok=True)
-      with open(debug_log_path, "a") as f:
-        f.write(f"ICBM.update_readiness: ready={ready}, button_pressed={button_pressed}, is_ready={self.is_ready}, "
-                f"timers_after={dict(self.cruise_button_timers)}\n")
-    except Exception as e:
-      try:
-        with open("/tmp/icbm_debug.log", "a") as f:
-          f.write(f"ICBM.update_readiness: ready={ready}, /data failed ({e})\n")
-      except Exception:
-        pass
 
   def run(self, CS: car.CarState, CC: car.CarControl, LP_SP: custom.LongitudinalPlanSP, is_metric: bool) -> None:
     if self.CP_SP.pcmCruiseSpeed:

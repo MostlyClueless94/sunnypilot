@@ -236,8 +236,11 @@ class VCruiseHelper(VCruiseHelperSP):
         pass
 
   def initialize_v_cruise(self, CS, experimental_mode: bool, dynamic_experimental_control: bool) -> None:
-    # initializing is handled by the PCM
-    if self.CP.pcmCruise:
+    # BluePilot: For PCM cars with ICBM, we still need to initialize v_cruise_kph
+    # because ICBM manages cruise speed via button presses, not PCM speed control
+    # ICBM needs a valid initial value to prevent planner from using V_CRUISE_UNSET (255)
+    if self.CP.pcmCruise and not self.CP_SP.intelligentCruiseButtonManagementAvailable:
+      # Only skip initialization for PCM cars WITHOUT ICBM
       return
 
     initial_experimental_mode = experimental_mode and not dynamic_experimental_control
@@ -246,6 +249,11 @@ class VCruiseHelper(VCruiseHelperSP):
     if any(b.type in (ButtonType.accelCruise, ButtonType.resumeCruise) for b in CS.buttonEvents) and self.v_cruise_initialized:
       self.v_cruise_kph = self.v_cruise_kph_last
     else:
-      self.v_cruise_kph = int(round(np.clip(CS.vEgo * CV.MS_TO_KPH, initial, V_CRUISE_MAX)))
+      # BluePilot: For PCM cars with ICBM, use cluster speed if available, otherwise use vEgo-based initial
+      if self.CP.pcmCruise and self.CP_SP.intelligentCruiseButtonManagementAvailable and CS.cruiseState.speedCluster > 0:
+        # Use the cluster speed that the user has set
+        self.v_cruise_kph = CS.cruiseState.speedCluster * CV.MS_TO_KPH
+      else:
+        self.v_cruise_kph = int(round(np.clip(CS.vEgo * CV.MS_TO_KPH, initial, V_CRUISE_MAX)))
 
     self.v_cruise_cluster_kph = self.v_cruise_kph

@@ -69,7 +69,7 @@ class VCruiseHelper(VCruiseHelperSP):
       self.v_cruise_kph = V_CRUISE_UNSET
       self.v_cruise_cluster_kph = V_CRUISE_UNSET
 
-    # Update button timers for non-PCM cars or PCM cars using ICBM
+    # BluePilot: Update button timers for non-PCM cars or PCM cars using ICBM
     # For PCM cars with ICBM, button timers need to be cleared even though pcmCruiseSpeed=True
     if not self.CP.pcmCruise or not self.CP_SP.pcmCruiseSpeed or self.CP_SP.intelligentCruiseButtonManagementAvailable:
       self.update_button_timers(CS, enabled)
@@ -129,7 +129,7 @@ class VCruiseHelper(VCruiseHelperSP):
     self.v_cruise_kph = np.clip(round(self.v_cruise_kph, 1), self.v_cruise_min, V_CRUISE_MAX)
 
   def update_button_timers(self, CS, enabled):
-    # Clear button timers when cruise is disabled to prevent stale presses
+    # BluePilot: Clear button timers when cruise is disabled to prevent stale presses
     # This ensures that when cruise is re-enabled, stale button timers don't trigger speed changes
     if not enabled:
       for k in self.button_timers:

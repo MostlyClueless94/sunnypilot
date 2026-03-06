@@ -182,8 +182,6 @@ class WifiButton(BigButton):
     if txt:
       font = gui_app.font(FontWeight.BOLD)
       rl.draw_text_ex(font, txt, rl.Vector2(x, y), 48, 0, LABEL_COLOR)
-    # Debug: always draw outline to verify coordinates - remove when SSID displays
-    rl.draw_rectangle_lines(x, y, min(200, self.LABEL_WIDTH), 48, rl.GREEN)
 
     if self.value:
       sub_label_x = self._rect.x + self.LABEL_HORIZONTAL_PADDING

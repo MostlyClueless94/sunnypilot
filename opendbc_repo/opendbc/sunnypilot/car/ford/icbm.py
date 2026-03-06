@@ -49,7 +49,22 @@ class IntelligentCruiseButtonManagementInterface(IntelligentCruiseButtonManageme
     self.frame = frame
     self.last_button_frame = last_button_frame
 
-    # loudlog.warning(f"XXXXXXXXXXXXXXXXXXX ICBM: {self.ICBM.sendButton}")
+    # BluePilot: Debug logging for ICBM button sends
+    debug_log_path = "/data/icbm_debug.log"
+    try:
+      import os
+      os.makedirs(os.path.dirname(debug_log_path), exist_ok=True)
+      with open(debug_log_path, "a") as f:
+        f.write(f"ICBM.update: sendButton={self.ICBM.sendButton}, state={self.ICBM.state}, "
+                f"vTarget={self.ICBM.vTarget}, vCruiseCluster={self.ICBM.vCruiseCluster}, "
+                f"frame={self.frame}, last_button_frame={self.last_button_frame}\n")
+    except Exception as e:
+      try:
+        with open("/tmp/icbm_debug.log", "a") as f:
+          f.write(f"ICBM.update: /data failed ({e}), sendButton={self.ICBM.sendButton}\n")
+      except Exception:
+        pass
+
     if self.ICBM.sendButton != SendButtonState.none:
       button_signal = BUTTON_SIGNALS[self.ICBM.sendButton]
 
@@ -57,6 +72,17 @@ class IntelligentCruiseButtonManagementInterface(IntelligentCruiseButtonManageme
       # Only send if enough time has passed since last button press
       if (self.frame - self.last_button_frame) * DT_CTRL > 0.05:
         cloudlog.warning(f"XXXXXXXXXXXXXXXXXXX Sending button press: {button_signal}")
+        try:
+          import os
+          os.makedirs(os.path.dirname(debug_log_path), exist_ok=True)
+          with open(debug_log_path, "a") as f:
+            f.write(f"ICBM.update: SENDING BUTTON: {button_signal}, frame={self.frame}\n")
+        except Exception as e:
+          try:
+            with open("/tmp/icbm_debug.log", "a") as f:
+              f.write(f"ICBM.update: SENDING BUTTON: {button_signal}, /data failed ({e})\n")
+          except Exception:
+            pass
         # Send button press to both camera and main bus (same as cancel/resume)
         can_sends.append(fordcan.create_button_msg(packer, CAN.camera, CS.buttons_stock_values,
                                                      icbm_button=button_signal))

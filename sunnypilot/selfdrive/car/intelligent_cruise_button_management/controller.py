@@ -110,12 +110,13 @@ class IntelligentCruiseButtonManagement:
     debug_log_path = "/data/icbm_debug.log"
     
     try:
+      os.makedirs(os.path.dirname(debug_log_path), exist_ok=True)
       with open(debug_log_path, "a") as f:
         f.write(f"ICBM.update_readiness: timers_before={dict(self.cruise_button_timers)}, "
                 f"CC.enabled={CC.enabled}, override={CC.cruiseControl.override}, "
                 f"cancel={CC.cruiseControl.cancel}, resume={CC.cruiseControl.resume}\n")
     except Exception:
-      pass
+      pass  # Silently fail if logging doesn't work
 
     update_manual_button_timers(CS, self.cruise_button_timers)
 
@@ -128,19 +129,21 @@ class IntelligentCruiseButtonManagement:
       for k in self.cruise_button_timers:
         self.cruise_button_timers[k] = 0
       try:
+        os.makedirs(os.path.dirname(debug_log_path), exist_ok=True)
         with open(debug_log_path, "a") as f:
           f.write(f"ICBM.update_readiness: Cleared timers (ready=False), timers_after={dict(self.cruise_button_timers)}\n")
       except Exception:
-        pass
+        pass  # Silently fail if logging doesn't work
 
     self.is_ready = ready and not button_pressed
     
     try:
+      os.makedirs(os.path.dirname(debug_log_path), exist_ok=True)
       with open(debug_log_path, "a") as f:
         f.write(f"ICBM.update_readiness: ready={ready}, button_pressed={button_pressed}, is_ready={self.is_ready}, "
                 f"timers_after={dict(self.cruise_button_timers)}\n")
     except Exception:
-      pass
+      pass  # Silently fail if logging doesn't work
 
   def run(self, CS: car.CarState, CC: car.CarControl, LP_SP: custom.LongitudinalPlanSP, is_metric: bool) -> None:
     if self.CP_SP.pcmCruiseSpeed:

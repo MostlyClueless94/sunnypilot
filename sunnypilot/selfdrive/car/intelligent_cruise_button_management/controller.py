@@ -106,6 +106,17 @@ class IntelligentCruiseButtonManagement:
     return send_button
 
   def update_readiness(self, CS: car.CarState, CC: car.CarControl) -> None:
+    import os
+    debug_log_path = "/data/icbm_debug.log"
+    
+    try:
+      with open(debug_log_path, "a") as f:
+        f.write(f"ICBM.update_readiness: timers_before={dict(self.cruise_button_timers)}, "
+                f"CC.enabled={CC.enabled}, override={CC.cruiseControl.override}, "
+                f"cancel={CC.cruiseControl.cancel}, resume={CC.cruiseControl.resume}\n")
+    except Exception:
+      pass
+
     update_manual_button_timers(CS, self.cruise_button_timers)
 
     ready = CC.enabled and not CC.cruiseControl.override and not CC.cruiseControl.cancel and not CC.cruiseControl.resume
@@ -116,8 +127,20 @@ class IntelligentCruiseButtonManagement:
     if not ready:
       for k in self.cruise_button_timers:
         self.cruise_button_timers[k] = 0
+      try:
+        with open(debug_log_path, "a") as f:
+          f.write(f"ICBM.update_readiness: Cleared timers (ready=False), timers_after={dict(self.cruise_button_timers)}\n")
+      except Exception:
+        pass
 
     self.is_ready = ready and not button_pressed
+    
+    try:
+      with open(debug_log_path, "a") as f:
+        f.write(f"ICBM.update_readiness: ready={ready}, button_pressed={button_pressed}, is_ready={self.is_ready}, "
+                f"timers_after={dict(self.cruise_button_timers)}\n")
+    except Exception:
+      pass
 
   def run(self, CS: car.CarState, CC: car.CarControl, LP_SP: custom.LongitudinalPlanSP, is_metric: bool) -> None:
     if self.CP_SP.pcmCruiseSpeed:

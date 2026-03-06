@@ -105,14 +105,14 @@ class IntelligentCruiseButtonManagement:
               # If cluster speed is 0 or very low, don't increase - wait for user to set initial speed
               # Also cap target to reasonable maximum (145 kph / 90 mph)
               MAX_REASONABLE_TARGET = 145 if self.is_metric else 90
-              if self.v_cruise_cluster == 0 or self.v_target > MAX_REASONABLE_TARGET:
+              if self.v_cruise_cluster == 0 or self.v_target >= MAX_REASONABLE_TARGET:
                 # Don't increase - stay in preActive or go to holding
                 self.state = State.holding
                 try:
                   import os
                   os.makedirs(os.path.dirname(debug_log_path), exist_ok=True)
                   with open(debug_log_path, "a") as f:
-                    f.write(f"ICBM: BLOCKED increase (cluster={self.v_cruise_cluster}, target={self.v_target} > max={MAX_REASONABLE_TARGET})\n")
+                    f.write(f"ICBM: BLOCKED increase (cluster={self.v_cruise_cluster}, target={self.v_target} >= max={MAX_REASONABLE_TARGET})\n")
                 except Exception:
                   pass
               else:

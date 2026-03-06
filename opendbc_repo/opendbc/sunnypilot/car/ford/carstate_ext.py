@@ -225,14 +225,12 @@ class CarStateExt:
       set_cruise_event.type = structs.CarState.ButtonEvent.Type.setCruise
       set_cruise_event.pressed = True
       button_events.append(set_cruise_event)
-      cloudlog.warning(f"Ford ButtonEvent: type=9 (setCruise), pressed=True (auto-emitted on mainCruise enable)")
 
       # Also emit release to complete the button press cycle
       set_cruise_release = structs.CarState.ButtonEvent.new_message()
       set_cruise_release.type = structs.CarState.ButtonEvent.Type.setCruise
       set_cruise_release.pressed = False
       button_events.append(set_cruise_release)
-      cloudlog.warning(f"Ford ButtonEvent: type=9 (setCruise), pressed=False (auto-emitted on mainCruise enable)")
 
       # Clear the flag after emitting setCruise
       self.main_cruise_pressed_recently = False

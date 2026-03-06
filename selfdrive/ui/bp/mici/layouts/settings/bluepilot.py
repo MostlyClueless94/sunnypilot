@@ -6,7 +6,6 @@ from openpilot.selfdrive.ui.bp.mici.widgets.button_bp import BigButtonBP, BigPar
 from openpilot.selfdrive.ui.bp.mici.widgets.floatbutton import BigParamFloatControl, BigParamIntControl
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.widgets.nav_widget import NavWidget
-from openpilot.system.ui.widgets.option_dialog import MultiOptionDialog
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.common.params import Params
 from openpilot.common.swaglog import cloudlog
@@ -14,7 +13,7 @@ from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.lib.wifi_manager import WifiManager, Network
 from openpilot.system.ui.widgets import DialogResult
 from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog
-from openpilot.selfdrive.ui.bp.mici.widgets.web_server_qr_dialog import WebServerQRDialog
+from openpilot.selfdrive.ui.bp.mici.widgets.preferred_network_select import PreferredNetworkSelectMici
 
 class BluePilotLayoutMici(NavWidget):
   def __init__(self, back_callback: Callable):
@@ -27,7 +26,6 @@ class BluePilotLayoutMici(NavWidget):
     self._wifi_manager = WifiManager()
     self._wifi_manager.set_active(False)  # Don't scan unless menu is shown
     self._saved_networks: list[Network] = []
-    self._preferred_network_dialog: MultiOptionDialog | None = None
     self._wifi_manager.add_callbacks(networks_updated=self._on_network_updated)
 
     # Preferred WiFi network selector (same as TICI - list of saved networks)
@@ -280,44 +278,16 @@ class BluePilotLayoutMici(NavWidget):
     return tr("None")
 
   def _select_preferred_network(self):
-    """Open dialog to select preferred network from saved networks."""
+    """Open horizontal-scroll panel to select preferred network (same pattern as WiFi network panel)."""
     if len(self._saved_networks) == 0:
       return
 
-    current_favorite = ""
-    try:
-      favorite_value = self._params.get("WifiFavoriteSSID")
-      if favorite_value:
-        if isinstance(favorite_value, bytes):
-          current_favorite = favorite_value.decode("utf-8", errors="replace").strip("\x00")
-        else:
-          current_favorite = str(favorite_value).strip("\x00")
-    except Exception:
-      pass
-
-    network_options = [tr("None")]
-    network_options.extend([n.ssid for n in self._saved_networks])
-
-    def handle_selection(result):
-      if result == DialogResult.CONFIRM and self._preferred_network_dialog is not None:
-        selection = self._preferred_network_dialog.selection
-        if selection == tr("None"):
-          selection = ""
-        self._params.put("WifiFavoriteSSID", selection)
-        if selection:
-          cloudlog.info(f"Set preferred network: {selection}")
-        else:
-          cloudlog.info("Cleared preferred network")
-        self.preferred_network_btn.set_value(self._get_preferred_network_display())
-      self._preferred_network_dialog = None
-
-    self._preferred_network_dialog = MultiOptionDialog(
-      tr("Select Preferred Network"),
-      network_options,
-      current_favorite if current_favorite else tr("None"),
-      callback=handle_selection
+    panel = PreferredNetworkSelectMici(
+      self._wifi_manager,
+      self._saved_networks,
+      on_dismiss=lambda: self.preferred_network_btn.set_value(self._get_preferred_network_display())
     )
-    gui_app.push_widget(self._preferred_network_dialog)
+    gui_app.push_widget(panel)
 
   def _update_toggles(self):
     ui_state.update_params()

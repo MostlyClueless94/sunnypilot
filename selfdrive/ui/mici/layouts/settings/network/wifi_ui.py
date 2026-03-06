@@ -161,11 +161,29 @@ class WifiButton(BigButton):
   def _get_label_font_size(self):
     return 48
 
+  def _render(self, rect):
+    super()._render(rect)
+    # BluePilot: draw SSID directly with raylib - UnifiedLabel may not render on C4
+    txt = _display_ssid(self._network.ssid)
+    if txt:
+      font = gui_app.font(FontWeight.BOLD)
+      x = int(self._rect.x + self.LABEL_PADDING)
+      y = int(self._rect.y + self.LABEL_VERTICAL_PADDING)
+      # Use _orig_draw_text_ex to bypass wrapper; apply FONT_SCALE manually
+      from openpilot.system.ui.lib.application import FONT_SCALE
+      draw_fn = getattr(rl, "_orig_draw_text_ex", rl.draw_text_ex)
+      draw_fn(font, txt, rl.Vector2(x, y), int(48 * FONT_SCALE), 0, LABEL_COLOR)
+
   def _draw_content(self, btn_y: float):
-    self._label.set_color(LABEL_COLOR)
-    label_rect = rl.Rectangle(self._rect.x + self.LABEL_PADDING, btn_y + self.LABEL_VERTICAL_PADDING,
-                              self.LABEL_WIDTH, self._rect.height - self.LABEL_VERTICAL_PADDING * 2)
-    self._label.render(label_rect)
+    # BluePilot: draw SSID directly - UnifiedLabel does not render on C4/MICI
+    x = int(self._rect.x + self.LABEL_PADDING)
+    y = int(btn_y + self.LABEL_VERTICAL_PADDING)
+    txt = _display_ssid(self._network.ssid)
+    if txt:
+      font = gui_app.font(FontWeight.BOLD)
+      rl.draw_text_ex(font, txt, rl.Vector2(x, y), 48, 0, LABEL_COLOR)
+    # Debug: always draw outline to verify coordinates - remove when SSID displays
+    rl.draw_rectangle_lines(x, y, min(200, self.LABEL_WIDTH), 48, rl.GREEN)
 
     if self.value:
       sub_label_x = self._rect.x + self.LABEL_HORIZONTAL_PADDING

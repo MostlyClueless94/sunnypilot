@@ -69,7 +69,9 @@ class VCruiseHelper(VCruiseHelperSP):
       self.v_cruise_kph = V_CRUISE_UNSET
       self.v_cruise_cluster_kph = V_CRUISE_UNSET
 
-    if not self.CP.pcmCruise or not self.CP_SP.pcmCruiseSpeed:
+    # Update button timers for non-PCM cars or PCM cars using ICBM
+    # For PCM cars with ICBM, button timers need to be cleared even though pcmCruiseSpeed=True
+    if not self.CP.pcmCruise or not self.CP_SP.pcmCruiseSpeed or self.CP_SP.intelligentCruiseButtonManagementAvailable:
       self.update_button_timers(CS, enabled)
 
   def _update_v_cruise_non_pcm(self, CS, enabled, is_metric):

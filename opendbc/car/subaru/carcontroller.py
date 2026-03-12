@@ -207,6 +207,7 @@ class CarController(CarControllerBase, SnGCarController):
 
       if self.CP.openpilotLongitudinalControl:
         if self.frame % 5 == 0:
+          has_cached_long_sources = all(msg is not None for msg in long_source_msgs.values())
           if long_sources_valid:
             can_sends.append(subarucan.create_es_status(self.packer, self.frame // 5, long_source_msgs["es_status"],
                                                         long_bus, self.CP.openpilotLongitudinalControl, CC.longActive, cruise_rpm))
@@ -216,15 +217,17 @@ class CarController(CarControllerBase, SnGCarController):
 
             can_sends.append(subarucan.create_es_distance(self.packer, self.frame // 5, long_source_msgs["es_distance"], long_bus, pcm_cancel_cmd,
                                                           self.CP.openpilotLongitudinalControl, cruise_brake > 0, cruise_throttle))
-          elif all(msg is not None for msg in long_source_msgs.values()):
-            # Missing/stale long source messages: explicitly send cancel-oriented stock behavior from last valid messages.
+          elif has_cached_long_sources:
+            # Missing/stale long source messages: keep sending from cached templates on the long bus.
+            # Preserve neutral outputs when not longActive; only propagate cancel when explicitly requested.
             can_sends.append(subarucan.create_es_status(self.packer, self.frame // 5, long_source_msgs["es_status"],
-                                                        long_bus, False, False, CarControllerParams.RPM_MIN))
+                                                        long_bus, self.CP.openpilotLongitudinalControl, CC.longActive, cruise_rpm))
 
             can_sends.append(subarucan.create_es_brake(self.packer, self.frame // 5, long_source_msgs["es_brake"],
-                                                       long_bus, False, False, CarControllerParams.BRAKE_MIN))
+                                                       long_bus, self.CP.openpilotLongitudinalControl, CC.longActive, cruise_brake))
 
-            can_sends.append(subarucan.create_es_distance(self.packer, self.frame // 5, long_source_msgs["es_distance"], long_bus, True))
+            can_sends.append(subarucan.create_es_distance(self.packer, self.frame // 5, long_source_msgs["es_distance"], long_bus, pcm_cancel_cmd,
+                                                          self.CP.openpilotLongitudinalControl, cruise_brake > 0, cruise_throttle))
       else:
         if pcm_cancel_cmd:
           if not (self.CP.flags & SubaruFlags.HYBRID):

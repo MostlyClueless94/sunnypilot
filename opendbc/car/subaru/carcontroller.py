@@ -1,3 +1,4 @@
+import copy
 import numpy as np
 from opendbc.can import CANPacker
 from opendbc.car import Bus, make_tester_present_msg, structs
@@ -18,6 +19,16 @@ LOW_SPEED_HIGH_ANGLE_GUARD_MAX_SPEED = 2.7  # m/s (6 mph)
 LOW_SPEED_HIGH_ANGLE_GUARD_MAX_STEER_ANGLE = 135.0  # deg
 POST_NON_DRIVE_COOLDOWN_MAX_SPEED = 4.4704  # m/s (10 mph)
 POST_NON_DRIVE_COOLDOWN_FRAMES = 150  # 1.5 s at 100 Hz
+LONG_MESSAGE_STALE_MAX_FRAMES = 50  # 0.5s at 100Hz
+
+LONGITUDINAL_SOURCE_KEYS = {
+  "es_status": ("CHECKSUM", "Signal1", "Cruise_Fault", "Cruise_RPM", "Cruise_Activated", "Brake_Lights", "Cruise_Hold", "Signal3", "COUNTER"),
+  "es_brake": ("CHECKSUM", "Signal1", "Brake_Pressure", "AEB_Status", "Cruise_Brake_Lights", "Cruise_Brake_Fault",
+               "Cruise_Brake_Active", "Cruise_Activated", "Signal3", "COUNTER"),
+  "es_distance": ("CHECKSUM", "Signal1", "Cruise_Fault", "Cruise_Throttle", "Signal2", "Car_Follow", "Low_Speed_Follow",
+                  "Cruise_Soft_Disable", "Signal7", "Cruise_Brake_Active", "Distance_Swap", "Cruise_EPB", "Signal4",
+                  "Close_Distance", "Signal5", "Cruise_Cancel", "Cruise_Set", "Cruise_Resume", "Signal6", "COUNTER"),
+}
 
 
 class CarController(CarControllerBase, SnGCarController):
@@ -30,9 +41,41 @@ class CarController(CarControllerBase, SnGCarController):
     self.cruise_button_prev = 0
     self.steer_rate_counter = 0
     self.last_non_drive_frame = -POST_NON_DRIVE_COOLDOWN_FRAMES
+    self.longitudinal_msg_state = {
+      name: {"counter": None, "last_update_frame": -LONG_MESSAGE_STALE_MAX_FRAMES - 1, "msg": None}
+      for name in LONGITUDINAL_SOURCE_KEYS
+    }
 
     self.p = CarControllerParams(CP)
     self.packer = CANPacker(DBC[CP.carFingerprint][Bus.pt])
+
+  def _update_longitudinal_message_state(self, name, msg):
+    state = self.longitudinal_msg_state[name]
+    required_keys = LONGITUDINAL_SOURCE_KEYS[name]
+    if not all(k in msg for k in required_keys):
+      return False
+
+    counter = msg["COUNTER"]
+    if state["counter"] != counter:
+      state["counter"] = counter
+      state["last_update_frame"] = self.frame
+      state["msg"] = copy.copy(msg)
+
+    return (self.frame - state["last_update_frame"]) <= LONG_MESSAGE_STALE_MAX_FRAMES
+
+  def _get_longitudinal_source_messages(self, CS):
+    current_msgs = {
+      "es_status": getattr(CS, "es_status_msg", {}),
+      "es_brake": getattr(CS, "es_brake_msg", {}),
+      "es_distance": getattr(CS, "es_distance_msg", {}),
+    }
+
+    valid = True
+    for name, msg in current_msgs.items():
+      valid &= self._update_longitudinal_message_state(name, msg)
+
+    cached_msgs = {name: self.longitudinal_msg_state[name]["msg"] for name in LONGITUDINAL_SOURCE_KEYS}
+    return valid, cached_msgs
 
   def handle_angle_lateral(self, CC, CS):
     # Angle-LKAS can hard fault during low-speed MADS lateral-only maneuvers.
@@ -123,6 +166,13 @@ class CarController(CarControllerBase, SnGCarController):
       cruise_rpm = CarControllerParams.RPM_MIN
       cruise_brake = CarControllerParams.BRAKE_MIN
 
+    long_sources_valid = True
+    long_source_msgs = {}
+    if self.CP.openpilotLongitudinalControl:
+      long_sources_valid, long_source_msgs = self._get_longitudinal_source_messages(CS)
+
+    long_bus = CanBus.alt if self.CP.flags & SubaruFlags.GLOBAL_GEN2 else CanBus.main
+
     # *** alerts and pcm cancel ***
     if self.CP.flags & SubaruFlags.PREGLOBAL:
       if self.frame % 5 == 0:
@@ -157,14 +207,24 @@ class CarController(CarControllerBase, SnGCarController):
 
       if self.CP.openpilotLongitudinalControl:
         if self.frame % 5 == 0:
-          can_sends.append(subarucan.create_es_status(self.packer, self.frame // 5, CS.es_status_msg,
-                                                      self.CP.openpilotLongitudinalControl, CC.longActive, cruise_rpm))
+          if long_sources_valid:
+            can_sends.append(subarucan.create_es_status(self.packer, self.frame // 5, long_source_msgs["es_status"],
+                                                        long_bus, self.CP.openpilotLongitudinalControl, CC.longActive, cruise_rpm))
 
-          can_sends.append(subarucan.create_es_brake(self.packer, self.frame // 5, CS.es_brake_msg,
-                                                     self.CP.openpilotLongitudinalControl, CC.longActive, cruise_brake))
+            can_sends.append(subarucan.create_es_brake(self.packer, self.frame // 5, long_source_msgs["es_brake"],
+                                                       long_bus, self.CP.openpilotLongitudinalControl, CC.longActive, cruise_brake))
 
-          can_sends.append(subarucan.create_es_distance(self.packer, self.frame // 5, CS.es_distance_msg, 0, pcm_cancel_cmd,
-                                                        self.CP.openpilotLongitudinalControl, cruise_brake > 0, cruise_throttle))
+            can_sends.append(subarucan.create_es_distance(self.packer, self.frame // 5, long_source_msgs["es_distance"], long_bus, pcm_cancel_cmd,
+                                                          self.CP.openpilotLongitudinalControl, cruise_brake > 0, cruise_throttle))
+          elif all(msg is not None for msg in long_source_msgs.values()):
+            # Missing/stale long source messages: explicitly send cancel-oriented stock behavior from last valid messages.
+            can_sends.append(subarucan.create_es_status(self.packer, self.frame // 5, long_source_msgs["es_status"],
+                                                        long_bus, False, False, CarControllerParams.RPM_MIN))
+
+            can_sends.append(subarucan.create_es_brake(self.packer, self.frame // 5, long_source_msgs["es_brake"],
+                                                       long_bus, False, False, CarControllerParams.BRAKE_MIN))
+
+            can_sends.append(subarucan.create_es_distance(self.packer, self.frame // 5, long_source_msgs["es_distance"], long_bus, True))
       else:
         if pcm_cancel_cmd:
           if not (self.CP.flags & SubaruFlags.HYBRID):

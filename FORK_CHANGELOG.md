@@ -27,6 +27,34 @@ This file tracks all custom fork changes for Subaru angle-LKAS support and relat
 
 ## Changelog
 
+### 2026-03-12
+
+#### Branch target
+
+- `alpha` only (based from `master` baseline `654b656`)
+
+#### Submodule (`opendbc_repo`) commit
+
+- `4d26129` - `subaru: harden angle LKAS around low-speed maneuver edges`
+
+#### What changed
+
+- Added global low-speed/high-angle LKAS request guard in Subaru angle lateral control:
+  - speed threshold: `< 2.7 m/s` (6 mph)
+  - steering angle threshold: `> 135 deg`
+- Added post-non-drive cooldown guard for angle LKAS request:
+  - cooldown window: `1.5 s` (`150` control frames at `100 Hz`)
+  - active only below `4.4704 m/s` (10 mph)
+- Preserved existing MADS-only safety guard:
+  - `MADS_ONLY_MIN_SPEED = 2.24 m/s` (5 mph)
+  - `MADS_ONLY_MAX_STEER_ANGLE = 120 deg`
+- No longitudinal behavior was modified.
+
+#### Validation done
+
+- `python -m py_compile opendbc_repo/opendbc/car/subaru/carcontroller.py` passed.
+- In-car validation pending on `alpha` (driveway/parking-lot low-speed fault reproduction scenarios).
+
 ### 2026-03-06
 
 #### Superproject commits

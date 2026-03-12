@@ -27,6 +27,40 @@ This file tracks all custom fork changes for Subaru angle-LKAS support and relat
 
 ## Changelog
 
+### 2026-03-12 (Alpha Pre-Engagement Experimental Fault Hardening)
+
+#### Branch target
+
+- `alpha` only (`master` unchanged)
+
+#### What changed
+
+- Updated Subaru angle-long stale-source fallback behavior in:
+  - `opendbc_repo/opendbc/car/subaru/carcontroller.py`
+- Kept lateral safeguards unchanged:
+  - MADS-only 5 mph guard
+  - low-speed/high-angle guard
+  - post-non-drive cooldown guard
+- Removed forced cancel behavior during stale long-source fallback:
+  - no longer hard-forces `Cruise_Cancel=1` when long source messages are stale
+- Added non-cancel cached fallback behavior:
+  - if cached `ES_Status`/`ES_Brake`/`ES_Distance` templates exist, continue transmitting on the computed long bus
+  - retain neutral outputs naturally when `CC.longActive` is false
+  - only send cancel semantics when `pcm_cancel_cmd` is explicitly true
+- Added guard for incomplete cache startup:
+  - when cached long templates are not yet all available, skip long-message injection for that frame
+
+#### Route evidence used
+
+- `2475d5eaa0bba7bc|00000001--8de6003f41`
+- `2475d5eaa0bba7bc|00000003--bef61b7020`
+- Both routes on `alpha` commit `5333a8cc` showed early disabled-state alert escalation before engagement.
+
+#### Validation done
+
+- `python -m py_compile opendbc_repo/opendbc/car/subaru/carcontroller.py` passed.
+- In-car validation pending (pre-engagement experimental-on drive and low-speed maneuver regression checks).
+
 ### 2026-03-12 (Outback Alpha Longitudinal Enablement)
 
 #### Branch target

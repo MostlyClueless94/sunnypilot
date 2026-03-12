@@ -172,6 +172,8 @@ class CarController(CarControllerBase, SnGCarController):
       long_sources_valid, long_source_msgs = self._get_longitudinal_source_messages(CS)
 
     long_bus = CanBus.alt if self.CP.flags & SubaruFlags.GLOBAL_GEN2 else CanBus.main
+    in_drive = CS.out.gearShifter == structs.CarState.GearShifter.drive
+    long_override_active = self.CP.openpilotLongitudinalControl and CC.longActive and in_drive
 
     # *** alerts and pcm cancel ***
     if self.CP.flags & SubaruFlags.PREGLOBAL:
@@ -210,24 +212,25 @@ class CarController(CarControllerBase, SnGCarController):
           has_cached_long_sources = all(msg is not None for msg in long_source_msgs.values())
           if long_sources_valid:
             can_sends.append(subarucan.create_es_status(self.packer, self.frame // 5, long_source_msgs["es_status"],
-                                                        long_bus, self.CP.openpilotLongitudinalControl, CC.longActive, cruise_rpm))
+                                                        long_bus, long_override_active, long_override_active, cruise_rpm))
 
             can_sends.append(subarucan.create_es_brake(self.packer, self.frame // 5, long_source_msgs["es_brake"],
-                                                       long_bus, self.CP.openpilotLongitudinalControl, CC.longActive, cruise_brake))
+                                                       long_bus, long_override_active, long_override_active, cruise_brake))
 
             can_sends.append(subarucan.create_es_distance(self.packer, self.frame // 5, long_source_msgs["es_distance"], long_bus, pcm_cancel_cmd,
-                                                          self.CP.openpilotLongitudinalControl, cruise_brake > 0, cruise_throttle))
+                                                          long_override_active, cruise_brake > 0, cruise_throttle))
           elif has_cached_long_sources:
             # Missing/stale long source messages: keep sending from cached templates on the long bus.
             # Preserve neutral outputs when not longActive; only propagate cancel when explicitly requested.
             can_sends.append(subarucan.create_es_status(self.packer, self.frame // 5, long_source_msgs["es_status"],
-                                                        long_bus, self.CP.openpilotLongitudinalControl, CC.longActive, cruise_rpm))
+                                                        long_bus, long_override_active, long_override_active, cruise_rpm))
 
             can_sends.append(subarucan.create_es_brake(self.packer, self.frame // 5, long_source_msgs["es_brake"],
-                                                       long_bus, self.CP.openpilotLongitudinalControl, CC.longActive, cruise_brake))
+                                                       long_bus, long_override_active, long_override_active, cruise_brake))
 
             can_sends.append(subarucan.create_es_distance(self.packer, self.frame // 5, long_source_msgs["es_distance"], long_bus, pcm_cancel_cmd,
-                                                          self.CP.openpilotLongitudinalControl, cruise_brake > 0, cruise_throttle))
+                                                          long_override_active, cruise_brake > 0, cruise_throttle))
+          # If cache is incomplete, skip long message injection this frame.
       else:
         if pcm_cancel_cmd:
           if not (self.CP.flags & SubaruFlags.HYBRID):

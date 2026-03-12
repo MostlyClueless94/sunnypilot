@@ -27,6 +27,39 @@ This file tracks all custom fork changes for Subaru angle-LKAS support and relat
 
 ## Changelog
 
+### 2026-03-12 (Alpha Gear-Transition Pass-Through Hardening)
+
+#### Branch target
+
+- `alpha` only (`master` unchanged)
+
+#### What changed
+
+- Updated Subaru angle-long pre-engagement behavior in:
+  - `opendbc_repo/opendbc/car/subaru/carcontroller.py`
+- Added explicit long override gate:
+  - `long_override_active = CP.openpilotLongitudinalControl and CC.longActive and (gear == drive)`
+- Applied pass-through semantics to Subaru long feedback messages until override is active:
+  - `ES_Status`
+  - `ES_Brake`
+  - `ES_Distance`
+- Continued explicit cancel-only behavior:
+  - `Cruise_Cancel` only when `pcm_cancel_cmd` is true
+- Preserved stale-cache fallback behavior and applied same pass-through/override gate when cached templates are used.
+- Kept existing incomplete-cache behavior:
+  - skip long-message injection for that frame if cached templates are incomplete
+- Lateral safeguards and Outback-only alpha long gating were left unchanged.
+
+#### Route evidence used
+
+- `2475d5eaa0bba7bc|00000006--6d5e150962`
+- Route on `alpha` commit `f229e7d7` showed disabled-state alert escalation shortly after shift out of park.
+
+#### Validation done
+
+- `python -m py_compile opendbc_repo/opendbc/car/subaru/carcontroller.py` passed.
+- In-car validation pending for repeated P->D pre-engagement transitions and engaged long regressions.
+
 ### 2026-03-12 (Alpha Pre-Engagement Experimental Fault Hardening)
 
 #### Branch target

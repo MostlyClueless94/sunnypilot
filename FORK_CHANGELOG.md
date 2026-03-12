@@ -27,6 +27,43 @@ This file tracks all custom fork changes for Subaru angle-LKAS support and relat
 
 ## Changelog
 
+### 2026-03-12 (Outback Alpha Longitudinal Enablement)
+
+#### Branch target
+
+- `alpha` only (`master` unchanged)
+
+#### Submodule (`opendbc_repo`) commit
+
+- `b9debfd` - `subaru: enable outback angle-long with gen2 message safety`
+
+#### What changed
+
+- Enabled alpha longitudinal only for `SUBARU_OUTBACK_2023` (2023-25 Outback) on non-release builds.
+- Preserved existing low-speed angle-LKAS fault hardening logic in lateral control:
+  - MADS-only 5 mph guard
+  - low-speed/high-angle guard
+  - post-non-drive cooldown guard
+- Added robust longitudinal source-message caching and stale-message fallback for:
+  - `ES_Status`
+  - `ES_Brake`
+  - `ES_Distance`
+- Corrected GEN2 angle-long message routing:
+  - `ES_Status`, `ES_Brake`, `ES_Distance` now sent on the computed long bus (`CanBus.alt` on GEN2).
+- Added Subaru safety test coverage for GEN2 + LKAS_ANGLE + LONG:
+  - `TestSubaruGen2AngleLongitudinalSafety`
+- Added CI guardrail workflow for `alpha` branch:
+  - `.github/workflows/alpha-opendbc-guardrails.yaml`
+
+#### Validation done
+
+- `python -m py_compile` passed for modified Subaru files:
+  - `carcontroller.py`
+  - `subarucan.py`
+  - `interface.py`
+  - `test_subaru.py`
+- Full Subaru safety tests not runnable locally in this Windows environment (`Python 3.10`); CI/Linux validation required.
+
 ### 2026-03-12
 
 #### Branch target

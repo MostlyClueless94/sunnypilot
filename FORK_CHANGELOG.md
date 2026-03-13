@@ -27,6 +27,31 @@ This file tracks all custom fork changes for Subaru angle-LKAS support and relat
 
 ## Changelog
 
+### 2026-03-13 (Alpha Low-Speed Smoothing Promotion)
+
+#### Branch target
+
+- `alpha` only (`master`/`staging` handled independently)
+
+#### What changed
+
+- Promoted low-speed Subaru angle smoothing into the current alpha Subaru controller lineage:
+  - `opendbc_repo` submodule pointer now targets `7b9764be2`
+  - smoothing is applied only to angle target generation below 10 mph, before standard angle rate limiting
+- Preserved existing alpha behavior unchanged:
+  - MADS 5 mph rule
+  - low-speed/high-angle LKAS guard
+  - post-non-drive cooldown guard
+  - alpha longitudinal rollback/hardening behavior
+
+#### Why
+
+- Reduce visible low-speed steering chatter while keeping all current alpha guardrails intact.
+
+#### Validation done
+
+- `python -m py_compile opendbc_repo/opendbc/car/subaru/carcontroller.py` passed.
+
 ### 2026-03-12 (Alpha Stability Rollback - Temporary Outback Long Disable)
 
 #### Branch target

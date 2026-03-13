@@ -27,6 +27,42 @@ This file tracks all custom fork changes for Subaru angle-LKAS support and relat
 
 ## Changelog
 
+### 2026-03-12 (Alpha Stability Rollback - Temporary Outback Long Disable)
+
+#### Branch target
+
+- `alpha` only (`master` unchanged)
+
+#### What changed
+
+- Temporarily disabled Outback alpha longitudinal availability in:
+  - `opendbc_repo/opendbc/car/subaru/interface.py`
+- Added a temporary rollback guard:
+  - `TEMP_DISABLE_OUTBACK_ALPHA_LONG = True`
+- Updated alpha-long availability gate to require:
+  - `candidate == CAR.SUBARU_OUTBACK_2023`
+  - non-release build
+  - rollback guard disabled (currently false, so alpha long is off)
+- Kept Subaru lateral behavior unchanged:
+  - MADS 5 mph rule
+  - low-speed/high-angle LKAS guard
+  - post-non-drive cooldown guard
+  - existing low-speed steering smoothing logic
+
+#### Why
+
+- Route evidence on `alpha` with Experimental enabled continued to show immediate LKAS fault behavior pre-engagement.
+- This rollback is intended to restore startup/parking-lot stability while preserving the current lateral stack.
+
+#### Rollback intent
+
+- Re-enable Outback alpha long only after pre-engagement hardening (fresh source warmup + stricter override gating) is validated in-car.
+
+#### Validation done
+
+- `python -m py_compile opendbc_repo/opendbc/car/subaru/interface.py` passed.
+- `python -m py_compile opendbc_repo/opendbc/car/subaru/carcontroller.py` passed.
+
 ### 2026-03-12 (Alpha Gear-Transition Pass-Through Hardening)
 
 #### Branch target

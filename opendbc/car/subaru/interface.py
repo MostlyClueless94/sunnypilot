@@ -5,6 +5,9 @@ from opendbc.car.subaru.carcontroller import CarController
 from opendbc.car.subaru.carstate import CarState
 from opendbc.car.subaru.values import CAR, GLOBAL_ES_ADDR, SubaruFlags, SubaruSafetyFlags
 
+# Temporary stability rollback for Outback alpha longitudinal while immediate LKAS faults are investigated.
+TEMP_DISABLE_OUTBACK_ALPHA_LONG = True
+
 
 class CarInterface(CarInterfaceBase):
   CarState = CarState
@@ -90,8 +93,9 @@ class CarInterface(CarInterfaceBase):
     else:
       raise ValueError(f"unknown car: {candidate}")
 
-    # Keep alpha longitudinal tightly scoped: only allow 2023-25 Outback platform on non-release branches.
-    ret.alphaLongitudinalAvailable = candidate == CAR.SUBARU_OUTBACK_2023 and not is_release
+    # Keep alpha longitudinal tightly scoped to Outback and allow a temporary stability rollback on alpha.
+    outback_alpha_long_candidate = candidate == CAR.SUBARU_OUTBACK_2023 and not is_release
+    ret.alphaLongitudinalAvailable = outback_alpha_long_candidate and not TEMP_DISABLE_OUTBACK_ALPHA_LONG
     ret.openpilotLongitudinalControl = alpha_long and ret.alphaLongitudinalAvailable
 
     if ret.flags & SubaruFlags.GLOBAL_GEN2 and ret.openpilotLongitudinalControl:

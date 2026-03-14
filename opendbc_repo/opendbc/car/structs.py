@@ -172,12 +172,7 @@ class CarStateSP:
   speedLimit: float = auto_field()
 
 
-# BluePilot: ControllerStateBP for lateral uncertainty and long-control debug
+# BluePilot: ControllerStateBP for lateral uncertainty (angleState vehicles)
 @auto_dataclass
 class ControllerStateBP:
-  lateralUncertainty: float = auto_field()
-  disableBpLongUI: bool = auto_field()
-  leadPresent: bool = auto_field()
-  vLeadMph: float = auto_field()
-  bpSpeedAllow: bool = auto_field()
-  applyBpLong: bool = auto_field()
+  lateralUncertainty: float = 0.0

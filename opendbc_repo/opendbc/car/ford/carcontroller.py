@@ -989,6 +989,5 @@ class CarController(CarControllerBase, IntelligentCruiseButtonManagementInterfac
     new_actuators.curvature = float(apply_curvature)
     new_actuators.accel = float(self.accel)
     new_actuators.gas = float(self.gas)
-    new_actuators.steeringAngleDeg = float(self.predictedSteeringAngleDeg_SP)
     self.frame += 1
     return new_actuators, can_sends

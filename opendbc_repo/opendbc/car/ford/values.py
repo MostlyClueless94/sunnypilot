@@ -98,6 +98,7 @@ class FordCarDocs(CarDocs):
       CAR.FORD_ESCAPE_MK4_5,
       CAR.FORD_MUSTANG_MACH_E_MK1,
       CAR.FORD_RANGER_MK2,
+      CAR.FORD_EDGE_MK2,
     ):
       self.car_parts = CarParts([Device.threex_angled_mount, harness])
     else:

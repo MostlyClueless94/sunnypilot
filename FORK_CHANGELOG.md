@@ -4,12 +4,14 @@ This file tracks all custom fork changes for Subaru angle-LKAS support and relat
 
 ## Active Install URLs
 
-- Master (current primary): `https://installer.comma.ai/MostlyClueless94/master`
-- Alpha (staging/testing): `https://installer.comma.ai/MostlyClueless94/alpha`
+- Stable 3X: `https://install.sunnypilot.ai/fork/MostlyClueless94/master`
+- Stable C4: `https://install.sunnypilot.ai/fork/MostlyClueless94/master-tici`
+- Alpha (staging/testing): `https://install.sunnypilot.ai/fork/MostlyClueless94/alpha`
 
 ## Branch Policy
 
-- `master`: primary install branch.
+- `master`: primary stable install branch for comma 3X.
+- `master-tici`: comma 4 compatible mirror of `master`.
 - `alpha`: staging branch for new Subaru changes before promoting to `master`.
 - Current state on 2026-03-06: `master` and `alpha` point to the same superproject commit (`f0b31f1`).
 
@@ -26,6 +28,19 @@ This file tracks all custom fork changes for Subaru angle-LKAS support and relat
 - Reference tag for pre-mitigation state: `5e57cb77dd1ec5843bcf841ff465b2fa3ece9632` (`opendbc-master-submodule`)
 
 ## Changelog
+
+### 2026-03-17
+
+- Branches updated: `master`, `master-tici`.
+- Why changed: add a comma 4 compatible stable branch name without changing Subaru or hardware logic.
+- Mirror rule: `master-tici` is a strict mirror of `master`, including the same `opendbc_repo` pointer.
+- Install guidance:
+  - comma 3X users should install `master`
+  - comma 4 users should install `master-tici`
+- Validation done:
+  - confirmed `master` points to `opendbc_repo` commit `c527da39a`
+  - confirmed SunnyPilot classifies `master-tici` as `channel_type == "tici"` by existing branch naming rules
+  - confirmed existing installer/updater migration logic already maps TICI `master` -> `master-tici`
 
 ### 2026-03-13
 

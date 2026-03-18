@@ -14,6 +14,7 @@ MAX_STEER_RATE = 25  # deg/s
 MAX_STEER_RATE_FRAMES = 7  # tx control frames needed before torque can be cut
 MADS_ONLY_MIN_SPEED = 2.24  # m/s (5 mph)
 MADS_ONLY_MAX_STEER_ANGLE = 120.0  # deg
+MADS_MANUAL_OVERRIDE_RELEASE_FRAMES = 30  # 0.3 s at 100 Hz
 LOW_SPEED_SMOOTH_MAX_SPEED = 4.4704  # m/s (10 mph)
 LOW_SPEED_SMOOTH_DEADBAND_MAX = 0.8  # deg at 0 mph
 LOW_SPEED_SMOOTH_ALPHA_MIN = 0.35  # blend factor at 0 mph
@@ -28,6 +29,7 @@ class CarController(CarControllerBase, SnGCarController):
 
     self.cruise_button_prev = 0
     self.steer_rate_counter = 0
+    self.last_mads_manual_override_frame = -MADS_MANUAL_OVERRIDE_RELEASE_FRAMES
 
     self.p = CarControllerParams(CP)
     self.packer = CANPacker(DBC[CP.carFingerprint][Bus.pt])
@@ -48,9 +50,16 @@ class CarController(CarControllerBase, SnGCarController):
     # Angle-LKAS can hard fault during low-speed MADS lateral-only maneuvers.
     # Keep MADS behavior above 5 mph, but block sharp parking-lot style steering in lateral-only mode.
     mads_only = CC.latActive and not CC.enabled
+    if mads_only and CS.out.steeringPressed:
+      self.last_mads_manual_override_frame = self.frame
+
+    mads_manual_override = mads_only and (
+      CS.out.steeringPressed or
+      (self.frame - self.last_mads_manual_override_frame) < MADS_MANUAL_OVERRIDE_RELEASE_FRAMES
+    )
     mads_only_ok = CS.out.vEgoRaw > MADS_ONLY_MIN_SPEED and abs(CS.out.steeringAngleDeg) < MADS_ONLY_MAX_STEER_ANGLE
     lkas_request = CC.latActive and (CC.enabled or not mads_only or mads_only_ok) and \
-      CS.out.gearShifter == structs.CarState.GearShifter.drive and not CS.out.standstill
+      CS.out.gearShifter == structs.CarState.GearShifter.drive and not CS.out.standstill and not mads_manual_override
 
     steer_target = CC.actuators.steeringAngleDeg
     if lkas_request and CS.out.vEgoRaw < LOW_SPEED_SMOOTH_MAX_SPEED:

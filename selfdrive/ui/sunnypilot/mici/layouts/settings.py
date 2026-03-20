@@ -13,6 +13,7 @@ from openpilot.selfdrive.ui.sunnypilot.mici.layouts.models import ModelsLayoutMi
 from openpilot.system.ui.lib.application import gui_app
 # BluePilot: START - BP settings tab import
 from openpilot.selfdrive.ui.bp.mici.layouts.settings.bluepilot import BluePilotLayoutMici
+from openpilot.selfdrive.ui.bp.mici.layouts.settings.vehicle_mici import VehicleLayoutMici
 # BluePilot: END - BP settings tab import
 
 ICON_SIZE = 70
@@ -30,6 +31,12 @@ class SettingsLayoutSP(OP.SettingsLayout):
     models_btn = BigButton("models", "", "../../sunnypilot/selfdrive/assets/offroad/icon_models.png")
     models_btn.set_click_callback(lambda: gui_app.push_widget(models_panel))
 
+    # BluePilot: START - MICI vehicle fingerprint selector (make → model)
+    vehicle_panel = VehicleLayoutMici(back_callback=gui_app.pop_widget)
+    vehicle_btn = BigButton("vehicle", "", "../../sunnypilot/selfdrive/assets/offroad/icon_vehicle.png")
+    vehicle_btn.set_click_callback(lambda: gui_app.push_widget(vehicle_panel))
+    # BluePilot: END - MICI vehicle fingerprint selector
+
     # BluePilot: START - BP settings button and panel
     bp_panel = BluePilotLayoutMici(back_callback=gui_app.pop_widget)
     bluepilot_btn = BigButton("bluepilot", "", "icons_mici/settings/car_icon.png", tint=rl.BLUE)
@@ -40,9 +47,10 @@ class SettingsLayoutSP(OP.SettingsLayout):
 
     items.insert(1, sunnylink_btn)
     items.insert(2, models_btn)
-    # BluePilot: START - insert BP button into scroller
-    items.insert(3, bluepilot_btn)
-    # BluePilot: END - insert BP button into scroller
+    # BluePilot: START - insert vehicle + BP buttons into scroller
+    items.insert(3, vehicle_btn)
+    items.insert(4, bluepilot_btn)
+    # BluePilot: END - insert vehicle + BP buttons into scroller
     self._scroller._items.clear()
     for item in items:
       self._scroller.add_widget(item)

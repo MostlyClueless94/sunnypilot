@@ -95,12 +95,12 @@ class WifiFavoriteManager:
         cloudlog.debug(f"BluePilot: Scanning for networks (checking for favorite '{favorite_ssid}')...")
         try:
           self._wifi_manager._request_scan()
-          # Trigger network update to refresh scan results
-          self._wifi_manager._update_networks()
+          # force=True: _update_networks() no-ops when settings UI set_active(False); preferred
+          # WiFi must still populate _networks while user is on home screen / MICI nav.
+          self._wifi_manager._update_networks(force=True)
           # Wait for scan results to populate
           time.sleep(SCAN_WAIT_SECONDS)
-          # Update networks again after scan completes
-          self._wifi_manager._update_networks()
+          self._wifi_manager._update_networks(force=True)
         except Exception as e:
           cloudlog.warning(f"BluePilot: Failed to scan networks: {e}")
           continue

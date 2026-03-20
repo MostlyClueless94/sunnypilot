@@ -224,6 +224,9 @@ class WifiManager:
 
       self._scan_thread.start()
       self._state_thread.start()
+      # BluePilot: START - preferred WiFi runs in background even when settings UI is closed
+      self._favorite_manager.start()
+      # BluePilot: END - preferred WiFi
 
       self._tethering_password = self._get_tethering_password()
       cloudlog.debug("WifiManager initialized")
@@ -851,8 +854,10 @@ class WifiManager:
     if reply.header.message_type == MessageType.error:
       cloudlog.warning(f"Failed to request scan: {reply}")
 
-  def _update_networks(self, block: bool = True):
-    if not self._active:
+  def _update_networks(self, block: bool = True, force: bool = False):
+    # When force=True (BluePilot preferred WiFi), refresh AP list even if settings panel
+    # is hidden — otherwise _active is False and _networks stays empty.
+    if not self._active and not force:
       return
 
     def worker():

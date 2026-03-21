@@ -13,6 +13,38 @@ This file tracks the maintained Subaru patch queue that sits on top of current S
 - `MostlyClueless`: current-upstream integration/testing branch.
 - Longitudinal experimentation is intentionally excluded from this rebuilt branch line.
 
+## 2026-03-21 (MostlyClueless Lateral Sensitivity Rollback)
+
+### Why
+
+- Real-road validation showed `MostlyClueless` was too sensitive to steering-angle mismatches on larger bumps and some curves.
+- The regression matched the two `MostlyClueless`-only lateral experiments:
+  - soft-capture engage/recovery smoothing
+  - Jacob `v2_limits` engage-gap gate
+
+### What changed
+
+- Rolled Subaru angle lateral behavior on `MostlyClueless` back toward `master` sensitivity while keeping the rebuilt upstream SunnyPilot base.
+- Removed the continuous VM-based engage-gap request gate.
+- Removed soft-capture handoff blending and its controller state.
+- Kept the stable Subaru behavior that already worked well:
+  - low-speed smoothing
+  - MADS manual-steer yield
+  - low-speed/high-angle guard
+  - post-non-drive cooldown
+  - modern Subaru angle support / Outback support
+
+### Validation Done
+
+- `python -m py_compile opendbc_repo/opendbc/car/subaru/carcontroller.py`
+- `python -m py_compile opendbc_repo/opendbc/car/subaru/values.py`
+- `python -m py_compile opendbc_repo/opendbc/car/subaru/test_carcontroller.py`
+
+### Known Follow-Up
+
+- `MostlyClueless` should be re-tested in the same curves and over the same larger bumps that exposed the regression.
+- `master` remains unchanged until in-car validation confirms the rollback restored stable behavior.
+
 ## 2026-03-19 (MostlyClueless Reset to Current SunnyPilot)
 
 ### Base
@@ -20,7 +52,7 @@ This file tracks the maintained Subaru patch queue that sits on top of current S
 - Rebuilt `MostlyClueless` from `sunnypilot/sunnypilot` `upstream/master` commit `1658898498b8867dca06b22be85bc650e6a284f9`.
 - Rebased custom Subaru work onto `sunnypilot/opendbc` commit `b178bc5d4e7cd15c50eb3e148cc2648b9379ca86`.
 - Moved `opendbc_repo` to dedicated repo: `https://github.com/MostlyClueless94/opendbc.git`.
-- Current rebuilt `opendbc_repo` pointer: `c3708c7c260d12ae4be71597878c624b94433ef5`.
+- Current rebuilt `opendbc_repo` pointer: `f40f1e647759107794be2be8be92e5ff0c1fadd1`.
 
 ### Retained Subaru Patch Queue
 

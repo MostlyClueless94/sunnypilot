@@ -22,14 +22,6 @@ from openpilot.system.ui.widgets.scroller import NavScroller
 
 CAR_LIST_JSON = os.path.join(BASEDIR, "sunnypilot", "selfdrive", "car", "car_list.json")
 
-# Display label (MICI) -> "make" field in car_list.json
-MICI_VEHICLE_MAKES: list[tuple[str, str]] = [
-  ("Ford", "Ford"),
-  ("Chevy", "Chevrolet"),
-  ("Dodge", "Dodge"),
-  ("Hyundai", "Hyundai"),
-]
-
 
 def load_car_platforms() -> dict:
   with open(CAR_LIST_JSON) as f:
@@ -42,12 +34,12 @@ def platform_names_for_make(platforms: dict, make: str) -> list[str]:
 
 
 def makes_available(platforms: dict) -> list[tuple[str, str]]:
-  """(display_label, car_list_make) for makes that have at least one vehicle."""
-  out: list[tuple[str, str]] = []
-  for display, make_key in MICI_VEHICLE_MAKES:
-    if platform_names_for_make(platforms, make_key):
-      out.append((display, make_key))
-  return out
+  """
+  Every unique ``make`` from car_list.json, sorted — same set TICI uses for TreeFolder
+  in PlatformSelector._show_platform_dialog (sorted unique makes, then platforms per make).
+  """
+  makes = sorted({d.get("make") for d in platforms.values() if d.get("make")})
+  return [(m, m) for m in makes]
 
 
 class VehicleMakeSelectMici(NavScroller):

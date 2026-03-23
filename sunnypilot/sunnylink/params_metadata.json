@@ -198,6 +198,20 @@
     "title": "Current Route",
     "description": ""
   },
+  "CustomModelPathColor": {
+    "title": "Custom Model Path Color",
+    "description": "Use BluePilot-style preset colors for the driving path overlay. Overrides Dynamic Path Color and Rainbow Mode when set to anything other than Stock.",
+    "options": [
+      { "value": 0, "label": "Stock" },
+      { "value": 1, "label": "Blue" },
+      { "value": 2, "label": "Green" },
+      { "value": 3, "label": "Purple" },
+      { "value": 4, "label": "Orange" },
+      { "value": 5, "label": "Red" },
+      { "value": 6, "label": "Cyan" },
+      { "value": 7, "label": "Yellow" }
+    ]
+  },
   "CustomAccIncrementsEnabled": {
     "title": "Custom ACC Increments",
     "description": ""

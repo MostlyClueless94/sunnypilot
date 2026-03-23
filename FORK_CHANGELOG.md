@@ -24,9 +24,21 @@ This file tracks the maintained Subaru patch queue that sits on top of current S
   - green for full active states
 - Experimental path coloring keeps priority.
 - Dynamic Path Color overrides Rainbow Mode while enabled.
+- Added a BluePilot-style `Custom Model Path Color` selector with preset colors:
+  - Stock
+  - Blue
+  - Green
+  - Purple
+  - Orange
+  - Red
+  - Cyan
+  - Yellow
+- Dynamic Path Color now uses BluePilot-matched blue/green shades and the stock BluePilot grayscale.
+- Custom Model Path Color overrides both Dynamic Path Color and Rainbow Mode when a preset is selected.
 
 ### Validation Done
 
+- `python -m py_compile selfdrive/ui/sunnypilot/onroad/path_colors.py`
 - `python -m py_compile selfdrive/ui/sunnypilot/layouts/settings/visuals.py`
 - `python -m py_compile selfdrive/ui/sunnypilot/ui_state.py`
 - `python -m py_compile selfdrive/ui/onroad/model_renderer.py`

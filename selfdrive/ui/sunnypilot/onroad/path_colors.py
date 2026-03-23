@@ -1,0 +1,82 @@
+import pyray as rl
+
+from openpilot.selfdrive.ui.ui_state import UIStatus
+
+PATH_GRADIENT_STOPS = [0.0, 0.5, 1.0]
+
+CUSTOM_MODEL_PATH_COLOR_LABELS = [
+  "Stock",
+  "Blue",
+  "Green",
+  "Purple",
+  "Orange",
+  "Red",
+  "Cyan",
+  "Yellow",
+]
+
+BLUEPILOT_GRAY_PATH_COLORS = [
+  rl.Color(242, 242, 242, 102),
+  rl.Color(242, 242, 242, 89),
+  rl.Color(242, 242, 242, 0),
+]
+
+BLUEPILOT_BLUE_PATH_COLORS = [
+  rl.Color(0, 102, 204, 102),
+  rl.Color(51, 153, 255, 89),
+  rl.Color(51, 153, 255, 0),
+]
+
+BLUEPILOT_GREEN_PATH_COLORS = [
+  rl.Color(0, 204, 102, 102),
+  rl.Color(51, 255, 153, 89),
+  rl.Color(51, 255, 153, 0),
+]
+
+BLUEPILOT_PURPLE_PATH_COLORS = [
+  rl.Color(153, 51, 204, 102),
+  rl.Color(178, 102, 255, 89),
+  rl.Color(178, 102, 255, 0),
+]
+
+BLUEPILOT_ORANGE_PATH_COLORS = [
+  rl.Color(255, 128, 0, 102),
+  rl.Color(255, 153, 51, 89),
+  rl.Color(255, 153, 51, 0),
+]
+
+BLUEPILOT_RED_PATH_COLORS = [
+  rl.Color(204, 0, 0, 102),
+  rl.Color(255, 51, 51, 89),
+  rl.Color(255, 51, 51, 0),
+]
+
+BLUEPILOT_CYAN_PATH_COLORS = [
+  rl.Color(0, 204, 204, 102),
+  rl.Color(51, 255, 255, 89),
+  rl.Color(51, 255, 255, 0),
+]
+
+BLUEPILOT_YELLOW_PATH_COLORS = [
+  rl.Color(204, 204, 0, 102),
+  rl.Color(255, 255, 51, 89),
+  rl.Color(255, 255, 51, 0),
+]
+
+CUSTOM_MODEL_PATH_COLOR_PRESETS = {
+  1: BLUEPILOT_BLUE_PATH_COLORS,
+  2: BLUEPILOT_GREEN_PATH_COLORS,
+  3: BLUEPILOT_PURPLE_PATH_COLORS,
+  4: BLUEPILOT_ORANGE_PATH_COLORS,
+  5: BLUEPILOT_RED_PATH_COLORS,
+  6: BLUEPILOT_CYAN_PATH_COLORS,
+  7: BLUEPILOT_YELLOW_PATH_COLORS,
+}
+
+DYNAMIC_PATH_COLORS = {
+  UIStatus.DISENGAGED: BLUEPILOT_GRAY_PATH_COLORS,
+  UIStatus.OVERRIDE: BLUEPILOT_GRAY_PATH_COLORS,
+  UIStatus.LAT_ONLY: BLUEPILOT_BLUE_PATH_COLORS,
+  UIStatus.LONG_ONLY: BLUEPILOT_GREEN_PATH_COLORS,
+  UIStatus.ENGAGED: BLUEPILOT_GREEN_PATH_COLORS,
+}

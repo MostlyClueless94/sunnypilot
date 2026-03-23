@@ -6,6 +6,7 @@ See the LICENSE.md file in the root directory for more details.
 """
 from openpilot.common.params import Params
 from openpilot.selfdrive.ui.ui_state import ui_state
+from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import CUSTOM_MODEL_PATH_COLOR_LABELS
 from openpilot.system.ui.lib.multilang import tr, tr_noop
 from openpilot.system.ui.sunnypilot.widgets.list_view import toggle_item_sp, multiple_button_item_sp
 from openpilot.system.ui.widgets.scroller_tici import Scroller
@@ -49,7 +50,8 @@ class VisualsLayout(Widget):
         lambda: tr("Dynamic Path Color"),
         tr("Color the driving path by drive mode. " +
            "Gray when inactive or overriding, blue for steering-only, and green for full control. " +
-           "This overrides Rainbow Mode and leaves Experimental path coloring unchanged."),
+           "This uses BluePilot-matched blue/green shades, overrides Rainbow Mode, " +
+           "and is overridden by Custom Model Path Color. Experimental path coloring stays unchanged."),
         None,
       ),
       "StandstillTimer": (
@@ -119,6 +121,16 @@ class VisualsLayout(Widget):
       param="ChevronInfo",
       inline=False
     )
+    self._custom_model_path_color = multiple_button_item_sp(
+      title=lambda: tr("Custom Model Path Color"),
+      description=lambda: tr("Use BluePilot-style preset colors for the driving path overlay. "
+                             "Stock keeps the normal path behavior. "
+                             "When a preset is selected, it overrides Dynamic Path Color and Rainbow Mode."),
+      buttons=[lambda label=label: tr(label) for label in CUSTOM_MODEL_PATH_COLOR_LABELS],
+      param="CustomModelPathColor",
+      button_width=160,
+      inline=False
+    )
     self._dev_ui_info = multiple_button_item_sp(
       title=lambda: tr("Developer UI"),
       description=lambda: tr("Display real-time parameters and metrics from various sources."),
@@ -130,6 +142,7 @@ class VisualsLayout(Widget):
 
     items = list(self._toggles.values()) + [
       self._chevron_info,
+      self._custom_model_path_color,
       self._dev_ui_info,
     ]
     return items
@@ -141,6 +154,7 @@ class VisualsLayout(Widget):
       self._toggles[param].action_item.set_state(self._params.get_bool(param))
 
     self._dev_ui_info.action_item.set_selected_button(ui_state.params.get("DevUIInfo", return_default=True))
+    self._custom_model_path_color.action_item.set_selected_button(ui_state.params.get("CustomModelPathColor", return_default=True))
 
     if self._chevron_info_available():
       self._chevron_info.set_description(tr(CHEVRON_INFO_DESCRIPTION["enabled"]))

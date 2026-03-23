@@ -8,6 +8,7 @@ from openpilot.common.params import Params
 from openpilot.selfdrive.locationd.calibrationd import HEIGHT_INIT
 from openpilot.selfdrive.ui.ui_state import UIStatus
 from openpilot.selfdrive.ui.ui_state import ui_state
+from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import CUSTOM_MODEL_PATH_COLOR_PRESETS, DYNAMIC_PATH_COLORS, PATH_GRADIENT_STOPS
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.shader_polygon import draw_polygon, Gradient
 from openpilot.system.ui.widgets import Widget
@@ -29,26 +30,6 @@ NO_THROTTLE_COLORS = [
   rl.Color(242, 242, 242, 89),  # HSLF(112/360, 0.0, 0.95, 0.35)
   rl.Color(242, 242, 242, 0),   # HSLF(112/360, 0.0, 0.95, 0.0)
 ]
-
-GRAY_PATH_COLORS = [
-  rl.Color(170, 170, 170, 102),
-  rl.Color(205, 205, 205, 89),
-  rl.Color(205, 205, 205, 0),
-]
-
-BLUE_PATH_COLORS = [
-  rl.Color(46, 132, 255, 102),
-  rl.Color(96, 173, 255, 89),
-  rl.Color(96, 173, 255, 0),
-]
-
-DYNAMIC_PATH_COLORS = {
-  UIStatus.DISENGAGED: GRAY_PATH_COLORS,
-  UIStatus.OVERRIDE: GRAY_PATH_COLORS,
-  UIStatus.LAT_ONLY: BLUE_PATH_COLORS,
-  UIStatus.LONG_ONLY: THROTTLE_COLORS,
-  UIStatus.ENGAGED: THROTTLE_COLORS,
-}
 
 
 @dataclass
@@ -320,12 +301,22 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
         draw_polygon(self._rect, self._path.projected_points, rl.Color(255, 255, 255, 30))
       return
 
+    if ui_state.custom_model_path_color:
+      gradient = Gradient(
+        start=(0.0, 1.0),
+        end=(0.0, 0.0),
+        colors=CUSTOM_MODEL_PATH_COLOR_PRESETS[ui_state.custom_model_path_color],
+        stops=PATH_GRADIENT_STOPS,
+      )
+      draw_polygon(self._rect, self._path.projected_points, gradient=gradient)
+      return
+
     if ui_state.dynamic_path_color:
       gradient = Gradient(
         start=(0.0, 1.0),
         end=(0.0, 0.0),
-        colors=DYNAMIC_PATH_COLORS.get(ui_state.status, GRAY_PATH_COLORS),
-        stops=[0.0, 0.5, 1.0],
+        colors=DYNAMIC_PATH_COLORS.get(ui_state.status, NO_THROTTLE_COLORS),
+        stops=PATH_GRADIENT_STOPS,
       )
       draw_polygon(self._rect, self._path.projected_points, gradient=gradient)
       return
@@ -341,7 +332,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
       start=(0.0, 1.0),  # Bottom of path
       end=(0.0, 0.0),  # Top of path
       colors=blended_colors,
-      stops=[0.0, 0.5, 1.0],
+      stops=PATH_GRADIENT_STOPS,
     )
     draw_polygon(self._rect, self._path.projected_points, gradient=gradient)
 

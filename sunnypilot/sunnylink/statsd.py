@@ -57,6 +57,7 @@ def sp_stats(end_event):
     'CustomModelPathColor',
     'DevUIInfo',
     'DynamicPathColor',
+    'DynamicPathColorPalette',
     'EnableCopyparty',
     'IntelligentCruiseButtonManagement',
     'QuietMode',

@@ -8,7 +8,14 @@ from openpilot.common.params import Params
 from openpilot.selfdrive.locationd.calibrationd import HEIGHT_INIT
 from openpilot.selfdrive.ui.ui_state import UIStatus
 from openpilot.selfdrive.ui.ui_state import ui_state
-from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import CUSTOM_MODEL_PATH_COLOR_PRESETS, DYNAMIC_PATH_COLORS, PATH_GRADIENT_STOPS
+from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import (
+  CUSTOM_MODEL_PATH_COLOR_PRESETS,
+  CUSTOM_MODEL_PATH_SOLID_COLORS,
+  PATH_GRADIENT_STOPS,
+  get_dynamic_path_colors,
+  get_dynamic_solid_color,
+  solid_color_from_gradient,
+)
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.shader_polygon import draw_polygon, Gradient
 from openpilot.system.ui.widgets import Widget
@@ -77,6 +84,9 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
       colors=[],
       stops=[],
     )
+    self._active_path_gradient: Gradient | None = None
+    self._active_path_color = rl.Color(255, 255, 255, 30)
+    self._active_marking_color = rl.Color(255, 255, 255, 255)
 
     # Get longitudinal control setting from car parameters
     if car_params := Params().get("CarParams"):
@@ -134,8 +144,9 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
       self._transform_dirty = False
 
     # Draw elements
+    self._prepare_active_path_style(sm)
     self._draw_lane_lines()
-    self._draw_path(sm)
+    self._draw_path()
 
     if render_lead_indicator and radar_state:
       self._draw_lead_indicator()
@@ -243,6 +254,62 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
       stops=gradient_stops,
     )
 
+  def _prepare_active_path_style(self, sm):
+    self._active_path_gradient = None
+    self._active_path_color = rl.Color(255, 255, 255, 30)
+    self._active_marking_color = rl.Color(255, 255, 255, 255)
+
+    if not self._path.projected_points.size:
+      return
+
+    if self._experimental_mode:
+      if len(self._exp_gradient.colors) > 1:
+        self._active_path_gradient = self._exp_gradient
+        self._active_marking_color = solid_color_from_gradient(self._exp_gradient.colors)
+      return
+
+    if ui_state.dynamic_path_color:
+      dynamic_colors = get_dynamic_path_colors(ui_state.status, ui_state.dynamic_path_color_palette)
+      self._active_path_gradient = Gradient(
+        start=(0.0, 1.0),
+        end=(0.0, 0.0),
+        colors=dynamic_colors,
+        stops=PATH_GRADIENT_STOPS,
+      )
+      self._active_marking_color = get_dynamic_solid_color(ui_state.status, ui_state.dynamic_path_color_palette)
+      return
+
+    if ui_state.custom_model_path_color:
+      preset_colors = CUSTOM_MODEL_PATH_COLOR_PRESETS[ui_state.custom_model_path_color]
+      self._active_path_gradient = Gradient(
+        start=(0.0, 1.0),
+        end=(0.0, 0.0),
+        colors=preset_colors,
+        stops=PATH_GRADIENT_STOPS,
+      )
+      self._active_marking_color = CUSTOM_MODEL_PATH_SOLID_COLORS.get(
+        ui_state.custom_model_path_color,
+        solid_color_from_gradient(preset_colors),
+      )
+      return
+
+    if ui_state.rainbow_path:
+      self._active_path_gradient = self.rainbow_path.get_gradient()
+      self._active_marking_color = solid_color_from_gradient(self._active_path_gradient.colors)
+      return
+
+    allow_throttle = sm['longitudinalPlan'].allowThrottle or not self._longitudinal_control
+    self._blend_filter.update(int(allow_throttle))
+    blend_factor = round(self._blend_filter.x * 100) / 100
+    blended_colors = self._blend_colors(NO_THROTTLE_COLORS, THROTTLE_COLORS, blend_factor)
+    self._active_path_gradient = Gradient(
+      start=(0.0, 1.0),
+      end=(0.0, 0.0),
+      colors=blended_colors,
+      stops=PATH_GRADIENT_STOPS,
+    )
+    self._active_marking_color = solid_color_from_gradient(blended_colors)
+
   def _update_lead_vehicle(self, d_rel, v_rel, point, rect):
     speed_buff, lead_buff = 10.0, 40.0
 
@@ -274,7 +341,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
         continue
 
       alpha = np.clip(self._lane_line_probs[i], 0.0, 0.7)
-      color = rl.Color(255, 255, 255, int(alpha * 255))
+      color = rl.Color(self._active_marking_color.r, self._active_marking_color.g, self._active_marking_color.b, int(alpha * 255))
       draw_polygon(self._rect, lane_line.projected_points, color)
 
     for i, road_edge in enumerate(self._road_edges):
@@ -282,59 +349,18 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
         continue
 
       alpha = np.clip(1.0 - self._road_edge_stds[i], 0.0, 1.0)
-      color = rl.Color(255, 0, 0, int(alpha * 255))
+      color = rl.Color(self._active_marking_color.r, self._active_marking_color.g, self._active_marking_color.b, int(alpha * 255))
       draw_polygon(self._rect, road_edge.projected_points, color)
 
-  def _draw_path(self, sm):
+  def _draw_path(self):
     """Draw path with dynamic coloring based on mode and throttle state."""
     if not self._path.projected_points.size:
       return
 
-    allow_throttle = sm['longitudinalPlan'].allowThrottle or not self._longitudinal_control
-    self._blend_filter.update(int(allow_throttle))
-
-    if self._experimental_mode:
-      # Draw with acceleration coloring
-      if len(self._exp_gradient.colors) > 1:
-        draw_polygon(self._rect, self._path.projected_points, gradient=self._exp_gradient)
-      else:
-        draw_polygon(self._rect, self._path.projected_points, rl.Color(255, 255, 255, 30))
-      return
-
-    if ui_state.dynamic_path_color:
-      gradient = Gradient(
-        start=(0.0, 1.0),
-        end=(0.0, 0.0),
-        colors=DYNAMIC_PATH_COLORS.get(ui_state.status, NO_THROTTLE_COLORS),
-        stops=PATH_GRADIENT_STOPS,
-      )
-      draw_polygon(self._rect, self._path.projected_points, gradient=gradient)
-      return
-
-    if ui_state.custom_model_path_color:
-      gradient = Gradient(
-        start=(0.0, 1.0),
-        end=(0.0, 0.0),
-        colors=CUSTOM_MODEL_PATH_COLOR_PRESETS[ui_state.custom_model_path_color],
-        stops=PATH_GRADIENT_STOPS,
-      )
-      draw_polygon(self._rect, self._path.projected_points, gradient=gradient)
-      return
-
-    if ui_state.rainbow_path:
-      self.rainbow_path.draw_rainbow_path(self._rect, self._path)
-      return
-
-    # Blend throttle/no throttle colors based on transition
-    blend_factor = round(self._blend_filter.x * 100) / 100
-    blended_colors = self._blend_colors(NO_THROTTLE_COLORS, THROTTLE_COLORS, blend_factor)
-    gradient = Gradient(
-      start=(0.0, 1.0),  # Bottom of path
-      end=(0.0, 0.0),  # Top of path
-      colors=blended_colors,
-      stops=PATH_GRADIENT_STOPS,
-    )
-    draw_polygon(self._rect, self._path.projected_points, gradient=gradient)
+    if self._active_path_gradient is not None:
+      draw_polygon(self._rect, self._path.projected_points, gradient=self._active_path_gradient)
+    else:
+      draw_polygon(self._rect, self._path.projected_points, self._active_path_color)
 
   def _draw_lead_indicator(self):
     # Draw lead vehicles if available

@@ -135,6 +135,7 @@ class UIStateSP:
     self.custom_interactive_timeout = self.params.get("InteractivityTimeout", return_default=True)
     self.developer_ui = self.params.get("DevUIInfo")
     self.dynamic_path_color = self.params.get_bool("DynamicPathColor")
+    self.dynamic_path_color_palette = self.params.get("DynamicPathColorPalette", return_default=True)
     self.hide_v_ego_ui = self.params.get_bool("HideVEgoUI")
     self.onroad_brightness = int(float(self.params.get("OnroadScreenOffBrightness", return_default=True)))
     self.onroad_brightness_timer_param = self.params.get("OnroadScreenOffTimer", return_default=True)

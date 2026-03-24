@@ -6,7 +6,7 @@ See the LICENSE.md file in the root directory for more details.
 """
 from openpilot.common.params import Params
 from openpilot.selfdrive.ui.ui_state import ui_state
-from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import CUSTOM_MODEL_PATH_COLOR_LABELS
+from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import CUSTOM_MODEL_PATH_COLOR_LABELS, DYNAMIC_PATH_COLOR_PALETTE_LABELS
 from openpilot.system.ui.lib.multilang import tr, tr_noop
 from openpilot.system.ui.sunnypilot.widgets.list_view import toggle_item_sp, multiple_button_item_sp
 from openpilot.system.ui.widgets.scroller_tici import Scroller
@@ -51,7 +51,8 @@ class VisualsLayout(Widget):
         tr("Color the driving path by drive mode. " +
            "Gray when inactive or overriding, blue for steering-only, and green for full control. " +
            "This uses BluePilot-matched blue/green shades, overrides both Rainbow Mode " +
-           "and Custom Model Path Color, and keeps Experimental path coloring unchanged."),
+           "and Custom Model Path Color, keeps Experimental path coloring unchanged, " +
+           "and makes lane lines and road edges mirror the active path color."),
         None,
       ),
       "StandstillTimer": (
@@ -124,11 +125,21 @@ class VisualsLayout(Widget):
     self._custom_model_path_color = multiple_button_item_sp(
       title=lambda: tr("Custom Model Path Color"),
       description=lambda: tr("Use BluePilot-style preset colors for the driving path overlay. "
+                             "Lane lines and road edges follow the selected color family. "
                              "Stock keeps the normal path behavior. "
                              "When a preset is selected, it overrides Rainbow Mode. "
                              "Dynamic Path Color still takes priority when enabled."),
       buttons=[lambda label=label: tr(label) for label in CUSTOM_MODEL_PATH_COLOR_LABELS],
       param="CustomModelPathColor",
+      button_width=160,
+      inline=False
+    )
+    self._dynamic_path_color_palette = multiple_button_item_sp(
+      title=lambda: tr("Dynamic Path Color Palette"),
+      description=lambda: tr("Choose whether Dynamic Path Color uses the custom BluePilot-matched palette "
+                             "or the stock border/status palette mirrored onto the path and lane markings."),
+      buttons=[lambda label=label: tr(label) for label in DYNAMIC_PATH_COLOR_PALETTE_LABELS],
+      param="DynamicPathColorPalette",
       button_width=160,
       inline=False
     )
@@ -141,7 +152,10 @@ class VisualsLayout(Widget):
       inline=False
     )
 
-    items = list(self._toggles.values()) + [
+    items = list(self._toggles.values())
+    dynamic_path_color_index = next(i for i, (param, _) in enumerate(self._toggle_defs.items()) if param == "DynamicPathColor")
+    items.insert(dynamic_path_color_index + 1, self._dynamic_path_color_palette)
+    items += [
       self._chevron_info,
       self._custom_model_path_color,
       self._dev_ui_info,
@@ -156,6 +170,8 @@ class VisualsLayout(Widget):
 
     self._dev_ui_info.action_item.set_selected_button(ui_state.params.get("DevUIInfo", return_default=True))
     self._custom_model_path_color.action_item.set_selected_button(ui_state.params.get("CustomModelPathColor", return_default=True))
+    self._dynamic_path_color_palette.action_item.set_selected_button(ui_state.params.get("DynamicPathColorPalette", return_default=True))
+    self._dynamic_path_color_palette.action_item.set_enabled(self._params.get_bool("DynamicPathColor"))
 
     if self._chevron_info_available():
       self._chevron_info.set_description(tr(CHEVRON_INFO_DESCRIPTION["enabled"]))

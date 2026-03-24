@@ -7,7 +7,7 @@ See the LICENSE.md file in the root directory for more details.
 import pyray as rl
 from openpilot.common.filter_simple import FirstOrderFilter
 from openpilot.selfdrive.ui.ui_state import UIStatus, ui_state
-from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import DYNAMIC_BORDER_COLORS
+from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import get_dynamic_solid_color
 from openpilot.system.ui.lib.application import gui_app
 
 BORDER_COLORS_SP = {
@@ -18,7 +18,7 @@ BORDER_COLORS_SP = {
 
 def resolve_border_color(status: UIStatus, fallback_colors: dict[UIStatus, rl.Color]) -> rl.Color:
   if ui_state.dynamic_path_color:
-    return DYNAMIC_BORDER_COLORS.get(status, DYNAMIC_BORDER_COLORS[UIStatus.DISENGAGED])
+    return get_dynamic_solid_color(status, ui_state.dynamic_path_color_palette)
 
   return fallback_colors.get(status, fallback_colors[UIStatus.DISENGAGED])
 

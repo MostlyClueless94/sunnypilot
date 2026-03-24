@@ -6,12 +6,42 @@ This file tracks the maintained Subaru patch queue that sits on top of current S
 
 - Stable: `https://install.sunnypilot.ai/fork/MostlyClueless94/master`
 - Testing: `https://install.sunnypilot.ai/fork/MostlyClueless94/MostlyClueless`
+- Longitudinal Experiment: `https://install.sunnypilot.ai/fork/MostlyClueless94/long`
 
 ## Branch Policy
 
 - `master`: stable/public branch, updated only after validating `MostlyClueless`.
 - `MostlyClueless`: current-upstream integration/testing branch.
-- Longitudinal experimentation is intentionally excluded from this rebuilt branch line.
+- `long`: isolated Subaru newer-platform openpilot longitudinal branch, starting with `SUBARU_OUTBACK_2023`.
+- `MostlyClueless` remains lateral/UI focused; longitudinal experimentation is kept off that branch.
+
+## 2026-03-23 (Subaru Newer-Platform Longitudinal Bring-Up)
+
+### What changed
+
+- Created a separate `long` branch lane for newer Subaru openpilot longitudinal work.
+- Kept the proven Subaru long architecture already in the fork as the baseline:
+  - `ES_Distance`
+  - `ES_Status`
+  - `ES_Brake`
+  - `ES_DashStatus`
+  - `ES_LKAS_State`
+  - existing Gen2 Eyesight-disable keepalive/static messages
+- Replaced the blanket Subaru long block with a strict v1 allowlist for `CAR.SUBARU_OUTBACK_2023`.
+- Enabled Subaru long safety outside the prior debug-only gate so the branch can exercise the real panda long path.
+- Added a dedicated Gen2 angle-LKAS longitudinal safety test and aligned the angle-platform safety tests to use `ES_Status` for cruise-engaged state, matching the current runtime interpretation.
+- Left `master` and `MostlyClueless` unchanged.
+
+### Validation Done
+
+- `python -m py_compile opendbc_repo/opendbc/car/subaru/interface.py`
+- `python -m py_compile opendbc_repo/opendbc/safety/tests/test_subaru.py`
+
+### Validation Still Needed
+
+- Run Subaru safety tests in a fully configured environment or CI.
+- Validate recorded `SUBARU_OUTBACK_2023` route data for the chosen angle-platform cruise-engaged source.
+- In-car testing on `long` before widening beyond the strict allowlist target.
 
 ## 2026-03-23 (Dynamic Path Color Setting)
 

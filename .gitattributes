@@ -11,7 +11,7 @@
 *.wav filter=lfs diff=lfs merge=lfs -text
 
 # Keep the custom boot spinner logo in normal Git so device updates don't depend on LFS.
-sunnypilot/selfdrive/assets/images/spinner_mostlyclueless.png -filter -diff -merge -text
+sunnypilot/selfdrive/assets/images/spinner_subipilot.png -filter -diff -merge -text
 
 selfdrive/car/tests/test_models_segs.txt filter=lfs diff=lfs merge=lfs -text
 system/hardware/tici/updater_weston filter=lfs diff=lfs merge=lfs -text

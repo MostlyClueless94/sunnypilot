@@ -35,6 +35,16 @@ class TestParams:
     assert self.params.get("DongleId") is not None
     assert not os.path.isfile(undefined_param)
 
+  def test_params_get_cleared_offroad_transition(self):
+    self.params.put("CarParamsCache", b"test")
+    self.params.put("CarParamsSPCache", b"test")
+    self.params.put("DongleId", "cb38263377b873ee")
+
+    self.params.clear_all(ParamKeyFlag.CLEAR_ON_OFFROAD_TRANSITION)
+    assert self.params.get("CarParamsCache") is None
+    assert self.params.get("CarParamsSPCache") is None
+    assert self.params.get("DongleId") is not None
+
   def test_params_two_things(self):
     self.params.put("DongleId", "bob")
     self.params.put("AthenadPid", 123)

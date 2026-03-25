@@ -32,8 +32,8 @@
 - Experimental path coloring keeps priority.
 - Dynamic Path Color overrides Rainbow Mode while enabled.
 - Dynamic Path Color also overrides Custom Model Path Color while enabled.
-- Dynamic mode can now use either the custom BluePilot-matched palette or the stock border/status palette mirrored onto the path.
-- Added a BluePilot-style `Custom Model Path Color` selector with preset colors:
+- Dynamic mode can now use either the custom color palette or the stock border/status palette mirrored onto the path.
+- Added a `Custom Model Path Color` selector with preset colors:
   - Stock
   - Blue
   - Green
@@ -42,7 +42,7 @@
   - Red
   - Cyan
   - Yellow
-- Dynamic Path Color now uses BluePilot-matched blue/green shades and the stock BluePilot grayscale.
+- Dynamic Path Color now uses the custom dynamic palette and the stock grayscale palette.
 - Custom Model Path Color overrides Rainbow Mode when a preset is selected, unless Dynamic Path Color is enabled.
 - Lane lines and road edges now follow the active path color family.
 

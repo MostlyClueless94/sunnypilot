@@ -50,7 +50,7 @@ class VisualsLayout(Widget):
         lambda: tr("Dynamic Path Color"),
         tr("Color the driving path by drive mode. " +
            "Gray when inactive or overriding, blue for steering-only, and green for full control. " +
-           "This uses BluePilot-matched blue/green shades, overrides both Rainbow Mode " +
+           "This uses the custom dynamic color palette, overrides both Rainbow Mode " +
            "and Custom Model Path Color, keeps Experimental path coloring unchanged, " +
            "and makes lane lines and road edges mirror the active path color."),
         None,
@@ -124,7 +124,7 @@ class VisualsLayout(Widget):
     )
     self._custom_model_path_color = multiple_button_item_sp(
       title=lambda: tr("Custom Model Path Color"),
-      description=lambda: tr("Use BluePilot-style preset colors for the driving path overlay. "
+      description=lambda: tr("Use preset colors for the driving path overlay. "
                              "Lane lines and road edges follow the selected color family. "
                              "Stock keeps the normal path behavior. "
                              "When a preset is selected, it overrides Rainbow Mode. "
@@ -136,7 +136,7 @@ class VisualsLayout(Widget):
     )
     self._dynamic_path_color_palette = multiple_button_item_sp(
       title=lambda: tr("Dynamic Path Color Palette"),
-      description=lambda: tr("Choose whether Dynamic Path Color uses the custom BluePilot-matched palette "
+      description=lambda: tr("Choose whether Dynamic Path Color uses the custom color palette "
                              "or the stock border/status palette mirrored onto the path and lane markings."),
       buttons=[lambda label=label: tr(label) for label in DYNAMIC_PATH_COLOR_PALETTE_LABELS],
       param="DynamicPathColorPalette",

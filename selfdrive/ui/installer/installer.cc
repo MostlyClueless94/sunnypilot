@@ -94,7 +94,7 @@ void finishInstall() {
       DrawTextEx(font_display, "finishing setup", (Vector2){12, 0}, 77, 0, (Color){255, 255, 255, (unsigned char)(255 * 0.9)});
     }
   EndDrawing();
-  util::sleep_for(60 * 1000);
+  util::sleep_for(10 * 1000);
 }
 
 void renderProgress(int progress) {
@@ -138,7 +138,7 @@ int doInstall() {
 
 int freshClone() {
   LOGD("Doing fresh clone");
-  std::string cmd = util::string_format("git clone --progress %s -b %s --depth=1 --recurse-submodules %s 2>&1",
+  std::string cmd = util::string_format("git clone --progress %s -b %s --depth=1 --recurse-submodules --shallow-submodules %s 2>&1",
                                         GIT_URL.c_str(), migrated_branch.c_str(), TMP_INSTALL_PATH);
   return executeGitCommand(cmd);
 }
@@ -196,7 +196,7 @@ void cloneFinished(int exitCode) {
   assert(err == 0);
   run(("git checkout " + migrated_branch).c_str());
   run(("git reset --hard origin/" + migrated_branch).c_str());
-  run("git submodule update --init");
+  run("git submodule update --init --recursive --depth=1 --jobs=4 --recommend-shallow");
 
   // move into place
   run(("rm -f " + VALID_CACHE_PATH).c_str());

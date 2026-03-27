@@ -22,6 +22,7 @@ from openpilot.selfdrive.car.cruise import VCruiseHelper
 from openpilot.selfdrive.car.helpers import convert_carControlSP, convert_to_capnp
 
 from openpilot.sunnypilot.mads.helpers import set_alternative_experience, set_car_specific_params
+from openpilot.sunnypilot.selfdrive.vehicle_profiles import activate_vehicle_profile
 from openpilot.sunnypilot.selfdrive.car import interfaces as sunnypilot_interfaces
 
 REPLAY = "REPLAY" in os.environ
@@ -88,6 +89,7 @@ class Car:
 
     is_release = self.params.get_bool("IsReleaseBranch")
     is_release_sp = self.params.get_bool("IsReleaseSpBranch")
+    manual_profile_session = False
 
     if CI is None:
       # wait for one pandaState and one CAN packet
@@ -107,6 +109,7 @@ class Car:
           cached_params = _cached_params
 
       fixed_fingerprint = (self.params.get("CarPlatformBundle") or {}).get("platform", None)
+      manual_profile_session = fixed_fingerprint is not None
       init_params_list_sp = sunnypilot_interfaces.initialize_params(self.params)
 
       self.CI = get_car(*self.can_callbacks, obd_callback(self.params), alpha_long_allowed, is_release, num_pandas, cached_params,
@@ -121,6 +124,8 @@ class Car:
     else:
       self.CI, self.CP, self.CP_SP = CI, CI.CP, CI.CP_SP
       self.RI = RI
+
+    activate_vehicle_profile(self.params, self.CP.carFingerprint, self.CP.brand, manual=manual_profile_session)
 
     self.CP.alternativeExperience = 0
     # mads

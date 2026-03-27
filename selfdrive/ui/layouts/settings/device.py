@@ -7,6 +7,7 @@ from openpilot.common.params import Params
 from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.ui.onroad.driver_camera_dialog import DriverCameraDialog
 from openpilot.selfdrive.ui.ui_state import ui_state
+from openpilot.sunnypilot.selfdrive.vehicle_profiles import reset_vehicle_profile_recalibration
 from openpilot.selfdrive.ui.layouts.onboarding import TrainingGuide
 from openpilot.selfdrive.ui.widgets.pairing_dialog import PairingDialog
 from openpilot.system.ui.lib.application import FontWeight, gui_app
@@ -103,12 +104,7 @@ class DeviceLayout(Widget):
       if ui_state.engaged or result != DialogResult.CONFIRM:
         return
 
-      self._params.remove("CalibrationParams")
-      self._params.remove("LiveTorqueParameters")
-      self._params.remove("LiveParameters")
-      self._params.remove("LiveParametersV2")
-      self._params.remove("LiveDelay")
-      self._params.put_bool("OnroadCycleRequested", True)
+      reset_vehicle_profile_recalibration(self._params)
       self._update_calib_description()
 
     dialog = ConfirmDialog(tr("Are you sure you want to reset calibration?"), tr("Reset"), callback=reset_calibration)

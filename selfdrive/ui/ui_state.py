@@ -11,6 +11,7 @@ from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.ui.lib.prime_state import PrimeState
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.hardware import HARDWARE, PC
+from openpilot.sunnypilot.selfdrive.vehicle_profiles import VehicleProfileManager
 
 from openpilot.selfdrive.ui.sunnypilot.ui_state import UIStateSP, DeviceSP
 
@@ -89,6 +90,7 @@ class UIState(UIStateSP):
     # Callbacks
     self._offroad_transition_callbacks: list[Callable[[], None]] = []
     self._engaged_transition_callbacks: list[Callable[[], None]] = []
+    self.vehicle_profile_manager = VehicleProfileManager(self.params)
 
     self.update_params()
 
@@ -115,6 +117,7 @@ class UIState(UIStateSP):
     self._update_status()
     if time.monotonic() - self._param_update_time > 5.0:
       self.update_params()
+    self.vehicle_profile_manager.update(self.is_offroad())
     device.update()
     UIStateSP.update(self)
 

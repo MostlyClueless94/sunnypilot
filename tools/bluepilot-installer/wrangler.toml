@@ -1,0 +1,10 @@
+name = "bluepilot-installer"
+main = "src/worker.mjs"
+compatibility_date = "2026-03-27"
+workers_dev = true
+
+[vars]
+DEFAULT_OWNER = "MostlyClueless94"
+DEFAULT_BRANCH = "mc-dev"
+REPO_NAME = "bluepilot"
+BRAND_NAME = "BluePilot"

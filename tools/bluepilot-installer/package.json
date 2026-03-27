@@ -1,0 +1,13 @@
+{
+  "name": "bluepilot-installer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "embed": "node scripts/embed-templates.mjs",
+    "test": "node --test test/*.test.mjs",
+    "verify:live": "node scripts/verify-live.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.9.0"
+  }
+}

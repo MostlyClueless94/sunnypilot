@@ -1,4 +1,5 @@
 import copy
+from types import SimpleNamespace
 from opendbc.can import CANDefine, CANParser
 from opendbc.car import Bus, structs
 from opendbc.car.carlog import carlog
@@ -6,6 +7,10 @@ from opendbc.car.common.conversions import Conversions as CV
 from opendbc.car.interfaces import CarStateBase
 from opendbc.car.subaru.values import DBC, CanBus, SubaruFlags
 from opendbc.car import CanSignalRateCalculator
+try:
+  from cereal import messaging
+except ModuleNotFoundError:
+  messaging = None
 
 from opendbc.sunnypilot.car.subaru.mads import MadsCarState
 from opendbc.sunnypilot.car.subaru.stop_and_go import SnGCarState
@@ -26,6 +31,57 @@ class CarState(CarStateBase, MadsCarState, SnGCarState):
     if self._debug_state.get(key) != value:
       carlog.info(f"subaru[{self.CP.carFingerprint}] {message}")
       self._debug_state[key] = value
+
+  @staticmethod
+  def _read_parser_signal(parser: CANParser | SimpleNamespace, message: str, signal: str) -> tuple[bool, bool]:
+    try:
+      return True, bool(parser.vl[message][signal])
+    except (AttributeError, KeyError, TypeError):
+      return False, False
+
+  @staticmethod
+  def _new_car_state_bp_message():
+    if messaging is not None:
+      dat = messaging.new_message("carStateBP")
+      dat.valid = True
+      return dat
+
+    return SimpleNamespace(
+      valid=True,
+      carStateBP=SimpleNamespace(
+        hybridDrive=SimpleNamespace(dataAvailable=False),
+        hybridBattery=SimpleNamespace(dataAvailable=False),
+        brakeLightStatus=SimpleNamespace(dataAvailable=False, brakeLightsOn=False),
+      ),
+    )
+
+  def update_car_state_bp(self, cp_cam, cp_alt, brake_pressed):
+    dat = CarState._new_car_state_bp_message()
+
+    hybrid_drive = dat.carStateBP.hybridDrive
+    hybrid_battery = dat.carStateBP.hybridBattery
+    brake_light_status = dat.carStateBP.brakeLightStatus
+
+    hybrid_drive.dataAvailable = False
+    hybrid_battery.dataAvailable = False
+
+    # Subaru doesn't currently publish any BP hybrid data, but we do want the brake
+    # status indicator to work on supported platforms using the same BP message path.
+    brake_light_status.dataAvailable = True
+    brake_light_status.brakeLightsOn = bool(brake_pressed)
+
+    cp_es = cp_alt if self.CP.flags & SubaruFlags.GLOBAL_GEN2 else cp_cam
+
+    found, value = CarState._read_parser_signal(cp_es, "ES_Status", "Brake_Lights")
+    if found:
+      brake_light_status.brakeLightsOn = value
+      return dat
+
+    found, value = CarState._read_parser_signal(cp_es, "ES_Brake", "Cruise_Brake_Lights")
+    if found:
+      brake_light_status.brakeLightsOn = value
+
+    return dat
 
   def update(self, can_parsers) -> tuple[structs.CarState, structs.CarStateSP]:
     cp = can_parsers[Bus.pt]
@@ -185,6 +241,8 @@ class CarState(CarStateBase, MadsCarState, SnGCarState):
 
     MadsCarState.update_mads(self, ret, can_parsers)
     SnGCarState.update(self, ret, can_parsers)
+
+    self.car_state_bp_msg = self.update_car_state_bp(cp_cam, cp_alt, ret.brakePressed)
 
     return ret, ret_sp
 

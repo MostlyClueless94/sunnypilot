@@ -1,6 +1,7 @@
 import numpy as np
 from opendbc.can import CANPacker
 from opendbc.car import Bus, make_tester_present_msg, structs
+from opendbc.car.carlog import carlog
 from opendbc.car.lateral import apply_driver_steer_torque_limits, apply_std_steer_angle_limits, common_fault_avoidance
 from opendbc.car.interfaces import CarControllerBase
 from opendbc.car.subaru import subarucan
@@ -28,9 +29,15 @@ class CarController(CarControllerBase, SnGCarController):
 
     self.cruise_button_prev = 0
     self.steer_rate_counter = 0
+    self._debug_state = {}
 
     self.p = CarControllerParams(CP)
     self.packer = CANPacker(DBC[CP.carFingerprint][Bus.pt])
+
+  def _log_transition(self, key, value, message):
+    if self._debug_state.get(key) != value:
+      carlog.info(f"subaru[{self.CP.carFingerprint}] {message}")
+      self._debug_state[key] = value
 
   def _get_low_speed_smoothed_angle_target(self, raw_target, v_ego):
     speed_factor = np.clip(v_ego / LOW_SPEED_SMOOTH_MAX_SPEED, 0.0, 1.0)
@@ -52,6 +59,27 @@ class CarController(CarControllerBase, SnGCarController):
     mads_only_ok = CS.out.vEgoRaw > MADS_ONLY_MIN_SPEED and abs(CS.out.steeringAngleDeg) < MADS_ONLY_MAX_STEER_ANGLE
     lkas_request = CC.latActive and (CC.enabled or not mads_only or mads_only_ok) and \
       CS.out.gearShifter == structs.CarState.GearShifter.drive and not CS.out.standstill and not mads_manual_override
+
+    inhibit_reason = "none"
+    if not CC.latActive:
+      inhibit_reason = "lat_inactive"
+    elif mads_manual_override:
+      inhibit_reason = "manual_override"
+    elif CS.out.gearShifter != structs.CarState.GearShifter.drive:
+      inhibit_reason = "gear_not_drive"
+    elif CS.out.standstill:
+      inhibit_reason = "standstill"
+    elif mads_only and not mads_only_ok:
+      inhibit_reason = "mads_below_min_speed" if CS.out.vEgoRaw <= MADS_ONLY_MIN_SPEED else "mads_angle_limit"
+
+    self._log_transition(
+      "angle_lkas_request",
+      lkas_request,
+      f"angle LKAS request={lkas_request} inhibit={inhibit_reason} latActive={CC.latActive} "
+      f"enabled={CC.enabled} vEgo={CS.out.vEgoRaw:.2f} steeringAngle={CS.out.steeringAngleDeg:.2f} "
+      f"steeringPressed={CS.out.steeringPressed}",
+    )
+    self._log_transition("angle_lkas_inhibit", inhibit_reason, f"angle LKAS inhibit={inhibit_reason}")
 
     steer_target = CC.actuators.steeringAngleDeg
     if lkas_request and CS.out.vEgoRaw < LOW_SPEED_SMOOTH_MAX_SPEED:

@@ -117,8 +117,9 @@ class ModelRendererBP(ModelRenderer):
 
       self._transform_dirty = False
 
+    self._prepare_active_path_style(sm)
     self._draw_lane_lines()
-    self._draw_path(sm)
+    self._draw_path()
 
     if render_lead_indicator and radar_state:
       self._draw_lead_indicator()
@@ -387,13 +388,13 @@ class ModelRendererBP(ModelRenderer):
 
     return np.array(expanded, dtype=np.float32)
 
-  def _draw_path(self, sm):
+  def _draw_path(self):
     """Draw path with status-colored edges."""
 
     if ui_state.rainbow_path:
       draw_polygon(self._rect, self._path.projected_points, rainbow=True, rainbow_v=self._rainbow_v)
     else:
-      super()._draw_path(sm)
+      super()._draw_path()
 
     self._draw_path_edges()
 

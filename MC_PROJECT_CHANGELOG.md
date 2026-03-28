@@ -21,6 +21,40 @@ When we make meaningful project changes, add a new dated entry near the top with
 
 ## 2026-03-27
 
+### `ui/subaru hotfix` Subaru UI restart fix and next-drive debug pass
+
+What changed:
+- Fixed the BluePilot renderer override mismatch that was crashing `ui` on Subaru.
+- Updated both BluePilot renderer subclasses to match the current base `_draw_path()` contract instead of the stale `_draw_path(sm)` form.
+- Restored TICI path-style preparation before BluePilot path drawing so the preset path color work still flows through the current base renderer logic.
+- Added narrow, transition-based Subaru angle-LKAS debug logs for:
+  - `Steering_2` validity
+  - `ES_Status` cruise activation
+  - `ES_DashStatus` cruise state
+  - ACC available/enabled transitions
+  - steer fault transitions
+  - Eyesight cruise fault transitions
+  - angle-LKAS request/inhibit transitions in the controller
+- Added a lightweight renderer-contract regression test so the old `_draw_path(sm)` shape cannot silently return.
+
+Why:
+- The Subaru rlog from the first road test showed constant `ui` restarts caused by:
+  - `TypeError: ModelRenderer._draw_path() takes 1 positional argument but 2 were given`
+- The same log showed the car fingerprinted as `SUBARU_OUTBACK_2023`, calibrated, and briefly engaged, which means the immediate blocker was UI stability, not a total Subaru bring-up failure.
+- The later Eyesight deactivation is still not fully proven from that log, so the next safe step is to keep the Subaru port in place and make the next drive far more diagnosable.
+
+Validation intent:
+- Host checks for this wave should cover:
+  - compile/import smoke on touched UI files
+  - the new BluePilot renderer regression test
+  - existing Subaru tests that already run on this host
+
+Next retest defaults:
+- Before the next Subaru drive, set:
+  - `CustomModelPathColor=Stock`
+  - `RainbowMode=off`
+- The goal is to remove visual confounders while we verify UI stability and capture cleaner Subaru state logs if Eyesight still drops.
+
 ### `cleanup` active branch and installer path simplification
 
 What changed:

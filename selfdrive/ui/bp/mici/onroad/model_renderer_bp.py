@@ -17,8 +17,8 @@ class ModelRendererBP(ModelRenderer):
       v= sm['carState'].vEgo
       self._rainbow_v = np.clip(v, 2.5, 35) / 30
 
-  def _draw_path(self, sm):
+  def _draw_path(self):
     if ui_state.rainbow_path:
       draw_polygon(self._rect, self._path.projected_points, rainbow=True, rainbow_v=self._rainbow_v)
     else:
-      super()._draw_path(sm)
+      super()._draw_path()

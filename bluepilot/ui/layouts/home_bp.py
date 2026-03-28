@@ -1,5 +1,5 @@
 """
-BluePilot Home Layout
+SubiPilot Home Layout
 Extends the stock HomeLayout to replace PrimeWidget in the left column
 with DriveStats and ModelInfo widgets, and renders badge-styled version
 header matching the old Qt OffroadHomeSP layout.
@@ -97,13 +97,13 @@ class HomeLayoutBP(HomeLayout):
     if description:
       parts = description.split(" / ")
       if len(parts) >= 4:
-        brand_text = f"bluepilot v{self._bp_version}" if self._bp_version else f"bluepilot v{parts[0].strip()}"
+        brand_text = f"SubiPilot v{self._bp_version}" if self._bp_version else f"SubiPilot v{parts[0].strip()}"
         self._badge_parts = (brand_text, parts[1].strip(), parts[2].strip(), parts[3].strip())
       else:
-        brand_text = f"bluepilot v{self._bp_version}" if self._bp_version else "bluepilot"
+        brand_text = f"SubiPilot v{self._bp_version}" if self._bp_version else "SubiPilot"
         self._badge_parts = (brand_text,)
     else:
-      brand_text = f"bluepilot v{self._bp_version}" if self._bp_version else "bluepilot"
+      brand_text = f"SubiPilot v{self._bp_version}" if self._bp_version else "SubiPilot"
       self._badge_parts = (brand_text,)
 
     return result

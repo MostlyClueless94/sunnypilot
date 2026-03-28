@@ -93,11 +93,11 @@ DEVICE_TYPE="$(detect_device_type)"
 readonly BOOT_IMG="/usr/comma/bg.jpg"
 readonly BOOT_IMG_BKP="${BOOT_IMG}.backup"
 
-# Select the appropriate boot image based on device type
+# Select the appropriate SubiPilot boot image based on device type
 if [ "$DEVICE_TYPE" = "mici" ]; then
-    readonly BLUEPILOT_BOOT_IMG="/data/openpilot/selfdrive/assets/img_bluepilot_boot_mici.jpg"
+    readonly SUBIPILOT_BOOT_IMG="/data/openpilot/selfdrive/assets/img_subipilot_boot_mici.jpg"
 else
-    readonly BLUEPILOT_BOOT_IMG="/data/openpilot/selfdrive/assets/img_bluepilot_boot.jpg"
+    readonly SUBIPILOT_BOOT_IMG="/data/openpilot/selfdrive/assets/img_subipilot_boot.jpg"
 fi
 
 ###############################################################################
@@ -155,7 +155,7 @@ clean_backups() {
 
 update_boot_image() {
     print_info "Updating boot image (device: $DEVICE_TYPE)..."
-    print_info "Using image: $BLUEPILOT_BOOT_IMG"
+    print_info "Using image: $SUBIPILOT_BOOT_IMG"
     mount_partition_rw "/"
 
     # Ensure the original file exists before proceeding
@@ -174,14 +174,14 @@ update_boot_image() {
     fi
 
     # Ensure the SubiPilot image exists
-    if [ ! -f "$BLUEPILOT_BOOT_IMG" ]; then
-        print_error "SubiPilot boot image ($BLUEPILOT_BOOT_IMG) not found."
+    if [ ! -f "$SUBIPILOT_BOOT_IMG" ]; then
+        print_error "SubiPilot boot image ($SUBIPILOT_BOOT_IMG) not found."
         [ "$HEADLESS_MODE" != "true" ] && pause_for_user
         return 1
     fi
 
     # Overwrite the original file with the SubiPilot image
-    sudo cp "$BLUEPILOT_BOOT_IMG" "$BOOT_IMG"
+    sudo cp "$SUBIPILOT_BOOT_IMG" "$BOOT_IMG"
     print_success "Boot image updated with SubiPilot file."
     mount_partition_ro "/"
     [ "$HEADLESS_MODE" != "true" ] && pause_for_user
@@ -270,7 +270,7 @@ Status Detection:
 
 File Locations:
   Boot Image:     $BOOT_IMG
-  SubiPilot Boot: $BLUEPILOT_BOOT_IMG
+  SubiPilot Boot: $SUBIPILOT_BOOT_IMG
 
 Note: This script requires sudo permissions to modify system files.
 EOL
@@ -289,7 +289,7 @@ display_main_menu() {
     # Check if files exist
     echo "│ File Status:"
     [ -f "$BOOT_IMG" ] && echo -e "│ ├─ Boot image: ${GREEN}Found${NC}" || echo -e "│ ├─ Boot image: ${RED}Missing${NC}"
-    [ -f "$BLUEPILOT_BOOT_IMG" ] && echo -e "│ ├─ SubiPilot boot: ${GREEN}Found${NC}" || echo -e "│ ├─ SubiPilot boot: ${RED}Missing${NC}"
+    [ -f "$SUBIPILOT_BOOT_IMG" ] && echo -e "│ ├─ SubiPilot boot: ${GREEN}Found${NC}" || echo -e "│ ├─ SubiPilot boot: ${RED}Missing${NC}"
     [ -f "$BOOT_IMG_BKP" ] && echo -e "│ └─ Boot backup: ${GREEN}Found${NC}" || echo "│ └─ Boot backup: Not found"
     echo "│"
     echo "├───────────────────────────────────────────────────"
@@ -399,7 +399,7 @@ show_file_details() {
     echo "│"
 
     # Show detailed file information
-    for file in "$BOOT_IMG" "$BLUEPILOT_BOOT_IMG" "$BOOT_IMG_BKP"; do
+    for file in "$BOOT_IMG" "$SUBIPILOT_BOOT_IMG" "$BOOT_IMG_BKP"; do
         local basename=$(basename "$file")
         if [ -f "$file" ]; then
             local size=$(ls -lh "$file" | awk '{print $5}')

@@ -1,5 +1,5 @@
 """
-BluePilot Recent Changes Dialog
+SubiPilot Recent Changes Dialog
 Fullscreen modal overlay showing categorized changes from BP_CHANGES.json.
 Auto-shown when BP version changes (after update). Ported from Qt BPRecentChangesDialog.
 """
@@ -182,7 +182,7 @@ class RecentChangesDialog(Widget):
 
     # Title (centered)
     title_font = gui_app.font(FontWeight.SEMI_BOLD)
-    title_text = "Recent Changes"
+    title_text = "SubiPilot Recent Changes"
     title_size = measure_text_cached(title_font, title_text, TITLE_FONT_SIZE)
     title_x = rect.x + (rect.width - title_size.x) / 2
     title_y = header_rect.y + (HEADER_HEIGHT - title_size.y) / 2
@@ -230,7 +230,7 @@ class RecentChangesDialog(Widget):
     cur_x = x
 
     # Version badge (blue)
-    version_text = f"Version {self._version}"
+    version_text = f"SubiPilot {self._version}"
     version_w = int(measure_text_cached(font, version_text, BADGE_FONT_SIZE).x + BADGE_PAD_X * 2)
     version_rect = rl.Rectangle(cur_x, y, version_w, badge_h)
     roundness = BADGE_RADIUS / (badge_h / 2) if badge_h > 0 else 0.5

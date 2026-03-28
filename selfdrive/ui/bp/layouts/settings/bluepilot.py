@@ -55,23 +55,18 @@ class BluePilotLayout(Widget):
 
     # Toggle refresh list
     self._refresh_toggles = (
-      ("send_hands_free_cluster_msg", self._show_hands_free_ui),
       ("ShowBlindspotOverlay", self._show_blindspot),
       ("ShowBrakeStatus", self._show_brake_status),
       ("BPHideOnroadBorder", self._hide_onroad_border),
       ("BPShowConfidenceBall", self._show_confidence_ball),
       ("BPAnimateSteeringWheel", self._animate_steering_wheel),
       ("FordPrefShowRadarLeadOverlay", self._show_ford_radar_overlay),
-      ("FordPrefHybridBatteryStatus", self._show_hybrid_battery_status),
-      ("FordPrefHybridPowerFlow", self._show_hybrid_power_flow),
       ("enable_human_turn_detection", self._enable_human_turn_detection),
       ("BlinkerPauseLaneChange", self._disable_lane_change_under_speed),
       ("enable_lane_positioning", self._enable_lane_positioning),
       ("enable_lane_full_mode", self._enable_lane_full_mode),
       ("custom_profile", self._custom_profile),
       ("disable_BP_lat_UI", self._disable_BP_lat),
-      ("disable_BP_long_UI", self._disable_BP_long),
-      ("disable_downhill_comp_UI", self._disable_dowhill_comp),
       ("BPUIDebugLog", self._ui_debug_log),
     )
 
@@ -79,15 +74,6 @@ class BluePilotLayout(Widget):
 
   def _initialize_items(self):
     """Initialize all BluePilot menu items."""
-
-    # BlueCruise icon on dash toggle
-    self._show_hands_free_ui = toggle_item(
-      lambda: tr("Show BlueCruise Icon on Dash"),
-      lambda: tr("Display BlueCruise icon in the gauge cluster for supported vehicles."),
-      initial_state=self._safe_get_bool(self._params, "send_hands_free_cluster_msg"),
-      callback=lambda state: self._toggle_callback(state, "send_hands_free_cluster_msg"),
-      icon="monitoring.png"
-    )
 
     # Blindspot overlay toggle (BluePilot red edge overlay; SunnyPilot BSM is controlled by Visuals → BlindSpot)
     self._show_blindspot = toggle_item(
@@ -136,8 +122,8 @@ class BluePilotLayout(Widget):
 
     # Ford radar lead overlay toggle
     self._show_ford_radar_overlay = toggle_item(
-      lambda: tr("Show Radar Lead Overlay (Ford ACC)"),
-      lambda: tr("Display chevron with lead vehicle info when using Ford stock ACC."),
+      lambda: tr("Show Radar Lead Overlay"),
+      lambda: tr("Display chevron with lead vehicle info when stock adaptive cruise is active."),
       initial_state=self._safe_get_bool(self._params, "FordPrefShowRadarLeadOverlay"),
       callback=lambda state: self._toggle_callback(state, "FordPrefShowRadarLeadOverlay"),
       icon="speed_limit.png"
@@ -162,68 +148,6 @@ class BluePilotLayout(Widget):
       callback=self._set_overlay_size,
       selected_index=overlay_size_idx,
       icon="speed_limit.png"
-    )
-
-    # Hybrid battery status toggle
-    self._show_hybrid_battery_status = toggle_item(
-      lambda: tr("Show Hybrid/EV Battery Status"),
-      lambda: tr("Display hybrid battery gauge with SOC, voltage, and amps."),
-      initial_state=self._safe_get_bool(self._params, "FordPrefHybridBatteryStatus"),
-      callback=lambda state: self._toggle_callback(state, "FordPrefHybridBatteryStatus"),
-      icon="warning.png"
-    )
-
-    # Hybrid power flow toggle
-    self._show_hybrid_power_flow = toggle_item(
-      lambda: tr("Show Hybrid/EV Power Flow"),
-      lambda: tr("Display power flow gauge showing throttle demand and regenerative braking."),
-      initial_state=self._safe_get_bool(self._params, "FordPrefHybridPowerFlow"),
-      callback=lambda state: self._toggle_callback(state, "FordPrefHybridPowerFlow"),
-      icon="warning.png"
-    )
-
-    # Hybrid drive gauge size selector (inline buttons: Small=1, Large=2)
-    try:
-      gauge_size_idx = int(self._safe_get(self._params, "FordPrefHybridDriveGaugeSize") or 1)
-    except (TypeError, ValueError):
-      gauge_size_idx = 1
-    # Clamp old 3-tier values to new 2-tier range
-    gauge_size_idx = min(gauge_size_idx, 2)
-    # Ensure default is persisted so consumers read the correct value on first load
-    try:
-      if self._safe_get(self._params, "FordPrefHybridDriveGaugeSize") is None:
-        self._params.put("FordPrefHybridDriveGaugeSize", str(gauge_size_idx))
-    except UnknownKeyName:
-      pass
-    # Map 1/2 to button index 0/1
-    self._hybrid_gauge_size_btn = multiple_button_item(
-      lambda: tr("Hybrid/EV Gauge Size"),
-      lambda: tr("Set the size of the battery and power flow gauges."),
-      buttons=[lambda: tr("Small"), lambda: tr("Large")],
-      button_width=225,
-      callback=self._set_hybrid_gauge_size,
-      selected_index=gauge_size_idx - 1,
-      icon="warning.png"
-    )
-
-    # Hybrid gauge style: Flat (horizontal bar + container) vs Arched (arch above torque bar)
-    gauge_style_raw = self._safe_get(self._params, "FordPrefHybridGaugeStyle") or b"flat"
-    gauge_style_str = (gauge_style_raw.decode("utf-8", errors="replace").strip("\x00").lower()
-                       if isinstance(gauge_style_raw, bytes) else str(gauge_style_raw).strip().lower())
-    gauge_style_idx = 1 if gauge_style_str == "arched" else 0
-    try:
-      if gauge_style_str not in ("flat", "arched"):
-        self._params.put("FordPrefHybridGaugeStyle", "flat")
-    except UnknownKeyName:
-      pass
-    self._hybrid_gauge_style_btn = multiple_button_item(
-      lambda: tr("Hybrid Gauge Style"),
-      lambda: tr("Flat: horizontal bar in shared container. Arched: arch above torque bar (older style)."),
-      buttons=[lambda: tr("Flat"), lambda: tr("Arched")],
-      button_width=225,
-      callback=self._set_hybrid_gauge_style,
-      selected_index=gauge_style_idx,
-      icon="warning.png"
     )
 
     # Human turn detection toggle
@@ -361,24 +285,6 @@ class BluePilotLayout(Widget):
       icon="chffr_wheel.png"
     )
 
-    # Bypass BP longitudinal control toggle (use stock long logic)
-    self._disable_BP_long = toggle_item(
-      lambda: tr("Bypass SubiPilot Longitudinal Control"),
-      lambda: tr("Use stock longitudinal logic instead of SubiPilot TTC/coasting tuning."),
-      initial_state=self._safe_get_bool(self._params, "disable_BP_long_UI"),
-      callback=lambda state: self._toggle_callback(state, "disable_BP_long_UI"),
-      icon="chffr_wheel.png"
-    )
-
-    # Disable downhill compensation toggle
-    self._disable_dowhill_comp = toggle_item(
-      lambda: tr("Disable Downhill Compensation"),
-      lambda: tr("Disable pitch-based brake/gas compensation when going downhill."),
-      initial_state=self._safe_get_bool(self._params, "disable_downhill_comp_UI"),
-      callback=lambda state: self._toggle_callback(state, "disable_downhill_comp_UI"),
-      icon="chffr_wheel.png"
-    )
-
     # Preferred WiFi Network selector
     self._preferred_network_action = ButtonAction(lambda: tr("SELECT"))
     self._preferred_network_action.set_value(lambda: self._get_preferred_network_display())
@@ -404,7 +310,6 @@ class BluePilotLayout(Widget):
       self._clear_model_cache_btn,
       self._ui_debug_log,
       SectionHeader(tr("Vehicle")),
-      self._show_hands_free_ui,
       self._vbatt_pause_charging,
       SectionHeader(tr("Visuals")),
       self._hide_onroad_border,
@@ -414,13 +319,6 @@ class BluePilotLayout(Widget):
       self._animate_steering_wheel,
       self._show_ford_radar_overlay,
       self._radar_overlay_size_btn,
-      self._show_hybrid_battery_status,
-      self._show_hybrid_power_flow,
-      self._hybrid_gauge_size_btn,
-      self._hybrid_gauge_style_btn,
-      SectionHeader(tr("Longitudinal Tuning")),
-      self._disable_BP_long,
-      self._disable_dowhill_comp,
       SectionHeader(tr("Lateral Tuning")),
       self._disable_BP_lat,
       self._enable_human_turn_detection,
@@ -467,24 +365,6 @@ class BluePilotLayout(Widget):
     except (TypeError, ValueError):
       overlay_idx = 1
     self._radar_overlay_size_btn.action_item.set_selected_button(overlay_idx)
-    # Hybrid gauge size and style: enable only when power flow gauge is enabled (NOT battery status)
-    self._hybrid_gauge_size_btn.action_item.set_enabled(
-      lambda: self._safe_get_bool(ui_state.params, "FordPrefHybridPowerFlow")
-    )
-    self._hybrid_gauge_style_btn.action_item.set_enabled(
-      lambda: self._safe_get_bool(ui_state.params, "FordPrefHybridPowerFlow")
-    )
-    try:
-      gauge_size = int(self._safe_get(ui_state.params, "FordPrefHybridDriveGaugeSize") or 1)
-    except (TypeError, ValueError):
-      gauge_size = 1
-    gauge_size = min(gauge_size, 2)  # Clamp old 3-tier values
-    self._hybrid_gauge_size_btn.action_item.set_selected_button(gauge_size - 1)
-    raw_style = self._safe_get(ui_state.params, "FordPrefHybridGaugeStyle") or b"flat"
-    style_str = (raw_style.decode("utf-8", errors="replace").strip("\x00").lower()
-                 if isinstance(raw_style, bytes) else str(raw_style).strip().lower())
-    style_idx = 1 if style_str == "arched" else 0
-    self._hybrid_gauge_style_btn.action_item.set_selected_button(style_idx)
     # Use just_toggled for params we just wrote to avoid update_params refresh race
     lane_pos = fresh.get("enable_lane_positioning") if "enable_lane_positioning" in fresh else self._safe_get_bool(ui_state.params, "enable_lane_positioning")
     custom_prof = fresh.get("custom_profile") if "custom_profile" in fresh else self._safe_get_bool(ui_state.params, "custom_profile")

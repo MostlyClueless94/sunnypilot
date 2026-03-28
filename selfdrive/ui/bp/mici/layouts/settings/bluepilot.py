@@ -2,7 +2,7 @@ import pyray as rl
 from collections.abc import Callable
 
 from openpilot.system.ui.widgets.scroller import Scroller
-from openpilot.selfdrive.ui.bp.mici.widgets.button_bp import BigButtonBP, BigParamControlBP, BigMultiToggleBP, BigMultiParamToggleBP, BigMultiParamToggleBoolBP
+from openpilot.selfdrive.ui.bp.mici.widgets.button_bp import BigButtonBP, BigParamControlBP, BigMultiToggleBP, BigMultiParamToggleBP
 from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import CUSTOM_MODEL_PATH_COLOR_LABELS
 from openpilot.selfdrive.ui.bp.mici.widgets.floatbutton import BigParamFloatControl, BigParamIntControl
 from openpilot.system.ui.lib.application import gui_app
@@ -41,7 +41,6 @@ class BluePilotLayoutMici(NavWidget):
     self.enable_web_routes = BigParamControlBP("enable web routes server", "EnableWebRoutesServer")
     self.show_web_routes_qr = BigButtonBP("show QR code", "", "icons_mici/settings/network/wifi_strength_full.png")
     self.show_web_routes_qr.set_click_callback(self._show_qr_dialog)
-    self.show_hands_free_ui = BigParamControlBP("show BlueCruise icon on dash", "send_hands_free_cluster_msg")
     self.show_lead_vehicle = BigMultiParamToggleBP("Lower Right Display", "mici_complication", ["off", "lead car speed", "speed", "lead car distance", "time to lead car"])
     self.show_brake_status = BigParamControlBP("show brake status", "ShowBrakeStatus")
     self.show_blindspot_ui = BigParamControlBP("show blindspot overlay", "ShowBlindspotOverlay")
@@ -69,21 +68,10 @@ class BluePilotLayoutMici(NavWidget):
     self.hide_fade = BigParamControlBP("hide onroad fade", "mici_hide_onroad_fade")
     self.hide_border = BigParamControlBP("hide screen border", "mici_hide_onroad_border")
     self.disable_BP_lat = BigParamControlBP("disable SubiPilot lateral control", "disable_BP_lat_UI")
-    self.disable_BP_long = BigParamControlBP("bypass SubiPilot longitudinal control", "disable_BP_long_UI")
-    self.disable_dowhill_comp = BigParamControlBP("disable downhill compensation", "disable_downhill_comp_UI")
     self.clear_model_cache = BigButtonBP("clear crashed model", "", "icons_mici/settings/device/reboot.png")
     self.clear_model_cache.set_click_callback(self._clear_model_cache)
     self.ui_debug_log = BigParamControlBP("ui debug logging", "BPUIDebugLog")
     self.vbatt_pause_charging = BigParamFloatControl("12V battery limit", "vbatt_pause_charging", min=11.0, max=14.0, step=0.1)
-
-    # Hybrid/EV power flow: enable toggle (like C3X) + style dropdown Flat/Round (C4), same pattern as Lower Right Display
-    self.show_hybrid_power_flow = BigParamControlBP("show hybrid/EV power flow", "FordPrefHybridPowerFlow")
-
-    self.hybrid_power_flow_style = BigMultiParamToggleBoolBP(
-      "hybrid/EV power flow style",
-      "FordPrefHybridPowerFlowAlternate",
-      ["flat", "round"]
-    )
 
     #self.charging_btn = BigButton("charging", "", "icons_mici/settings/charge_icon.png")
     #self.charging_btn.set_click_callback(lambda: self._show_charging_view())
@@ -93,12 +81,9 @@ class BluePilotLayoutMici(NavWidget):
       self.enable_web_routes,
       self.show_web_routes_qr,
       self.preferred_network_btn,
-      self.show_hands_free_ui,
       self.show_lead_vehicle,
       self.show_brake_status,
       self.show_blindspot_ui,
-      self.show_hybrid_power_flow,
-      self.hybrid_power_flow_style,
       self.rainbow_mode,
       self.custom_model_path_color,
       self.enable_human_turn_detection,
@@ -117,8 +102,6 @@ class BluePilotLayoutMici(NavWidget):
       self.hide_border,
       self.vbatt_pause_charging,
       self.disable_BP_lat,
-      self.disable_BP_long,
-      self.disable_dowhill_comp,
       self.clear_model_cache,
       self.ui_debug_log,
     ])
@@ -126,8 +109,6 @@ class BluePilotLayoutMici(NavWidget):
     # Toggle lists
     self._refresh_toggles = (
       ("EnableWebRoutesServer", self.enable_web_routes),
-      ("send_hands_free_cluster_msg", self.show_hands_free_ui),
-      ("FordPrefHybridPowerFlow", self.show_hybrid_power_flow),
       ("ShowBrakeStatus", self.show_brake_status),
       ("ShowBlindspotOverlay", self.show_blindspot_ui),
       ("RainbowMode", self.rainbow_mode),
@@ -137,8 +118,6 @@ class BluePilotLayoutMici(NavWidget):
       ("enable_lane_full_mode", self.enable_lane_full_mode),
       ("custom_profile", self.custom_profile),
       ("disable_BP_lat_UI", self.disable_BP_lat),
-      ("disable_BP_long_UI", self.disable_BP_long),
-      ("disable_downhill_comp_UI", self.disable_dowhill_comp),
       ("BPAnimateSteeringWheel", self.animate_steering_wheel),
       ("BPUIDebugLog", self.ui_debug_log),
       ("mici_hide_onroad_fade", self.hide_fade),
@@ -206,7 +185,6 @@ class BluePilotLayoutMici(NavWidget):
   def _update_state(self):
     super()._update_state()
     self.show_lead_vehicle._load_value()
-    self.hybrid_power_flow_style._load_value()
     self.custom_model_path_color._load_value()
     # Refresh dependent control enabled state (e.g. after toggling enable_lane_positioning)
     self._update_buttons()
@@ -219,10 +197,6 @@ class BluePilotLayoutMici(NavWidget):
     # Web routes QR: only when server enabled
     server_enabled = ui_state.params.get_bool("EnableWebRoutesServer")
     self.show_web_routes_qr.set_enabled(server_enabled)
-
-    # Hybrid/EV power flow style (flat/round): only when power flow is enabled
-    power_flow_enabled = p.get_bool("FordPrefHybridPowerFlow")
-    self.hybrid_power_flow_style.set_enabled(power_flow_enabled)
 
     # Lane positioning–dependent controls (prereq: Enable Advanced Lane Positioning)
     lane_positioning_enabled = p.get_bool("enable_lane_positioning")

@@ -21,6 +21,41 @@ When we make meaningful project changes, add a new dated entry near the top with
 
 ## 2026-03-27
 
+### Pending local hotfix: path color startup crash recovery
+
+What changed:
+- Hardened `pyray`-based UI type annotations with `from __future__ import annotations` in the affected modules:
+  - `selfdrive/ui/sunnypilot/onroad/path_colors.py`
+  - `selfdrive/ui/onroad/model_renderer.py`
+  - `selfdrive/ui/mici/onroad/model_renderer.py`
+  - `selfdrive/ui/onroad/cameraview.py`
+  - `selfdrive/ui/mici/onroad/cameraview.py`
+
+Root cause:
+- The restored path color selector introduced `rl.Color | None` and `Gradient | None` annotations.
+- On device, `pyray` exposes `rl.Color` as a callable object rather than a runtime type.
+- Python tried to evaluate `function | NoneType` during import, which crashed `manager` before the UI fully booted.
+
+Why:
+- This is a boot-critical hotfix for the currently active install branch.
+- The intent is to preserve the path color selector and only stop runtime annotation evaluation.
+
+Validation on host:
+- Passed `py -3.12 -m compileall` on all five touched UI files.
+- Passed a stubbed direct-import check for:
+  - `path_colors.py`
+  - both `model_renderer.py` modules
+  - both `cameraview.py` modules
+- The stubbed import harness was used because this Windows host does not have the full device/runtime environment.
+
+Branch / push priority:
+- First push target: `install-mc/openpilot:mc-dev`
+- Second push target: `MostlyClueless94/bluepilot:mc-dev` after GitHub auth is corrected on this machine
+
+Recovery status:
+- Before this hotfix, `installer.comma.ai/install-mc/mc-dev` was expected to boot into the manager traceback shown in the field photo.
+- After this hotfix lands on the install mirror, the build should at least clear this specific import-time crash and reach normal UI startup.
+
 ### `2dec547d2` `ui: restore preset path color selector`
 
 What changed:

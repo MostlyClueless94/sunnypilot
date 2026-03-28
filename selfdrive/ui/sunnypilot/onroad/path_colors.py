@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pyray as rl
 
 PATH_GRADIENT_STOPS = [0.0, 0.5, 1.0]

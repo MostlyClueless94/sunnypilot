@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import colorsys
 import numpy as np
 import pyray as rl

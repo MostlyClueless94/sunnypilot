@@ -79,3 +79,20 @@ CUSTOM_MODEL_PATH_COLOR_PRESETS = {
 CUSTOM_MODEL_PATH_SOLID_COLORS = {
   key: solid_color_from_gradient(colors) for key, colors in CUSTOM_MODEL_PATH_COLOR_PRESETS.items()
 }
+
+
+def vibrant_edge_color_from_gradient(colors: list[rl.Color], fallback: rl.Color | None = None) -> rl.Color:
+  base_color = solid_color_from_gradient(colors, fallback)
+
+  # Keep the outline visually related to the selected fill color, but brighter like stock green path edging.
+  return rl.Color(
+    min(base_color.r + 51, 255),
+    min(base_color.g + 51, 255),
+    min(base_color.b + 51, 255),
+    255,
+  )
+
+
+CUSTOM_MODEL_PATH_EDGE_COLORS = {
+  key: vibrant_edge_color_from_gradient(colors) for key, colors in CUSTOM_MODEL_PATH_COLOR_PRESETS.items()
+}

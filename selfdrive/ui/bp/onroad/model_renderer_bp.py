@@ -3,6 +3,7 @@ import pyray as rl
 from openpilot.common.filter_simple import FirstOrderFilter
 from openpilot.common.params import Params
 from openpilot.selfdrive.ui.onroad.model_renderer import ModelRenderer, LeadVehicle, CLIP_MARGIN, MIN_DRAW_DISTANCE, MAX_DRAW_DISTANCE
+from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import CUSTOM_MODEL_PATH_EDGE_COLORS
 from openpilot.selfdrive.ui.bp.onroad.chevron_metrics_bp import ChevronMetricsBP
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.system.ui.lib.application import gui_app
@@ -413,6 +414,9 @@ class ModelRendererBP(ModelRenderer):
     right_edge = points[mid_point:][::-1]
 
     edge_color = LANE_LINE_COLORS_BP.get(ui_state.status, LANE_LINE_COLORS_BP[UIStatus.DISENGAGED])
+    if (not self._experimental_mode and not ui_state.rainbow_path and
+        ui_state.custom_model_path_color in CUSTOM_MODEL_PATH_EDGE_COLORS):
+      edge_color = CUSTOM_MODEL_PATH_EDGE_COLORS[ui_state.custom_model_path_color]
 
     for i in range(len(left_edge) - 1):
       rl.draw_line_ex(

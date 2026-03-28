@@ -43,3 +43,11 @@ def test_tici_bp_renderer_prepares_active_path_style_before_drawing():
   draw_path_idx = source.index("self._draw_path()")
 
   assert prepare_idx < lane_idx < draw_path_idx
+
+
+def test_tici_bp_renderer_uses_custom_path_edge_colors_only_for_outline():
+  source, _ = _parse_renderer(TICI_BP_RENDERER)
+
+  assert "CUSTOM_MODEL_PATH_EDGE_COLORS" in source
+  assert "ui_state.custom_model_path_color in CUSTOM_MODEL_PATH_EDGE_COLORS" in source
+  assert "edge_color = CUSTOM_MODEL_PATH_EDGE_COLORS[ui_state.custom_model_path_color]" in source

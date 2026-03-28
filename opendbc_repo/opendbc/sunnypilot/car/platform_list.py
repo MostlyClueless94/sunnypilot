@@ -8,6 +8,9 @@ from opendbc.car.docs import get_all_footnotes, get_params_for_docs
 from opendbc.car.values import PLATFORMS
 
 CAR_LIST_JSON_OUT = os.path.join(BASEDIR, "../", "sunnypilot", "car", "car_list.json")
+MANUAL_SELECTOR_DASHCAM_ALLOWLIST = {
+  "SUBARU_OUTBACK_2023",
+}
 
 
 def get_car_list() -> dict[str, dict[str, list[str] | str]]:
@@ -28,7 +31,8 @@ def build_sorted_car_list(platforms, footnotes) -> dict[str, dict[str, list[str]
     car_docs = platform.config.get_all_docs()
     CP, CP_SP = get_params_for_docs(platform)
 
-    if CP.dashcamOnly or not len(car_docs):
+    # Keep the selector conservative, but allow the targeted Outback bring-up platform to be chosen manually.
+    if (CP.dashcamOnly and model not in MANUAL_SELECTOR_DASHCAM_ALLOWLIST) or not len(car_docs):
       continue
 
     # A platform can include multiple car models

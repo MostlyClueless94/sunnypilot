@@ -12,14 +12,32 @@ When we make meaningful project changes, add a new dated entry near the top with
 
 ## Current Topology
 
-- Working repo: `MostlyClueless94/bluepilot`
-- Install mirror repo: `install-mc/openpilot`
+- Active repo and install surface: `install-mc/openpilot`
 - Active development branch: `mc-dev`
 - Stock comma installer target: `installer.comma.ai/install-mc/mc-dev`
 - Base: `BluePilotDev/bluepilot@bp-6.0`
 - Subaru donor scope: minimum bring-up for 2023-25 Outback angle-LKAS support
+- Historical references to `MostlyClueless94/bluepilot` and the custom installer worker are legacy only and not part of the active path.
 
 ## 2026-03-27
+
+### `cleanup` active branch and installer path simplification
+
+What changed:
+- Retired the old `MostlyClueless94/bluepilot` path from active project tracking.
+- Removed the obsolete `tools/bluepilot-installer` custom-installer tooling from the repo.
+- Standardized the project log around a single active repo/branch path:
+  - `install-mc/openpilot`
+  - `mc-dev`
+  - `installer.comma.ai/install-mc/mc-dev`
+
+Why:
+- Only `mc-dev` is in active use.
+- The custom installer worker and old BluePilot repo references were creating unnecessary confusion during install/debug work.
+
+Validation:
+- Repo references were reduced to the active install path only.
+- The cleanup does not change runtime code or vehicle behavior.
 
 ### Pending local hotfix: path color startup crash recovery
 
@@ -49,12 +67,11 @@ Validation on host:
 - The stubbed import harness was used because this Windows host does not have the full device/runtime environment.
 
 Branch / push priority:
-- First push target: `install-mc/openpilot:mc-dev`
-- Second push target: `MostlyClueless94/bluepilot:mc-dev` after GitHub auth is corrected on this machine
+- Active push target: `install-mc/openpilot:mc-dev`
 
 Recovery status:
 - Before this hotfix, `installer.comma.ai/install-mc/mc-dev` was expected to boot into the manager traceback shown in the field photo.
-- After this hotfix lands on the install mirror, the build should at least clear this specific import-time crash and reach normal UI startup.
+- After this hotfix landed on the active install branch, the build should at least clear this specific import-time crash and reach normal UI startup.
 
 ### `2dec547d2` `ui: restore preset path color selector`
 
@@ -92,13 +109,9 @@ Validation on this Windows host:
 - Direct import-based execution of the helper test was also blocked until a temporary `pyray` stub was used, because `pyray` is not installed on this Windows host.
 
 Branch / push status:
-- Commit exists locally in `bluepilot-v1` on `mc-dev`.
-- Push to `MostlyClueless94/bluepilot` failed with `403` because GitHub auth on this machine is currently cached as `install-mc`.
-- This means the development source-of-truth remote is currently behind this local commit until auth is corrected.
+- This work is part of the active `install-mc/openpilot:mc-dev` branch.
 
 Open follow-ups:
-- Push this commit to `install-mc/openpilot` so the install branch can pick it up if desired.
-- Re-auth the `mc` remote before pushing back to `MostlyClueless94/bluepilot`.
 - Bench-verify that both settings pages show `Custom Model Path Color`.
 - Device-verify that `Stock` matches current visuals and that presets recolor path, lane lines, and road edges as intended.
 
@@ -125,8 +138,8 @@ Why:
 - This was the first attempt to solve the installer mismatch before moving to the `install-mc/openpilot` mirror approach.
 
 Current status:
-- Kept in the repo as fallback tooling.
-- Not required for the current stock installer path via `install-mc/openpilot`.
+- Historical only.
+- Removed during later cleanup after the project standardized on the stock installer path via `install-mc/openpilot`.
 
 ### `07d7ba756` `subaru: add minimal outback angle-lkas bring-up`
 
@@ -145,7 +158,6 @@ Validation:
 
 - Ford regression still needs real in-car validation after the Subaru and UI work.
 - Subaru fingerprinting, calibration, engage behavior, and angle steering still need full in-car validation.
-- The `mc` remote currently cannot be updated from this machine until GitHub auth is switched away from `install-mc`.
 - This Windows host is not a complete verification environment for the repo because it is missing:
   - built `common.params_pyx`
   - `pyray`

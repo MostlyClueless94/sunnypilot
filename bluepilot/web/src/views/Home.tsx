@@ -223,8 +223,8 @@ export const Home = ({ deviceStatus = 'checking' }: HomeProps) => {
               {/* Version Info */}
               <div className="status-pills-row">
                 <div className="status-pill">
-                  <span className="pill-label">BP Version</span>
-                  <span className="pill-value">{deviceInfo?.bp_version ? `v${deviceInfo.bp_version}` : 'N/A'}</span>
+                  <span className="pill-label">SubiPilot Version</span>
+                  <span className="pill-value">{deviceInfo?.subipilot_version ? `v${deviceInfo.subipilot_version}` : 'N/A'}</span>
                 </div>
                 <div className="status-pill">
                   <span className="pill-label">SP Version</span>

@@ -1,6 +1,6 @@
 {
   "versions": {
-    "6.0.0": {
+    "1.0": {
       "agnos_version": "13.1",
       "changes": [
         "SubiPilot refresh built on the working BluePilot-based base now running on MostlyClueless.",

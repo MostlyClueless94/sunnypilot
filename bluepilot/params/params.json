@@ -373,6 +373,14 @@
       "enabled": true
     },
     {
+      "name": "SubiPilotLastSeenVersion",
+      "default": "",
+      "type": "string",
+      "flags": ["PERSISTENT", "BACKUP"],
+      "create_default": false,
+      "enabled": true
+    },
+    {
       "name": "LaneLineCalibrationRequired",
       "default": false,
       "type": "bool",

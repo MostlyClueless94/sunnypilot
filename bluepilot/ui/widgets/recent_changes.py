@@ -1,7 +1,7 @@
 """
 SubiPilot Recent Changes Dialog
 Fullscreen modal overlay showing categorized changes from BP_CHANGES.json.
-Auto-shown when BP version changes (after update). Ported from Qt BPRecentChangesDialog.
+Auto-shown when the visible SubiPilot version changes after update.
 """
 
 import json
@@ -17,6 +17,7 @@ from openpilot.system.ui.lib.wrap_text import wrap_text
 from openpilot.system.ui.widgets import Widget, DialogResult
 from openpilot.system.ui.lib.application import MousePos
 from bluepilot.ui.lib.colors import BPColors
+from bluepilot.versioning import read_subipilot_version
 
 # Layout constants (matching Qt)
 HEADER_HEIGHT = 130
@@ -44,7 +45,8 @@ CATEGORIES = [
   ("known_issues", "Known Issues", BPColors.CHANGES_RED),
 ]
 
-_BP_ROOT = os.path.join(os.path.dirname(__file__), '../../..')
+_BP_ROOT = os.path.join(os.path.dirname(__file__), "../../..")
+_LAST_SEEN_PARAM = "SubiPilotLastSeenVersion"
 
 CLOSE_CIRCLE_RADIUS = 32
 CLOSE_X_SIZE = 14
@@ -77,17 +79,9 @@ class _CloseButton(Widget):
     rl.draw_line_ex(rl.Vector2(cx + half, cy - half), rl.Vector2(cx - half, cy + half), CLOSE_X_WIDTH, x_color)
 
 
-def _read_bp_version() -> str:
-  try:
-    with open(os.path.join(_BP_ROOT, 'BPVERSION')) as f:
-      return f.readline().strip()
-  except Exception:
-    return ""
-
-
 def _load_changes_json() -> dict:
   try:
-    with open(os.path.join(_BP_ROOT, 'BP_CHANGES.json')) as f:
+    with open(os.path.join(_BP_ROOT, "BP_CHANGES.json")) as f:
       return json.load(f)
   except Exception as e:
     cloudlog.error(f"Failed to load BP_CHANGES.json: {e}")
@@ -95,7 +89,7 @@ def _load_changes_json() -> dict:
 
 
 class RecentChangesDialog(Widget):
-  """Fullscreen modal overlay displaying recent changes for a given BP version."""
+  """Fullscreen modal overlay displaying recent changes for a given SubiPilot version."""
 
   def __init__(self, version: str, dismiss_callback=None):
     super().__init__()
@@ -176,7 +170,7 @@ class RecentChangesDialog(Widget):
     close_rect = rl.Rectangle(
       header_rect.x + 15,
       header_rect.y + (HEADER_HEIGHT - close_tap) / 2,
-      close_tap, close_tap
+      close_tap, close_tap,
     )
     self._close_btn.render(close_rect)
 
@@ -186,8 +180,7 @@ class RecentChangesDialog(Widget):
     title_size = measure_text_cached(title_font, title_text, TITLE_FONT_SIZE)
     title_x = rect.x + (rect.width - title_size.x) / 2
     title_y = header_rect.y + (HEADER_HEIGHT - title_size.y) / 2
-    rl.draw_text_ex(title_font, title_text, rl.Vector2(int(title_x), int(title_y)),
-                    TITLE_FONT_SIZE, 0, rl.WHITE)
+    rl.draw_text_ex(title_font, title_text, rl.Vector2(int(title_x), int(title_y)), TITLE_FONT_SIZE, 0, rl.WHITE)
 
     # Scrollable content area
     content_x = rect.x + CONTENT_MARGIN
@@ -219,8 +212,7 @@ class RecentChangesDialog(Widget):
 
     # Category sections
     for title, color, items in self._sections:
-      cur_y = self._draw_category_section(x, cur_y, width, title, color, items,
-                                          font_bold, font_normal, line_height)
+      cur_y = self._draw_category_section(x, cur_y, width, title, color, items, font_bold, font_normal, line_height)
       cur_y += SECTION_SPACING
 
   def _draw_version_badges(self, x, y, font) -> float:
@@ -236,8 +228,7 @@ class RecentChangesDialog(Widget):
     roundness = BADGE_RADIUS / (badge_h / 2) if badge_h > 0 else 0.5
     rl.draw_rectangle_rounded(version_rect, roundness, 10, BPColors.CHANGES_BLUE)
     text_y = y + (badge_h - BADGE_FONT_SIZE * line_height) / 2
-    rl.draw_text_ex(font, version_text, rl.Vector2(int(cur_x + BADGE_PAD_X), int(text_y)),
-                    BADGE_FONT_SIZE, 0, rl.WHITE)
+    rl.draw_text_ex(font, version_text, rl.Vector2(int(cur_x + BADGE_PAD_X), int(text_y)), BADGE_FONT_SIZE, 0, rl.WHITE)
     cur_x += version_w + 15
 
     # AGNOS badge (purple)
@@ -249,8 +240,7 @@ class RecentChangesDialog(Widget):
       agnos_roundness = BADGE_RADIUS / (agnos_h / 2) if agnos_h > 0 else 0.5
       rl.draw_rectangle_rounded(agnos_rect, agnos_roundness, 10, BPColors.CHANGES_AGNOS)
       agnos_text_y = y + (badge_h - AGNOS_FONT_SIZE * line_height) / 2
-      rl.draw_text_ex(font, agnos_text, rl.Vector2(int(cur_x + 20), int(agnos_text_y)),
-                      AGNOS_FONT_SIZE, 0, rl.WHITE)
+      rl.draw_text_ex(font, agnos_text, rl.Vector2(int(cur_x + 20), int(agnos_text_y)), AGNOS_FONT_SIZE, 0, rl.WHITE)
 
     return y + badge_h
 
@@ -276,22 +266,25 @@ class RecentChangesDialog(Widget):
     cur_y = y + FRAME_PADDING
 
     # Category title
-    rl.draw_text_ex(font_bold, title, rl.Vector2(int(x + FRAME_PADDING), int(cur_y)),
-                    CATEGORY_TITLE_SIZE, 0, color)
+    rl.draw_text_ex(font_bold, title, rl.Vector2(int(x + FRAME_PADDING), int(cur_y)), CATEGORY_TITLE_SIZE, 0, color)
     cur_y += CATEGORY_TITLE_SIZE * line_height + 8
 
     # Items
     for item_text in items:
       # Bullet
-      rl.draw_text_ex(font_bold, "\u2022", rl.Vector2(int(x + FRAME_PADDING), int(cur_y)),
-                      ITEM_FONT_SIZE, 0, color)
+      rl.draw_text_ex(font_bold, "\u2022", rl.Vector2(int(x + FRAME_PADDING), int(cur_y)), ITEM_FONT_SIZE, 0, color)
 
       # Wrapped text
       lines = wrap_text(font_normal, item_text, ITEM_FONT_SIZE, usable_text_w)
       for line in lines:
-        rl.draw_text_ex(font_normal, line,
-                        rl.Vector2(int(x + FRAME_PADDING + bullet_offset), int(cur_y)),
-                        ITEM_FONT_SIZE, 0, BPColors.CHANGES_TEXT)
+        rl.draw_text_ex(
+          font_normal,
+          line,
+          rl.Vector2(int(x + FRAME_PADDING + bullet_offset), int(cur_y)),
+          ITEM_FONT_SIZE,
+          0,
+          BPColors.CHANGES_TEXT,
+        )
         cur_y += ITEM_FONT_SIZE * line_height
       cur_y += 4  # gap between items
 
@@ -299,24 +292,24 @@ class RecentChangesDialog(Widget):
 
 
 class RecentChangesManager:
-  """Manages auto-showing the recent changes dialog when BP version changes."""
+  """Manages auto-showing the recent changes dialog when the visible SubiPilot version changes."""
 
   def __init__(self):
     self._shown = False
-    self._bp_version = _read_bp_version()
+    self._version = read_subipilot_version()
     self._params = Params()
-    print(f"[RecentChanges] Initialized — BP version: '{self._bp_version}'")
+    print(f"[RecentChanges] Initialized - SubiPilot version: '{self._version}'")
 
   def should_show(self) -> bool:
     if self._shown:
       print("[RecentChanges] should_show=False (already shown this session)")
       return False
-    if not self._bp_version:
-      print("[RecentChanges] should_show=False (no BP version found)")
+    if not self._version:
+      print("[RecentChanges] should_show=False (no SubiPilot version found)")
       return False
-    stored = self._params.get("BPLastSeenVersion") or ""
-    result = self._bp_version != stored
-    print(f"[RecentChanges] should_show={result} — current='{self._bp_version}' stored='{stored}' (type={type(stored).__name__})")
+    stored = self._params.get(_LAST_SEEN_PARAM) or ""
+    result = self._version != stored
+    print(f"[RecentChanges] should_show={result} - current='{self._version}' stored='{stored}' (type={type(stored).__name__})")
     return result
 
   def show_if_needed(self):
@@ -324,13 +317,13 @@ class RecentChangesManager:
       return
     # Don't interrupt another overlay (e.g. onboarding) - use nav stack depth
     if hasattr(gui_app, "_nav_stack") and len(gui_app._nav_stack) > 1:
-      print("[RecentChanges] Blocked — another overlay is active")
+      print("[RecentChanges] Blocked - another overlay is active")
       return
-    print(f"[RecentChanges] Showing dialog for version {self._bp_version}")
-    dialog = RecentChangesDialog(self._bp_version, dismiss_callback=self._on_dismissed)
+    print(f"[RecentChanges] Showing dialog for version {self._version}")
+    dialog = RecentChangesDialog(self._version, dismiss_callback=self._on_dismissed)
     gui_app.push_widget(dialog)
     self._shown = True
 
   def _on_dismissed(self, _result):
-    print(f"[RecentChanges] Dismissed — saving BPLastSeenVersion='{self._bp_version}'")
-    self._params.put("BPLastSeenVersion", self._bp_version)
+    print(f"[RecentChanges] Dismissed - saving {_LAST_SEEN_PARAM}='{self._version}'")
+    self._params.put(_LAST_SEEN_PARAM, self._version)

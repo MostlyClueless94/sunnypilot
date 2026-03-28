@@ -25,7 +25,8 @@ from bluepilot.ui.lib.constants import BPConstants, get_carrier_name
 from bluepilot.ui.widgets.metric_card import MetricCard, MetricData
 from bluepilot.ui.widgets.network_card import NetworkCard
 from bluepilot.ui.widgets.icon_button import IconButton, InfoButton, FanWidget
-from bluepilot.ui.widgets.recent_changes import RecentChangesDialog, _read_bp_version
+from bluepilot.ui.widgets.recent_changes import RecentChangesDialog
+from bluepilot.versioning import read_subipilot_version
 
 
 ThermalStatus = log.DeviceState.ThermalStatus
@@ -180,12 +181,12 @@ class SidebarBP(Widget):
 
   def _show_recent_changes(self):
     """Show the recent changes dialog."""
-    bp_version = _read_bp_version()
-    if bp_version:
+    subipilot_version = read_subipilot_version()
+    if subipilot_version:
       params = Params()
       def _on_dismiss(_result=None):
-        params.put("BPLastSeenVersion", bp_version)
-      dialog = RecentChangesDialog(bp_version, dismiss_callback=_on_dismiss)
+        params.put("SubiPilotLastSeenVersion", subipilot_version)
+      dialog = RecentChangesDialog(subipilot_version, dismiss_callback=_on_dismiss)
       gui_app.push_widget(dialog)
 
   def _handle_debug_click(self):

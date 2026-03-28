@@ -5,7 +5,6 @@ with DriveStats and ModelInfo widgets, and renders badge-styled version
 header matching the old Qt OffroadHomeSP layout.
 """
 
-import os
 import time
 import pyray as rl
 from collections.abc import Callable
@@ -20,6 +19,7 @@ from bluepilot.ui.widgets.model_info import ModelInfoWidget
 from bluepilot.ui.widgets.recent_changes import RecentChangesManager
 from bluepilot.ui.lib.colors import BPColors
 from bluepilot.ui.lib.constants import BPConstants
+from bluepilot.versioning import format_subipilot_version
 
 # Badge styling constants
 BADGE_FONT_SIZE = 36
@@ -43,8 +43,7 @@ class HomeLayoutBP(HomeLayout):
     self._drive_stats = DriveStatsWidget()
     self._model_info = ModelInfoWidget()
 
-    # Read BPVERSION once at startup
-    self._bp_version = self._read_bp_version()
+    self._subipilot_version = format_subipilot_version()
     self._badge_parts: tuple[str, ...] | None = None
 
     # Recent changes auto-show
@@ -54,15 +53,6 @@ class HomeLayoutBP(HomeLayout):
     # Show on offroad transition (2s delay via frame check)
     self._offroad_trigger_time: float = 0
     ui_state.add_offroad_transition_callback(self._on_offroad_transition)
-
-  @staticmethod
-  def _read_bp_version() -> str:
-    try:
-      version_path = os.path.join(os.path.dirname(__file__), '../../../BPVERSION')
-      with open(version_path) as f:
-        return f.readline().strip()
-    except Exception:
-      return ""
 
   def _on_offroad_transition(self):
     """Trigger recent changes check 2s after going offroad."""
@@ -97,13 +87,13 @@ class HomeLayoutBP(HomeLayout):
     if description:
       parts = description.split(" / ")
       if len(parts) >= 4:
-        brand_text = f"SubiPilot v{self._bp_version}" if self._bp_version else f"SubiPilot v{parts[0].strip()}"
+        brand_text = self._subipilot_version
         self._badge_parts = (brand_text, parts[1].strip(), parts[2].strip(), parts[3].strip())
       else:
-        brand_text = f"SubiPilot v{self._bp_version}" if self._bp_version else "SubiPilot"
+        brand_text = self._subipilot_version
         self._badge_parts = (brand_text,)
     else:
-      brand_text = f"SubiPilot v{self._bp_version}" if self._bp_version else "SubiPilot"
+      brand_text = self._subipilot_version
       self._badge_parts = (brand_text,)
 
     return result

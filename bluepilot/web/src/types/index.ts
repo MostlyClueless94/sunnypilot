@@ -175,6 +175,7 @@ export interface VehicleInfo {
 export interface DeviceInfo {
   dongle_id: string | null
   serial: string | null
+  subipilot_version: string | null
   bp_version: string | null
   sp_version: string | null
   op_version: string | null

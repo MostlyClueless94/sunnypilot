@@ -185,6 +185,7 @@ from bluepilot.backend.handlers.log_downloads import (
 
 # Params - import from params_manager to get fallback support
 from bluepilot.backend.params.params_manager import Params
+from bluepilot.versioning import read_subipilot_version
 params = Params()
 
 
@@ -1083,6 +1084,13 @@ class WebRoutesHandler(BaseHTTPRequestHandler):
                     except Exception as e:
                         logger.debug(f"Error reading BPVERSION: {e}")
                         device_info['bp_version'] = None
+
+                    # Get SubiPilot display version
+                    try:
+                        device_info['subipilot_version'] = read_subipilot_version() or None
+                    except Exception as e:
+                        logger.debug(f"Error reading SubiPilot display version: {e}")
+                        device_info['subipilot_version'] = None
 
                     # Get Openpilot Version from common/version.h file
                     try:

@@ -54,6 +54,7 @@ def sp_stats(end_event):
     'AutoLaneChangeTimer',
     'CarPlatformBundle',
     'CurrentRoute',
+    'CustomModelPathColor',
     'DevUIInfo',
     'EnableCopyparty',
     'IntelligentCruiseButtonManagement',

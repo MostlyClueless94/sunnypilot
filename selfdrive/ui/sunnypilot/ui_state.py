@@ -120,6 +120,13 @@ class UIStateSP:
 
     return "disengaged"
 
+  def _get_int_param(self, key: str, default: int = 0) -> int:
+    value = self.params.get(key, return_default=True)
+    try:
+      return int(value)
+    except (TypeError, ValueError):
+      return default
+
   def update_params(self) -> None:
     CP_SP_bytes = self.params.get("CarParamsSPPersistent")
     if CP_SP_bytes is not None:
@@ -128,6 +135,7 @@ class UIStateSP:
     self.active_bundle = self.params.get("ModelManager_ActiveBundle")
     self.blindspot = self.params.get_bool("BlindSpot")
     self.chevron_metrics = self.params.get("ChevronInfo")
+    self.custom_model_path_color = self._get_int_param("CustomModelPathColor")
     self.custom_interactive_timeout = self.params.get("InteractivityTimeout", return_default=True)
     self.developer_ui = self.params.get("DevUIInfo")
     self.hide_v_ego_ui = self.params.get_bool("HideVEgoUI")

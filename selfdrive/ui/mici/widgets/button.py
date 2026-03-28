@@ -21,6 +21,18 @@ COMPLICATION_GREY    = rl.Color(0xAA, 0xAA, 0xAA, 255)
 PRESSED_SCALE = 1.15 if DO_ZOOM else 1.07
 
 
+def _coerce_option_index(value: object, option_count: int) -> int:
+  try:
+    index = int(value)
+  except (TypeError, ValueError):
+    index = 0
+
+  if option_count <= 0:
+    return 0
+
+  return max(0, min(index, option_count - 1))
+
+
 class ScrollState(Enum):
   PRE_SCROLL = 0
   SCROLLING = 1
@@ -335,7 +347,8 @@ class BigMultiParamToggle(BigMultiToggle):
     self._load_value()
 
   def _load_value(self):
-    self.set_value(self._options[self._params.get(self._param) or 0])
+    idx = _coerce_option_index(self._params.get(self._param), len(self._options))
+    self.set_value(self._options[idx])
 
   def _handle_mouse_release(self, mouse_pos: MousePos):
     super()._handle_mouse_release(mouse_pos)

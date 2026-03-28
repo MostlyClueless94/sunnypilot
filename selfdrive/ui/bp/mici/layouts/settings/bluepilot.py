@@ -3,6 +3,7 @@ from collections.abc import Callable
 
 from openpilot.system.ui.widgets.scroller import Scroller
 from openpilot.selfdrive.ui.bp.mici.widgets.button_bp import BigButtonBP, BigParamControlBP, BigMultiToggleBP, BigMultiParamToggleBP, BigMultiParamToggleBoolBP
+from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import CUSTOM_MODEL_PATH_COLOR_LABELS
 from openpilot.selfdrive.ui.bp.mici.widgets.floatbutton import BigParamFloatControl, BigParamIntControl
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.widgets.nav_widget import NavWidget
@@ -45,6 +46,7 @@ class BluePilotLayoutMici(NavWidget):
     self.show_brake_status = BigParamControlBP("show brake status", "ShowBrakeStatus")
     self.show_blindspot_ui = BigParamControlBP("show blindspot overlay", "ShowBlindspotOverlay")
     self.rainbow_mode = BigParamControlBP("rainbow mode", "RainbowMode")
+    self.custom_model_path_color = BigMultiParamToggleBP("custom model path color", "CustomModelPathColor", CUSTOM_MODEL_PATH_COLOR_LABELS)
     self.enable_human_turn_detection = BigParamControlBP("enable human turn detection", "enable_human_turn_detection")
     self.lane_change_factor_high = BigParamFloatControl("lane change factor high", "lane_change_factor_high", min=0.5, max=1.0)
     self.enable_lane_positioning = BigParamControlBP("enable lane positioning", "enable_lane_positioning", tint=rl.GREEN)
@@ -98,6 +100,7 @@ class BluePilotLayoutMici(NavWidget):
       self.show_hybrid_power_flow,
       self.hybrid_power_flow_style,
       self.rainbow_mode,
+      self.custom_model_path_color,
       self.enable_human_turn_detection,
       self.lane_change_factor_high,
       self.disable_lane_change_under_speed,
@@ -204,6 +207,7 @@ class BluePilotLayoutMici(NavWidget):
     super()._update_state()
     self.show_lead_vehicle._load_value()
     self.hybrid_power_flow_style._load_value()
+    self.custom_model_path_color._load_value()
     # Refresh dependent control enabled state (e.g. after toggling enable_lane_positioning)
     self._update_buttons()
 

@@ -36,6 +36,18 @@ class BluePilotLayout(Widget):
     except UnknownKeyName:
       return default
 
+  @staticmethod
+  def _get_active_brand() -> str:
+    if (bundle := ui_state.params.get("CarPlatformBundle")) and hasattr(bundle, "get"):
+      return str(bundle.get("brand", "")).lower()
+    if ui_state.CP is not None and ui_state.CP.carFingerprint != "MOCK":
+      return str(ui_state.CP.brand).lower()
+    return ""
+
+  @classmethod
+  def _show_ford_lateral_settings(cls) -> bool:
+    return cls._get_active_brand() == "ford"
+
   def __init__(self):
     super().__init__()
     self._params = Params()
@@ -120,10 +132,10 @@ class BluePilotLayout(Widget):
       icon="chffr_wheel.png"
     )
 
-    # Ford radar lead overlay toggle
+    # Lead overlay toggle
     self._show_ford_radar_overlay = toggle_item(
-      lambda: tr("Show Radar Lead Overlay"),
-      lambda: tr("Display chevron with lead vehicle info when stock adaptive cruise is active."),
+      lambda: tr("Show Lead Overlay"),
+      lambda: tr("Display chevron with lead vehicle info when a lead vehicle is detected."),
       initial_state=self._safe_get_bool(self._params, "FordPrefShowRadarLeadOverlay"),
       callback=lambda state: self._toggle_callback(state, "FordPrefShowRadarLeadOverlay"),
       icon="speed_limit.png"
@@ -141,8 +153,8 @@ class BluePilotLayout(Widget):
     except UnknownKeyName:
       pass
     self._radar_overlay_size_btn = multiple_button_item(
-      lambda: tr("Radar Overlay Size"),
-      lambda: tr("Set the size of the radar lead overlay chevron and info boxes."),
+      lambda: tr("Lead Overlay Size"),
+      lambda: tr("Set the size of the lead overlay chevron and info boxes."),
       buttons=[lambda: tr("Small"), lambda: tr("Medium"), lambda: tr("Large")],
       button_width=225,
       callback=self._set_overlay_size,
@@ -284,6 +296,21 @@ class BluePilotLayout(Widget):
       callback=lambda state: self._toggle_callback(state, "disable_BP_lat_UI"),
       icon="chffr_wheel.png"
     )
+
+    ford_only_items = (
+      self._enable_human_turn_detection,
+      self._lane_change_factor_high,
+      self._enable_lane_positioning,
+      self._custom_path_offset,
+      self._enable_lane_full_mode,
+      self._custom_profile,
+      self._pc_blend_ratio_high_C,
+      self._pc_blend_ratio_low_C,
+      self._lc_pid_gain,
+      self._disable_BP_lat,
+    )
+    for item in ford_only_items:
+      item.set_visible(self._show_ford_lateral_settings)
 
     # Preferred WiFi Network selector
     self._preferred_network_action = ButtonAction(lambda: tr("SELECT"))

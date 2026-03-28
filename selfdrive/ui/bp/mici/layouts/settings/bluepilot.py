@@ -17,6 +17,18 @@ from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog
 from openpilot.selfdrive.ui.bp.mici.widgets.preferred_network_select import PreferredNetworkSelectMici
 
 class BluePilotLayoutMici(NavWidget):
+  @staticmethod
+  def _get_active_brand() -> str:
+    if (bundle := ui_state.params.get("CarPlatformBundle")) and hasattr(bundle, "get"):
+      return str(bundle.get("brand", "")).lower()
+    if ui_state.CP is not None and ui_state.CP.carFingerprint != "MOCK":
+      return str(ui_state.CP.brand).lower()
+    return ""
+
+  @classmethod
+  def _show_ford_lateral_settings(cls) -> bool:
+    return cls._get_active_brand() == "ford"
+
   def __init__(self, back_callback: Callable):
     super().__init__()
     self.set_back_callback(back_callback)
@@ -72,6 +84,21 @@ class BluePilotLayoutMici(NavWidget):
     self.clear_model_cache.set_click_callback(self._clear_model_cache)
     self.ui_debug_log = BigParamControlBP("ui debug logging", "BPUIDebugLog")
     self.vbatt_pause_charging = BigParamFloatControl("12V battery limit", "vbatt_pause_charging", min=11.0, max=14.0, step=0.1)
+
+    ford_only_items = (
+      self.enable_human_turn_detection,
+      self.lane_change_factor_high,
+      self.enable_lane_positioning,
+      self.custom_path_offset,
+      self.enable_lane_full_mode,
+      self.custom_profile,
+      self.pc_blend_ratio_high_C,
+      self.pc_blend_ratio_low_C,
+      self.LC_PID_gain,
+      self.disable_BP_lat,
+    )
+    for item in ford_only_items:
+      item.set_visible(self._show_ford_lateral_settings)
 
     #self.charging_btn = BigButton("charging", "", "icons_mici/settings/charge_icon.png")
     #self.charging_btn.set_click_callback(lambda: self._show_charging_view())

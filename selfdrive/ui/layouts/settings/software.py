@@ -3,7 +3,6 @@ import time
 import datetime
 from openpilot.common.time_helpers import system_time_valid
 from openpilot.selfdrive.ui.ui_state import ui_state
-from openpilot.system.version import order_branches_for_ui
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.multilang import tr, trn
 from openpilot.system.ui.widgets import Widget, DialogResult
@@ -70,6 +69,7 @@ class SoftwareLayout(Widget):
 
     # Branch switcher
     self._branch_btn = button_item(lambda: tr("Target Branch"), lambda: tr("SELECT"), callback=self._on_select_branch)
+    self._branch_btn.set_visible(not ui_state.params.get_bool("IsTestedBranch"))
     self._branch_btn.action_item.set_value(ui_state.params.get("UpdaterTargetBranch") or "")
     self._branch_dialog: MultiOptionDialog | None = None
 
@@ -83,7 +83,6 @@ class SoftwareLayout(Widget):
     ], line_separator=True, spacing=0)
 
   def show_event(self):
-    super().show_event()
     self._scroller.show_event()
 
   def _render(self, rect):
@@ -186,7 +185,11 @@ class SoftwareLayout(Widget):
     current_git_branch = ui_state.params.get("GitBranch") or ""
     branches_str = ui_state.params.get("UpdaterAvailableBranches") or ""
     branches = [b for b in branches_str.split(",") if b]
-    branches = order_branches_for_ui(branches, current_git_branch)
+
+    for b in [current_git_branch, "devel-staging", "devel", "nightly", "nightly-dev", "master"]:
+      if b in branches:
+        branches.remove(b)
+        branches.insert(0, b)
 
     current_target = ui_state.params.get("UpdaterTargetBranch") or ""
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import colorsys
 import numpy as np
 import pyray as rl
@@ -6,16 +8,13 @@ from dataclasses import dataclass, field
 from openpilot.common.filter_simple import FirstOrderFilter
 from openpilot.common.params import Params
 from openpilot.selfdrive.locationd.calibrationd import HEIGHT_INIT
-from openpilot.selfdrive.ui.ui_state import UIStatus
-from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import (
   CUSTOM_MODEL_PATH_COLOR_PRESETS,
   CUSTOM_MODEL_PATH_SOLID_COLORS,
   PATH_GRADIENT_STOPS,
-  get_dynamic_path_colors,
-  get_dynamic_solid_color,
   solid_color_from_gradient,
 )
+from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.shader_polygon import draw_polygon, Gradient
 from openpilot.system.ui.widgets import Widget
@@ -27,9 +26,9 @@ MIN_DRAW_DISTANCE = 10.0
 MAX_DRAW_DISTANCE = 100.0
 
 THROTTLE_COLORS = [
-  rl.Color(13, 248, 122, 102),   # HSLF(148/360, 0.94, 0.51, 0.4)
-  rl.Color(114, 255, 92, 89),    # HSLF(112/360, 1.0, 0.68, 0.35)
-  rl.Color(114, 255, 92, 0),     # HSLF(112/360, 1.0, 0.68, 0.0)
+  rl.Color(0, 255, 80, 140),     # Bright green (bottom, high opacity)
+  rl.Color(0, 255, 100, 110),    # Bright green (mid, medium opacity)
+  rl.Color(0, 255, 100, 0),      # Bright green (top, transparent)
 ]
 
 NO_THROTTLE_COLORS = [
@@ -86,7 +85,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     )
     self._active_path_gradient: Gradient | None = None
     self._active_path_color = rl.Color(255, 255, 255, 30)
-    self._active_marking_color = rl.Color(255, 255, 255, 255)
+    self._custom_marking_color: rl.Color | None = None
 
     # Get longitudinal control setting from car parameters
     if car_params := Params().get("CarParams"):
@@ -126,7 +125,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     model = sm['modelV2']
     radar_state = sm['radarState'] if sm.valid['radarState'] else None
     lead_one = radar_state.leadOne if radar_state else None
-    render_lead_indicator = radar_state is not None
+    render_lead_indicator = self._longitudinal_control and radar_state is not None
 
     # Update model data when needed
     model_updated = sm.updated['modelV2']
@@ -257,7 +256,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
   def _prepare_active_path_style(self, sm):
     self._active_path_gradient = None
     self._active_path_color = rl.Color(255, 255, 255, 30)
-    self._active_marking_color = rl.Color(255, 255, 255, 255)
+    self._custom_marking_color = None
 
     if not self._path.projected_points.size:
       return
@@ -265,21 +264,9 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     if self._experimental_mode:
       if len(self._exp_gradient.colors) > 1:
         self._active_path_gradient = self._exp_gradient
-        self._active_marking_color = solid_color_from_gradient(self._exp_gradient.colors)
       return
 
-    if ui_state.dynamic_path_color:
-      dynamic_colors = get_dynamic_path_colors(ui_state.status, ui_state.dynamic_path_color_palette)
-      self._active_path_gradient = Gradient(
-        start=(0.0, 1.0),
-        end=(0.0, 0.0),
-        colors=dynamic_colors,
-        stops=PATH_GRADIENT_STOPS,
-      )
-      self._active_marking_color = get_dynamic_solid_color(ui_state.status, ui_state.dynamic_path_color_palette)
-      return
-
-    if ui_state.custom_model_path_color:
+    if ui_state.custom_model_path_color in CUSTOM_MODEL_PATH_COLOR_PRESETS:
       preset_colors = CUSTOM_MODEL_PATH_COLOR_PRESETS[ui_state.custom_model_path_color]
       self._active_path_gradient = Gradient(
         start=(0.0, 1.0),
@@ -287,7 +274,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
         colors=preset_colors,
         stops=PATH_GRADIENT_STOPS,
       )
-      self._active_marking_color = CUSTOM_MODEL_PATH_SOLID_COLORS.get(
+      self._custom_marking_color = CUSTOM_MODEL_PATH_SOLID_COLORS.get(
         ui_state.custom_model_path_color,
         solid_color_from_gradient(preset_colors),
       )
@@ -295,7 +282,6 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
 
     if ui_state.rainbow_path:
       self._active_path_gradient = self.rainbow_path.get_gradient()
-      self._active_marking_color = solid_color_from_gradient(self._active_path_gradient.colors)
       return
 
     allow_throttle = sm['longitudinalPlan'].allowThrottle or not self._longitudinal_control
@@ -308,7 +294,6 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
       colors=blended_colors,
       stops=PATH_GRADIENT_STOPS,
     )
-    self._active_marking_color = solid_color_from_gradient(blended_colors)
 
   def _update_lead_vehicle(self, d_rel, v_rel, point, rect):
     speed_buff, lead_buff = 10.0, 40.0
@@ -341,7 +326,10 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
         continue
 
       alpha = np.clip(self._lane_line_probs[i], 0.0, 0.7)
-      color = rl.Color(self._active_marking_color.r, self._active_marking_color.g, self._active_marking_color.b, int(alpha * 255))
+      if self._custom_marking_color is not None:
+        color = rl.Color(self._custom_marking_color.r, self._custom_marking_color.g, self._custom_marking_color.b, int(alpha * 255))
+      else:
+        color = rl.Color(255, 255, 255, int(alpha * 255))
       draw_polygon(self._rect, lane_line.projected_points, color)
 
     for i, road_edge in enumerate(self._road_edges):
@@ -349,7 +337,10 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
         continue
 
       alpha = np.clip(1.0 - self._road_edge_stds[i], 0.0, 1.0)
-      color = rl.Color(self._active_marking_color.r, self._active_marking_color.g, self._active_marking_color.b, int(alpha * 255))
+      if self._custom_marking_color is not None:
+        color = rl.Color(self._custom_marking_color.r, self._custom_marking_color.g, self._custom_marking_color.b, int(alpha * 255))
+      else:
+        color = rl.Color(255, 0, 0, int(alpha * 255))
       draw_polygon(self._rect, road_edge.projected_points, color)
 
   def _draw_path(self):

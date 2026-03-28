@@ -32,6 +32,24 @@ from openpilot.sunnypilot.selfdrive.car.sync_car_list_param import update_car_li
 from openpilot.sunnypilot.sunnylink.api import SunnylinkApi
 from openpilot.sunnypilot.sunnylink.utils import sunnylink_need_register, sunnylink_ready, get_param_as_byte, save_param_from_base64_encoded_string
 
+# BLUEPILOT WiFi network fetching imports
+try:
+  from jeepney import DBusAddress, new_method_call
+  from jeepney.io.threading import DBusRouter, open_dbus_connection as open_dbus_connection_threading
+  from jeepney.low_level import MessageType
+  # NetworkManager constants (defined locally to avoid importing UI modules)
+  NM = "org.freedesktop.NetworkManager"
+  NM_SETTINGS_PATH = '/org/freedesktop/NetworkManager/Settings'
+  NM_SETTINGS_IFACE = 'org.freedesktop.NetworkManager.Settings'
+  NM_CONNECTION_IFACE = 'org.freedesktop.NetworkManager.Settings.Connection'
+  DBUS_AVAILABLE = True
+except ImportError:
+  DBUS_AVAILABLE = False
+  NM = None
+  NM_SETTINGS_PATH = None
+  NM_SETTINGS_IFACE = None
+  NM_CONNECTION_IFACE = None
+
 SUNNYLINK_ATHENA_HOST = os.getenv('SUNNYLINK_ATHENA_HOST', 'wss://ws.stg.api.sunnypilot.ai')
 HANDLER_THREADS = int(os.getenv('HANDLER_THREADS', "4"))
 LOCAL_PORT_WHITELIST = {8022}
@@ -50,6 +68,12 @@ BLOCKED_PARAMS = {
   "GithubSshKeys",   # Direct SSH key injection
   "HasAcceptedTerms",
   "HasAcceptedTermsSP",
+}
+
+# Parameters that exist in Params but should not be shown in SunnyLink UI (orphans / device-only tuning)
+HIDDEN_PARAMS = {
+  "FordFollowingAccelROC",
+  "FordFollowingGasROC",
 }
 
 
@@ -193,7 +217,7 @@ def toggleLogUpload(enabled: bool):
 @dispatcher.add_method
 def getParamsAllKeys() -> list[str]:
   keys: list[str] = [k.decode('utf-8') for k in Params().all_keys()]
-  return keys
+  return [k for k in keys if k not in HIDDEN_PARAMS]
 
 
 @dispatcher.add_method
@@ -226,41 +250,6 @@ def getParamsAllKeysV1() -> dict[str, str]:
     return {"keys": json.dumps(params_dict.get("params", []))}
   except Exception:
     cloudlog.exception("sunnylinkd.getParamsAllKeysV1.exception")
-    raise
-
-
-@dispatcher.add_method
-def getParamsMetadata() -> str:
-  """Compressed equivalent of getParamsAllKeysV1 — same struct, gzipped + base64."""
-  try:
-    with open(METADATA_PATH) as f:
-      metadata = json.load(f)
-  except Exception:
-    cloudlog.exception("sunnylinkd.getParamsMetadata.exception")
-    metadata = {}
-
-  try:
-    available_keys: list[str] = [k.decode('utf-8') for k in Params().all_keys()]
-
-    params_list: list[dict] = []
-    for key in available_keys:
-      value = get_param_as_byte(key, get_default=True)
-
-      param_entry: dict = {
-        "key": key,
-        "type": int(params.get_type(key).value),
-        "default_value": base64.b64encode(value).decode('utf-8') if value else None,
-      }
-
-      if key in metadata:
-        param_entry["_extra"] = metadata[key]
-
-      params_list.append(param_entry)
-
-    raw = json.dumps(params_list, separators=(',', ':')).encode('utf-8')
-    return base64.b64encode(gzip.compress(raw)).decode('utf-8')
-  except Exception:
-    cloudlog.exception("sunnylinkd.getParamsMetadata.exception")
     raise
 
 
@@ -305,6 +294,47 @@ def saveParams(params_to_update: dict[str, str], compression: bool = False) -> N
       save_param_from_base64_encoded_string(key, value, compression)
     except Exception as e:
       cloudlog.error(f"sunnylinkd.saveParams.exception {e}")
+
+
+@dispatcher.add_method
+def getSavedWifiNetworks() -> list[str]:
+  """
+  Get list of saved WiFi network SSIDs.
+  Returns a list of SSID strings, or empty list if DBus is unavailable or error occurs.
+  """
+  if not DBUS_AVAILABLE:
+    cloudlog.warning("sunnylinkd.getSavedWifiNetworks: DBus not available")
+    return []
+
+  try:
+    router = DBusRouter(open_dbus_connection_threading(bus="SYSTEM"))
+    settings_addr = DBusAddress(NM_SETTINGS_PATH, bus_name=NM, interface=NM_SETTINGS_IFACE)
+    known_connections = router.send_and_get_reply(new_method_call(settings_addr, 'ListConnections')).body[0]
+
+    ssids: list[str] = []
+    for conn_path in known_connections:
+      try:
+        conn_addr = DBusAddress(conn_path, bus_name=NM, interface=NM_CONNECTION_IFACE)
+        reply = router.send_and_get_reply(new_method_call(conn_addr, 'GetSettings'))
+        if reply.header.message_type == MessageType.error:
+          continue
+
+        settings = dict(reply.body[0])
+        if "802-11-wireless" in settings:
+          ssid_bytes = settings['802-11-wireless']['ssid'][1]
+          ssid = ssid_bytes.decode("utf-8", "replace") if isinstance(ssid_bytes, bytes) else str(ssid_bytes)
+          if ssid and ssid not in ssids:
+            ssids.append(ssid)
+      except Exception as e:
+        cloudlog.warning(f"sunnylinkd.getSavedWifiNetworks: Failed to get SSID for connection {conn_path}: {e}")
+        continue
+
+    # Sort alphabetically for consistent ordering
+    ssids.sort(key=lambda s: s.lower())
+    return ssids
+  except Exception as e:
+    cloudlog.exception(f"sunnylinkd.getSavedWifiNetworks.exception: {e}")
+    return []
 
 
 def startLocalProxy(global_end_event: threading.Event, remote_ws_uri: str, local_port: int) -> dict[str, int]:

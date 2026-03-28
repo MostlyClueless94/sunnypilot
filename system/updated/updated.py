@@ -18,7 +18,7 @@ from openpilot.common.markdown import parse_markdown
 from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.selfdrived.alertmanager import set_offroad_alert
 from openpilot.system.hardware import AGNOS, HARDWARE
-from openpilot.system.version import get_build_metadata, get_release_notes, migrate_branch
+from openpilot.system.version import get_build_metadata, SP_BRANCH_MIGRATIONS
 
 LOCK_FILE = os.getenv("UPDATER_LOCK_FILE", "/tmp/safe_staging_overlay.lock")
 STAGING_ROOT = os.getenv("UPDATER_STAGING_ROOT", "/data/safe_staging")
@@ -82,7 +82,8 @@ def set_consistent_flag(consistent: bool) -> None:
 
 def parse_release_notes(basedir: str) -> bytes:
   try:
-    r = get_release_notes(basedir).encode("utf-8")
+    with open(os.path.join(basedir, "CHANGELOG.md"), "rb") as f:
+      r = f.read().split(b'\n\n', 1)[0]  # Slice latest release notes
     try:
       return bytes(parse_markdown(r.decode("utf-8")), encoding="utf-8")
     except Exception:
@@ -231,7 +232,7 @@ class Updater:
     b: str | None = self.params.get("UpdaterTargetBranch")
     if b is None:
       b = self.get_branch(BASEDIR)
-    b = migrate_branch(HARDWARE.get_device_type(), b)
+    b = SP_BRANCH_MIGRATIONS.get((HARDWARE.get_device_type(), b), b)
     return b
 
   @property

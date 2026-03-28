@@ -1,4 +1,4 @@
-Import('env', 'envCython')
+Import('env', 'envCython', 'arch')
 
 common_libs = [
   'params.cc',

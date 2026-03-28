@@ -7,20 +7,12 @@ See the LICENSE.md file in the root directory for more details.
 import pyray as rl
 from openpilot.common.filter_simple import FirstOrderFilter
 from openpilot.selfdrive.ui.ui_state import UIStatus, ui_state
-from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import get_dynamic_solid_color
 from openpilot.system.ui.lib.application import gui_app
 
 BORDER_COLORS_SP = {
   UIStatus.LAT_ONLY: rl.Color(0x00, 0xC8, 0xC8, 0xFF),  # Cyan for lateral-only state
   UIStatus.LONG_ONLY: rl.Color(0x96, 0x1C, 0xA8, 0xFF),  # Purple for longitudinal-only state
 }
-
-
-def resolve_border_color(status: UIStatus, fallback_colors: dict[UIStatus, rl.Color]) -> rl.Color:
-  if ui_state.dynamic_path_color:
-    return get_dynamic_solid_color(status, ui_state.dynamic_path_color_palette)
-
-  return fallback_colors.get(status, fallback_colors[UIStatus.DISENGAGED])
 
 
 class AugmentedRoadViewSP:
@@ -31,7 +23,8 @@ class AugmentedRoadViewSP:
   def update_fade_out_bottom_overlay(self, _content_rect):
     # Fade out bottom of overlays for looks (only when engaged)
     fade_alpha = self._fade_alpha_filter.update(ui_state.status != UIStatus.DISENGAGED)
-    if ui_state.torque_bar and fade_alpha > 1e-2:
+    # BluePilot: commented out angleState check to render fade overlay on all vehicles
+    if ui_state.torque_bar and fade_alpha > 1e-2:  # and ui_state.sm['controlsState'].lateralControlState.which() != 'angleState'
       # Scale the fade texture to the content rect
       rl.draw_texture_pro(self._fade_texture,
                           rl.Rectangle(0, 0, self._fade_texture.width, self._fade_texture.height),

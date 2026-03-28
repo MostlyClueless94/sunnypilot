@@ -21,6 +21,18 @@ from openpilot.system.ui.sunnypilot.lib.styles import style
 from openpilot.system.ui.sunnypilot.widgets.option_control import OptionControlSP, LABEL_WIDTH
 
 
+def _coerce_selected_index(value: object, item_count: int, fallback: int = 0) -> int:
+  try:
+    index = int(value)
+  except (TypeError, ValueError):
+    index = fallback
+
+  if item_count <= 0:
+    return fallback
+
+  return max(0, min(index, item_count - 1))
+
+
 class Spacer(Widget):
   def __init__(self, height: int = 1):
     super().__init__()
@@ -132,7 +144,8 @@ class MultipleButtonActionSP(MultipleButtonAction):
     self.param_key = param
     self.params = Params()
     if self.param_key:
-      self.selected_button = int(self.params.get(self.param_key, return_default=True))
+      stored_value = self.params.get(self.param_key, return_default=True)
+      self.selected_button = _coerce_selected_index(stored_value, len(self.buttons), selected_index)
     self._anim_x: float | None = None
     self.enabled_buttons: set[int] | None = None
 

@@ -1,6 +1,7 @@
 #include "tools/replay/util.h"
 
 #include <bzlib.h>
+#include <openssl/sha.h>
 
 #include <cassert>
 #include <cstdarg>
@@ -159,6 +160,15 @@ void precise_nano_sleep(int64_t nanoseconds, std::atomic<bool> &interrupt_reques
     // Retry sleep if interrupted by a signal
     req = rem;
   }
+}
+
+std::string sha256(const std::string &str) {
+  unsigned char hash[SHA256_DIGEST_LENGTH];
+  SHA256_CTX sha256;
+  SHA256_Init(&sha256);
+  SHA256_Update(&sha256, str.c_str(), str.size());
+  SHA256_Final(hash, &sha256);
+  return util::hexdump(hash, SHA256_DIGEST_LENGTH);
 }
 
 std::vector<std::string> split(std::string_view source, char delimiter) {

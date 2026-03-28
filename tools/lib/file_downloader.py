@@ -60,16 +60,8 @@ def cmd_download(args):
       return
 
   try:
-    # Stream the file in a single HTTP request instead of making
-    # a separate Range request per chunk (which was very slow).
-    pool = URLFile.pool_manager()
-    r = pool.request("GET", url, preload_content=False)
-    if r.status not in (200, 206):
-      sys.stderr.write(f"ERROR:HTTP {r.status}\n")
-      sys.stderr.flush()
-      sys.exit(1)
-
-    total = int(r.headers.get('content-length', 0))
+    uf = URLFile(url, cache=False)
+    total = uf.get_length()
     if total <= 0:
       sys.stderr.write("ERROR:File not found or empty\n")
       sys.stderr.flush()
@@ -81,7 +73,8 @@ def cmd_download(args):
       downloaded = 0
       chunk_size = 1024 * 1024
       with os.fdopen(tmp_fd, 'wb') as f:
-        for data in r.stream(chunk_size):
+        while downloaded < total:
+          data = uf.read(min(chunk_size, total - downloaded))
           f.write(data)
           downloaded += len(data)
           sys.stderr.write(f"PROGRESS:{downloaded}:{total}\n")
@@ -98,8 +91,6 @@ def cmd_download(args):
       except OSError:
         pass
       raise
-    finally:
-      r.release_conn()
 
   except Exception as e:
     sys.stderr.write(f"ERROR:{e}\n")

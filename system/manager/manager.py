@@ -51,8 +51,7 @@ def manager_init() -> None:
   if params.get_bool("RecordFrontLock"):
     params.put_bool("RecordFront", True)
 
-  if not PC:
-    run_migration(params)
+  run_migration(params)
 
   # set unset params to their default value
   for k in params.all_keys():

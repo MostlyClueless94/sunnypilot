@@ -4,6 +4,9 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
 source "$DIR/launch_env.sh"
 
+# Set BluePilot boot and logo images (non-interactive, safe to call repeatedly)
+"$DIR/scripts/boot_logo.sh" --headless --update --force --quiet
+
 function agnos_init {
   # TODO: move this to agnos
   sudo rm -f /data/etc/NetworkManager/system-connections/*.nmmeta
@@ -80,6 +83,12 @@ function launch {
   # start manager
   cd system/manager
   if [ ! -f $DIR/prebuilt ]; then
+    # BluePilot - Remove stale scons lock if it exists
+    if [ -f /data/scons_cache/config.lock ]; then
+      rm -f /data/scons_cache/config.lock
+    fi
+    # BluePilot - Remove stale scons lock if it exists
+
     ./build.py
   fi
   ./manager.py

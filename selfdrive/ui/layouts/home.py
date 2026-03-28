@@ -62,7 +62,6 @@ class HomeLayout(Widget):
     self._setup_callbacks()
 
   def show_event(self):
-    super().show_event()
     self._exp_mode_button.show_event()
     self.last_refresh = time.monotonic()
     self._refresh()

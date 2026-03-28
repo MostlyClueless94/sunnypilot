@@ -1,0 +1,74 @@
+import unittest
+from types import SimpleNamespace
+
+from opendbc.car import structs
+from opendbc.car.subaru import subarucan
+from opendbc.car.subaru.carcontroller import CarController
+from opendbc.car.subaru.interface import CarInterface
+from opendbc.car.subaru.values import CAR
+
+
+class TestSubaruCarController(unittest.TestCase):
+  @staticmethod
+  def _build_cs(v_ego_raw, steering_angle_deg, steering_pressed=False):
+    return SimpleNamespace(out=SimpleNamespace(
+      vEgoRaw=v_ego_raw,
+      steeringAngleDeg=steering_angle_deg,
+      gearShifter=structs.CarState.GearShifter.drive,
+      standstill=False,
+      steeringPressed=steering_pressed,
+    ))
+
+  @staticmethod
+  def _build_cc(lat_active, enabled, steering_angle_deg):
+    return SimpleNamespace(
+      latActive=lat_active,
+      enabled=enabled,
+      actuators=SimpleNamespace(steeringAngleDeg=steering_angle_deg),
+    )
+
+  def _build_controller(self):
+    CP = CarInterface.get_non_essential_params(CAR.SUBARU_OUTBACK_2023)
+    CP_SP = CarInterface.get_non_essential_params_sp(CP, CAR.SUBARU_OUTBACK_2023)
+    return CarController({}, CP, CP_SP)
+
+  def test_mads_manual_override_still_wins(self):
+    controller = self._build_controller()
+    expected_controller = self._build_controller()
+    cs = self._build_cs(9.5, 20.56, steering_pressed=True)
+    cc = self._build_cc(True, False, 19.86)
+
+    controller.apply_angle_last = cs.out.steeringAngleDeg
+
+    msg = controller.handle_angle_lateral(cc, cs)
+    expected = subarucan.create_steering_control_angle(expected_controller.packer, cs.out.steeringAngleDeg, False)
+
+    self.assertEqual(msg, expected)
+    self.assertAlmostEqual(controller.apply_angle_last, cs.out.steeringAngleDeg)
+
+  def test_newer_angle_lkas_params_construct(self):
+    newer_platforms = (
+      CAR.SUBARU_FORESTER_2022,
+      CAR.SUBARU_OUTBACK_2023,
+      CAR.SUBARU_ASCENT_2023,
+      CAR.SUBARU_CROSSTREK_2025,
+    )
+
+    for platform in newer_platforms:
+      with self.subTest(platform=platform):
+        CP = CarInterface.get_non_essential_params(platform)
+        _ = CarInterface.get_non_essential_params_sp(CP, platform)
+
+        self.assertEqual(CP.carFingerprint, platform)
+        self.assertGreater(CP.maxLateralAccel, 0.0)
+
+  def test_crosstrek_2025_params_construct(self):
+    CP = CarInterface.get_non_essential_params(CAR.SUBARU_CROSSTREK_2025)
+    _ = CarInterface.get_non_essential_params_sp(CP, CAR.SUBARU_CROSSTREK_2025)
+
+    self.assertEqual(CP.carFingerprint, CAR.SUBARU_CROSSTREK_2025)
+    self.assertGreater(CP.maxLateralAccel, 0.0)
+
+
+if __name__ == "__main__":
+  unittest.main()

@@ -5,8 +5,8 @@ This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
 from openpilot.common.params import Params
+from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import CUSTOM_MODEL_PATH_COLOR_LABELS
 from openpilot.selfdrive.ui.ui_state import ui_state
-from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import CUSTOM_MODEL_PATH_COLOR_LABELS, DYNAMIC_PATH_COLOR_PALETTE_LABELS
 from openpilot.system.ui.lib.multilang import tr, tr_noop
 from openpilot.system.ui.sunnypilot.widgets.list_view import toggle_item_sp, multiple_button_item_sp
 from openpilot.system.ui.widgets.scroller_tici import Scroller
@@ -14,8 +14,8 @@ from openpilot.system.ui.widgets import Widget
 
 CHEVRON_INFO_DESCRIPTION = {
   "enabled": tr_noop("Display useful metrics below the chevron that tracks the lead car " +
-                     "when lead vehicle data is available."),
-  "disabled": tr_noop("This feature becomes available once your car has been identified.")
+                     "only applicable to cars with sunnypilot longitudinal control."),
+  "disabled": tr_noop("This feature requires sunnypilot longitudinal control to be available.")
 }
 
 
@@ -26,6 +26,13 @@ class VisualsLayout(Widget):
     self._params = Params()
     items = self._initialize_items()
     self._scroller = Scroller(items, line_separator=True, spacing=0)
+
+  def _get_int_param(self, key: str, default: int = 0) -> int:
+    value = self._params.get(key, return_default=True)
+    try:
+      return int(value)
+    except (TypeError, ValueError):
+      return default
 
   def _initialize_items(self):
     self._toggle_defs = {
@@ -44,15 +51,6 @@ class VisualsLayout(Widget):
         lambda: tr("Enable Tesla Rainbow Mode"),
         tr("A beautiful rainbow effect on the path the model wants to take. " +
            "It does not affect driving in any way."),
-        None,
-      ),
-      "DynamicPathColor": (
-        lambda: tr("Dynamic Path Color"),
-        tr("Color the driving path by drive mode. " +
-           "Gray when inactive or overriding, blue for steering-only, and green for full control. " +
-           "This uses the custom dynamic color palette, overrides both Rainbow Mode " +
-           "and Custom Model Path Color, keeps Experimental path coloring unchanged, " +
-           "and makes lane lines and road edges mirror the active path color."),
         None,
       ),
       "StandstillTimer": (
@@ -124,22 +122,12 @@ class VisualsLayout(Widget):
     )
     self._custom_model_path_color = multiple_button_item_sp(
       title=lambda: tr("Custom Model Path Color"),
-      description=lambda: tr("Use preset colors for the driving path overlay. "
+      description=lambda: tr("Use SubiPilot preset colors for the driving path overlay. "
                              "Lane lines and road edges follow the selected color family. "
-                             "Stock keeps the normal path behavior. "
-                             "When a preset is selected, it overrides Rainbow Mode. "
-                             "Dynamic Path Color still takes priority when enabled."),
+                             "Stock keeps the current path behavior. "
+                             "When a preset is selected, it overrides Rainbow Mode."),
       buttons=[lambda label=label: tr(label) for label in CUSTOM_MODEL_PATH_COLOR_LABELS],
       param="CustomModelPathColor",
-      button_width=160,
-      inline=False
-    )
-    self._dynamic_path_color_palette = multiple_button_item_sp(
-      title=lambda: tr("Dynamic Path Color Palette"),
-      description=lambda: tr("Choose whether Dynamic Path Color uses the custom color palette "
-                             "or the stock border/status palette mirrored onto the path and lane markings."),
-      buttons=[lambda label=label: tr(label) for label in DYNAMIC_PATH_COLOR_PALETTE_LABELS],
-      param="DynamicPathColorPalette",
       button_width=160,
       inline=False
     )
@@ -152,10 +140,7 @@ class VisualsLayout(Widget):
       inline=False
     )
 
-    items = list(self._toggles.values())
-    dynamic_path_color_index = next(i for i, (param, _) in enumerate(self._toggle_defs.items()) if param == "DynamicPathColor")
-    items.insert(dynamic_path_color_index + 1, self._dynamic_path_color_palette)
-    items += [
+    items = list(self._toggles.values()) + [
       self._chevron_info,
       self._custom_model_path_color,
       self._dev_ui_info,
@@ -169,26 +154,23 @@ class VisualsLayout(Widget):
       self._toggles[param].action_item.set_state(self._params.get_bool(param))
 
     self._dev_ui_info.action_item.set_selected_button(ui_state.params.get("DevUIInfo", return_default=True))
-    self._custom_model_path_color.action_item.set_selected_button(ui_state.params.get("CustomModelPathColor", return_default=True))
-    self._dynamic_path_color_palette.action_item.set_selected_button(ui_state.params.get("DynamicPathColorPalette", return_default=True))
-    self._dynamic_path_color_palette.action_item.set_enabled(self._params.get_bool("DynamicPathColor"))
+    selected_color = max(0, min(self._get_int_param("CustomModelPathColor"), len(CUSTOM_MODEL_PATH_COLOR_LABELS) - 1))
+    self._custom_model_path_color.action_item.set_selected_button(selected_color)
 
-    if self._chevron_info_available():
+    if ui_state.has_longitudinal_control:
       self._chevron_info.set_description(tr(CHEVRON_INFO_DESCRIPTION["enabled"]))
       self._chevron_info.action_item.set_selected_button(ui_state.params.get("ChevronInfo", return_default=True))
       self._chevron_info.action_item.set_enabled(True)
     else:
       self._chevron_info.set_description(tr(CHEVRON_INFO_DESCRIPTION["disabled"]))
       self._chevron_info.action_item.set_enabled(False)
-
-  def _chevron_info_available(self) -> bool:
-    return ui_state.CP is not None
+      ui_state.params.put("ChevronInfo", 0)
 
   def _render(self, rect):
     self._scroller.render(rect)
 
   def show_event(self):
     self._scroller.show_event()
-    if not self._chevron_info_available():
+    if not ui_state.has_longitudinal_control:
       self._chevron_info.set_description(tr(CHEVRON_INFO_DESCRIPTION["disabled"]))
       self._chevron_info.show_description(True)

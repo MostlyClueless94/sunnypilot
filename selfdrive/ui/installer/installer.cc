@@ -53,15 +53,12 @@ std::string migrated_branch;
 
 void branchMigration() {
   migrated_branch = BRANCH_STR;
-  if (BRANCH_STR == "master" || BRANCH_STR == "mc-0.9") {
-    migrated_branch = "subi-0.9";
-    return;
-  }
-
   cereal::InitData::DeviceType device_type = Hardware::get_device_type();
   if (device_type == cereal::InitData::DeviceType::TICI) {
     if (std::find(tici_prebuilt_branches.begin(), tici_prebuilt_branches.end(), BRANCH_STR) != tici_prebuilt_branches.end()) {
       migrated_branch = "release-tici";
+    } else if (BRANCH_STR == "master") {
+      migrated_branch = "master-tici";
     }
   } else if (device_type == cereal::InitData::DeviceType::TIZI) {
     if (BRANCH_STR == "release3") {
@@ -94,7 +91,7 @@ void finishInstall() {
       DrawTextEx(font_display, "finishing setup", (Vector2){12, 0}, 77, 0, (Color){255, 255, 255, (unsigned char)(255 * 0.9)});
     }
   EndDrawing();
-  util::sleep_for(10 * 1000);
+  util::sleep_for(60 * 1000);
 }
 
 void renderProgress(int progress) {
@@ -138,7 +135,7 @@ int doInstall() {
 
 int freshClone() {
   LOGD("Doing fresh clone");
-  std::string cmd = util::string_format("git clone --progress %s -b %s --depth=1 --recurse-submodules --shallow-submodules %s 2>&1",
+  std::string cmd = util::string_format("git clone --progress %s -b %s --depth=1 --recurse-submodules %s 2>&1",
                                         GIT_URL.c_str(), migrated_branch.c_str(), TMP_INSTALL_PATH);
   return executeGitCommand(cmd);
 }
@@ -196,7 +193,7 @@ void cloneFinished(int exitCode) {
   assert(err == 0);
   run(("git checkout " + migrated_branch).c_str());
   run(("git reset --hard origin/" + migrated_branch).c_str());
-  run("git submodule update --init --recursive --depth=1 --jobs=4 --recommend-shallow");
+  run("git submodule update --init");
 
   // move into place
   run(("rm -f " + VALID_CACHE_PATH).c_str());

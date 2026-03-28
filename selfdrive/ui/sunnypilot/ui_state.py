@@ -30,7 +30,7 @@ class UIStateSP:
     self.params = Params()
     self.sm_services_ext = [
       "modelManagerSP", "selfdriveStateSP", "longitudinalPlanSP", "backupManagerSP",
-      "gpsLocation", "liveTorqueParameters", "carStateSP", "liveMapDataSP", "carParamsSP", "liveDelay"
+      "gpsLocation", "liveTorqueParameters", "carStateSP", "liveMapDataSP", "carParamsSP", "liveDelay", "controllerStateBP"
     ]
 
     self.sunnylink_state = SunnylinkState()
@@ -49,11 +49,8 @@ class UIStateSP:
     else:
       self.sunnylink_state.stop()
 
-  def onroad_brightness_handle_alerts(self, _ui_state, alert):
-    if _ui_state.sm.recv_frame["carState"] < _ui_state.started_frame:
-      return
-
-    has_alert = _ui_state.started and self.onroad_brightness != OnroadBrightness.AUTO and alert is not None
+  def onroad_brightness_handle_alerts(self, started: bool, alert):
+    has_alert = started and self.onroad_brightness != OnroadBrightness.AUTO and alert is not None
 
     self.update_onroad_brightness(has_alert)
     if has_alert:
@@ -123,6 +120,13 @@ class UIStateSP:
 
     return "disengaged"
 
+  def _get_int_param(self, key: str, default: int = 0) -> int:
+    value = self.params.get(key, return_default=True)
+    try:
+      return int(value)
+    except (TypeError, ValueError):
+      return default
+
   def update_params(self) -> None:
     CP_SP_bytes = self.params.get("CarParamsSPPersistent")
     if CP_SP_bytes is not None:
@@ -131,11 +135,9 @@ class UIStateSP:
     self.active_bundle = self.params.get("ModelManager_ActiveBundle")
     self.blindspot = self.params.get_bool("BlindSpot")
     self.chevron_metrics = self.params.get("ChevronInfo")
-    self.custom_model_path_color = self.params.get("CustomModelPathColor", return_default=True)
+    self.custom_model_path_color = self._get_int_param("CustomModelPathColor")
     self.custom_interactive_timeout = self.params.get("InteractivityTimeout", return_default=True)
     self.developer_ui = self.params.get("DevUIInfo")
-    self.dynamic_path_color = self.params.get_bool("DynamicPathColor")
-    self.dynamic_path_color_palette = self.params.get("DynamicPathColorPalette", return_default=True)
     self.hide_v_ego_ui = self.params.get_bool("HideVEgoUI")
     self.onroad_brightness = int(float(self.params.get("OnroadScreenOffBrightness", return_default=True)))
     self.onroad_brightness_timer_param = self.params.get("OnroadScreenOffTimer", return_default=True)

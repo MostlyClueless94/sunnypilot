@@ -1,3 +1,9 @@
+SubiPilot MostlyClueless Refresh
+================================
+* BluePilot 6.0-based `MostlyClueless` development branch for Subaru and Ford testing
+* Visible SubiPilot branding refresh with Subaru compatibility parity work carried forward from `subi-1.0`
+* Credits: built on BluePilotDev/bluepilot, sunnypilot/sunnypilot, and commaai/openpilot
+
 sunnypilot Version 2026.001.000 (2026-03-xx)
 ========================
 * What's Changed (sunnypilot/sunnypilot)

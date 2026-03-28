@@ -17,10 +17,12 @@ from jeepney.wrappers import Properties
 
 from openpilot.common.swaglog import cloudlog
 from openpilot.system.ui.lib.networkmanager import (NM, NM_WIRELESS_IFACE, NM_802_11_AP_SEC_PAIR_WEP40,
-                                                    NM_802_11_AP_SEC_PAIR_WEP104, NM_802_11_AP_SEC_GROUP_WEP40,
-                                                    NM_802_11_AP_SEC_GROUP_WEP104, NM_802_11_AP_SEC_KEY_MGMT_PSK,
-                                                    NM_802_11_AP_SEC_KEY_MGMT_802_1X, NM_802_11_AP_FLAGS_NONE,
-                                                    NM_802_11_AP_FLAGS_PRIVACY, NM_802_11_AP_FLAGS_WPS,
+                                                    NM_802_11_AP_SEC_PAIR_WEP104, NM_802_11_AP_SEC_PAIR_TKIP,
+                                                    NM_802_11_AP_SEC_PAIR_CCMP, NM_802_11_AP_SEC_GROUP_WEP40,
+                                                    NM_802_11_AP_SEC_GROUP_WEP104, NM_802_11_AP_SEC_GROUP_TKIP,
+                                                    NM_802_11_AP_SEC_GROUP_CCMP, NM_802_11_AP_SEC_KEY_MGMT_PSK,
+                                                    NM_802_11_AP_SEC_KEY_MGMT_802_1X, NM_802_11_AP_SEC_KEY_MGMT_SAE,
+                                                    NM_802_11_AP_FLAGS_NONE, NM_802_11_AP_FLAGS_PRIVACY, NM_802_11_AP_FLAGS_WPS,
                                                     NM_PATH, NM_IFACE, NM_ACCESS_POINT_IFACE, NM_SETTINGS_PATH,
                                                     NM_SETTINGS_IFACE, NM_CONNECTION_IFACE, NM_DEVICE_IFACE,
                                                     NM_DEVICE_TYPE_WIFI, NM_DEVICE_TYPE_MODEM, NM_ACTIVE_CONNECTION_IFACE,
@@ -76,8 +78,11 @@ def get_security_type(flags: int, wpa_flags: int, rsn_flags: int) -> SecurityTyp
   wpa_props = wpa_flags | rsn_flags
 
   # obtained by looking at flags of networks in the office as reported by an Android phone
-  supports_wpa = (NM_802_11_AP_SEC_PAIR_WEP40 | NM_802_11_AP_SEC_PAIR_WEP104 | NM_802_11_AP_SEC_GROUP_WEP40 |
-                  NM_802_11_AP_SEC_GROUP_WEP104 | NM_802_11_AP_SEC_KEY_MGMT_PSK)
+  # BluePilot: expanded to include WPA2/WPA3 (CCMP, TKIP, SAE) - fixes blank SSIDs on C4/MICI
+  supports_wpa = (NM_802_11_AP_SEC_PAIR_WEP40 | NM_802_11_AP_SEC_PAIR_WEP104 | NM_802_11_AP_SEC_PAIR_TKIP |
+                  NM_802_11_AP_SEC_PAIR_CCMP | NM_802_11_AP_SEC_GROUP_WEP40 | NM_802_11_AP_SEC_GROUP_WEP104 |
+                  NM_802_11_AP_SEC_GROUP_TKIP | NM_802_11_AP_SEC_GROUP_CCMP | NM_802_11_AP_SEC_KEY_MGMT_PSK |
+                  NM_802_11_AP_SEC_KEY_MGMT_SAE)
 
   if (flags == NM_802_11_AP_FLAGS_NONE) or ((flags & NM_802_11_AP_FLAGS_WPS) and not (wpa_props & supports_wpa)):
     return SecurityType.OPEN
@@ -200,6 +205,10 @@ class WifiManager:
     self._scan_lock = threading.Lock()
     self._scan_thread = threading.Thread(target=self._network_scanner, daemon=True)
     self._state_thread = threading.Thread(target=self._monitor_state, daemon=True)
+    # BluePilot: START - favorite network auto-connect
+    from openpilot.selfdrive.ui.bp.lib.wifi_favorite import WifiFavoriteManager
+    self._favorite_manager = WifiFavoriteManager(self)
+    # BluePilot: END - favorite network auto-connect
     self._initialize()
     atexit.register(self.stop)
 
@@ -215,6 +224,9 @@ class WifiManager:
 
       self._scan_thread.start()
       self._state_thread.start()
+      # BluePilot: START - preferred WiFi runs in background even when settings UI is closed
+      self._favorite_manager.start()
+      # BluePilot: END - preferred WiFi
 
       self._tethering_password = self._get_tethering_password()
       cloudlog.debug("WifiManager initialized")
@@ -842,8 +854,10 @@ class WifiManager:
     if reply.header.message_type == MessageType.error:
       cloudlog.warning(f"Failed to request scan: {reply}")
 
-  def _update_networks(self, block: bool = True):
-    if not self._active:
+  def _update_networks(self, block: bool = True, force: bool = False):
+    # When force=True (BluePilot preferred WiFi), refresh AP list even if settings panel
+    # is hidden — otherwise _active is False and _networks stays empty.
+    if not self._active and not force:
       return
 
     def worker():
@@ -854,12 +868,8 @@ class WifiManager:
 
         # NOTE: AccessPoints property may exclude hidden APs (use GetAllAccessPoints method if needed)
         wifi_addr = DBusAddress(self._wifi_device, NM, interface=NM_WIRELESS_IFACE)
-        wifi_props_reply = self._router_main.send_and_get_reply(Properties(wifi_addr).get_all())
-        if wifi_props_reply.header.message_type == MessageType.error:
-          cloudlog.warning(f"Failed to get WiFi properties: {wifi_props_reply}")
-          return
-
-        ap_paths = wifi_props_reply.body[0].get('AccessPoints', ('ao', []))[1]
+        wifi_props = self._router_main.send_and_get_reply(Properties(wifi_addr).get_all()).body[0]
+        ap_paths = wifi_props.get('AccessPoints', ('ao', []))[1]
 
         aps: dict[str, list[AccessPoint]] = {}
 
@@ -1020,6 +1030,7 @@ class WifiManager:
         self._scan_thread.join()
       if self._state_thread.is_alive():
         self._state_thread.join()
+      self._favorite_manager.stop()  # BluePilot: START/END - stop favorite network auto-connect
 
       if self._router_main is not None:
         self._router_main.close()

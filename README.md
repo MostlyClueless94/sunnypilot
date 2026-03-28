@@ -23,7 +23,13 @@ SubiPilot is built on top of work from:
 - [sunnypilot/sunnypilot](https://github.com/sunnypilot/sunnypilot)
 - [commaai/openpilot](https://github.com/commaai/openpilot)
 
-BluePilot deserves direct credit for the Ford UI and control baseline that now powers the `MostlyClueless` development branch.
+SubiPilot builds on work that would not have been possible without Jacob Waller and BluePilot.
+
+Thank you to Jacob Waller for publishing Subaru-related work that served as an important reference point while expanding Subaru support in this fork.
+
+Thank you as well to BluePilot for making their work publicly available. In direct testing, the BluePilot-based stack was found to provide better Subaru control behavior than base SunnyPilot and stock openpilot, and that result strongly influenced the direction of this project.
+
+SubiPilot is a separate fork, but it is built with clear appreciation for the publicly released work that helped make it possible.
 
 ## Scope
 

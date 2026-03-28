@@ -171,7 +171,7 @@ class _HelpSection(Widget):
 
   def __init__(self):
     super().__init__()
-    self.set_rect(rl.Rectangle(0, 0, 0, 420))
+    self.set_rect(rl.Rectangle(0, 0, 0, 510))
 
   def set_parent_rect(self, parent_rect: rl.Rectangle):
     super().set_parent_rect(parent_rect)
@@ -213,8 +213,20 @@ class _HelpSection(Widget):
     y += 42
     gui_label(
       rl.Rectangle(x, y, w, 40),
-      "Powered by BluePilot web tooling.",
-      font_size=34, color=GRAY, font_weight=FontWeight.NORMAL,
+      "Built with appreciation for publicly available work from",
+      font_size=32, color=GRAY, font_weight=FontWeight.NORMAL,
+    )
+    y += 42
+    gui_label(
+      rl.Rectangle(x, y, w, 40),
+      "BluePilot and Jacob Waller.",
+      font_size=32, color=GRAY, font_weight=FontWeight.NORMAL,
+    )
+    y += 42
+    gui_label(
+      rl.Rectangle(x, y, w, 40),
+      "Direct testing found the BluePilot-based stack improved Subaru control.",
+      font_size=32, color=GRAY, font_weight=FontWeight.NORMAL,
     )
     y += 42
     gui_label(

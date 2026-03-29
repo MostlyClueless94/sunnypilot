@@ -1,10 +1,21 @@
-SubiPilot MostlyClueless Refresh
-================================
-* BluePilot 6.0-based `MostlyClueless` development branch for Subaru and Ford testing
-* Visible SubiPilot branding refresh with Subaru compatibility parity work carried forward from `subi-1.0`
-* Credits: built on BluePilotDev/bluepilot, sunnypilot/sunnypilot, and commaai/openpilot
+SubiPilot 1.0 Release Notes
+===========================
+* BluePilot 6.0-based Subaru-first refresh for comma 3X and comma 4
+* Preserves the `MostlyClueless -> subi-staging -> subi-1.0` promotion flow while preparing the current development line for a stable Subaru-focused release
+* Carries forward modern Subaru compatibility work, including `Subaru Outback 2023-25`, `Subaru Ascent 2023`, `Subaru Crosstrek 2025`, and `Subaru Forester 2022-24`
+* Includes SubiPilot branding cleanup, Subaru-first settings cleanup, Subaru brake-status support, and Subaru-native lateral-settings support on the active development line
+
+Before promotion from `MostlyClueless` to `subi-staging` and then `subi-1.0`, this line must pass:
+* fresh install and update validation on comma 3X and comma 4
+* primary road validation on the Outback
+* startup, fingerprint, engage, and non-passive validation on the currently supported modern Subaru platforms
+* repo-native Linux or WSL validation for branch metadata, Subaru lateral settings, supported-car list generation, and sunnylink metadata tests
+
+SubiPilot is built on top of work from BluePilotDev/bluepilot, sunnypilot/sunnypilot, and commaai/openpilot.
 
 Special thanks to Jacob Waller and BluePilot for publishing work that helped inform this fork. Direct testing found that the BluePilot-based stack provided better Subaru control behavior than base SunnyPilot and stock openpilot, which strongly influenced the current direction of SubiPilot.
+
+Historical upstream release notes are kept below for reference.
 
 sunnypilot Version 2026.001.000 (2026-03-xx)
 ========================

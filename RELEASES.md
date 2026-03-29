@@ -1,3 +1,29 @@
+SubiPilot Release Gate
+======================
+Before promoting `MostlyClueless` to `subi-staging` or `subi-1.0`, complete the following on the exact candidate commit:
+
+* Linux or WSL-native validation:
+  * `py -3.12 -m unittest system.tests.test_version`
+  * `py -3.12 -m pytest sunnypilot/selfdrive/controls/lib/tests/test_subaru_lateral_settings.py`
+  * `py -3.12 -m pytest opendbc_repo/opendbc/sunnypilot/car/tests/test_car_list.py`
+  * `py -3.12 -m pytest sunnypilot/sunnylink/tests/test_params_metadata.py`
+  * `py -3.12 -m pytest sunnypilot/sunnylink/tests/test_params_sync.py`
+* Device validation on comma 3X and comma 4:
+  * fresh install
+  * update check, download, and apply
+  * stable boot with no UI restart loops
+  * clean versioning, recent-changes, and branding surfaces
+* Subaru validation:
+  * road validation on the primary Outback
+  * startup, fingerprint, calibration, cruise availability, and engage validation on `Subaru Outback 2023-25`, `Subaru Ascent 2023`, `Subaru Crosstrek 2025`, and `Subaru Forester 2022-24`
+  * confirmation that the re-exposed Subaru lateral settings materially affect Subaru behavior without introducing steering faults or instability
+* Promotion discipline:
+  * promote to `subi-staging` first
+  * let `subi-staging` soak
+  * promote the exact validated staging commit to `subi-1.0`
+
+Historical upstream release notes are kept below for reference.
+
 Version 0.10.4 (2026-02-17)
 ========================
 * Kia K7 2017 support thanks to royjr!

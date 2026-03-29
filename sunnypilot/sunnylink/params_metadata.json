@@ -1,4 +1,4 @@
-﻿{
+{
   "AccessToken": {
     "title": "AccessTokenIsNice",
     "description": ""
@@ -1408,7 +1408,7 @@
   },
   "send_hands_free_cluster_msg": {
     "title": "SubiPilot: Enable Hands-Free UI",
-    "description": "Enables hands-free (BlueCruise icon) on the gauge cluster for supported vehicles."
+    "description": "Enables the hands-free indicator on the gauge cluster for supported vehicles."
   },
   "FordPrefShowRadarLeadOverlay": {
     "title": "SubiPilot: Show Radar Lead Overlay (C3X)",

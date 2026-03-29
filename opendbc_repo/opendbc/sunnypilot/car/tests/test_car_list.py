@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 from openpilot.sunnypilot.selfdrive.car.car_list import get_runtime_car_list
 from opendbc.sunnypilot.car.platform_list import get_car_list
 
@@ -20,3 +23,12 @@ class TestCarList:
     runtime_car_list = get_runtime_car_list()
 
     assert runtime_car_list == generated_car_list
+
+  def test_static_json_matches_generated_list(self):
+    generated_car_list = get_car_list()
+    car_list_json = Path(__file__).resolve().parents[1] / "car_list.json"
+
+    with open(car_list_json) as f:
+      static_car_list = json.load(f)
+
+    assert static_car_list == generated_car_list

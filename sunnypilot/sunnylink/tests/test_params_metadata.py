@@ -84,3 +84,14 @@ def test_get_params_all_keys_v1():
     assert param["_extra"]["min"] == metadata[key]["min"]
     assert param["_extra"]["max"] == metadata[key]["max"]
     assert param["_extra"]["step"] == metadata[key]["step"]
+
+
+def test_hands_free_ui_copy_is_generic():
+  with open(METADATA_PATH) as f:
+    metadata = json.load(f)
+
+  hands_free_ui = metadata["send_hands_free_cluster_msg"]
+  description = hands_free_ui["description"]
+
+  assert "BlueCruise" not in description
+  assert "hands-free indicator" in description.lower()

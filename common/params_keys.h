@@ -172,6 +172,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"Offroad_TiciSupport", {CLEAR_ON_MANAGER_START, JSON}},
     {"OnroadScreenOffBrightness", {PERSISTENT | BACKUP, INT, "0"}},
     {"LanefullModeResetMigrated", {PERSISTENT | BACKUP, STRING, "0.0"}},
+    {"SubaruAdvancedLateralTuningResetMigrated", {PERSISTENT | BACKUP, STRING, "0.0"}},
     {"OnroadScreenOffBrightnessMigrated", {PERSISTENT | BACKUP, STRING, "0.0"}},
     {"OnroadScreenOffTimer", {PERSISTENT | BACKUP, INT, "15"}},
     {"OnroadUploads", {PERSISTENT | BACKUP, BOOL, "1"}},

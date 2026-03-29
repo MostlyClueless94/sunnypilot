@@ -49,6 +49,14 @@ class BluePilotLayout(Widget):
   def _show_ford_lateral_settings(cls) -> bool:
     return cls._get_active_brand() in {"ford", "subaru"}
 
+  @classmethod
+  def _show_advanced_lateral_tuning(cls) -> bool:
+    return cls._get_active_brand() == "ford"
+
+  @classmethod
+  def _show_lateral_section_frame(cls) -> bool:
+    return cls._get_active_brand() != "subaru"
+
   def __init__(self):
     super().__init__()
     self._params = Params()
@@ -296,8 +304,12 @@ class BluePilotLayout(Widget):
       wrap_text=True,
       line_height=1.05,
     )
+    self._lateral_tuning_header = SectionHeader(tr("Lateral Tuning"))
+    self._lateral_tuning_header.set_visible(self._show_lateral_section_frame)
+    self._lateral_warning.set_visible(self._show_lateral_section_frame)
+    self._disable_BP_lat.set_visible(self._show_ford_lateral_settings)
 
-    ford_only_items = (
+    advanced_lateral_items = (
       self._enable_human_turn_detection,
       self._lane_change_factor_high,
       self._enable_lane_positioning,
@@ -306,10 +318,9 @@ class BluePilotLayout(Widget):
       self._pc_blend_ratio_high_C,
       self._pc_blend_ratio_low_C,
       self._lc_pid_gain,
-      self._disable_BP_lat,
     )
-    for item in ford_only_items:
-      item.set_visible(self._show_ford_lateral_settings)
+    for item in advanced_lateral_items:
+      item.set_visible(self._show_advanced_lateral_tuning)
 
     # Preferred WiFi Network selector
     self._preferred_network_action = ButtonAction(lambda: tr("SELECT"))
@@ -345,7 +356,7 @@ class BluePilotLayout(Widget):
       self._animate_steering_wheel,
       self._show_ford_radar_overlay,
       self._radar_overlay_size_btn,
-      SectionHeader(tr("Lateral Tuning")),
+      self._lateral_tuning_header,
       self._lateral_warning,
       self._disable_BP_lat,
       self._enable_human_turn_detection,

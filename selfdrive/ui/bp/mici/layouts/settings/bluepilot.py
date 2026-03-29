@@ -30,6 +30,14 @@ class BluePilotLayoutMici(NavWidget):
   def _show_ford_lateral_settings(cls) -> bool:
     return cls._get_active_brand() in {"ford", "subaru"}
 
+  @classmethod
+  def _show_advanced_lateral_tuning(cls) -> bool:
+    return cls._get_active_brand() == "ford"
+
+  @classmethod
+  def _show_lateral_section_frame(cls) -> bool:
+    return cls._get_active_brand() != "subaru"
+
   def __init__(self, back_callback: Callable):
     super().__init__()
     self.set_back_callback(back_callback)
@@ -93,8 +101,10 @@ class BluePilotLayoutMici(NavWidget):
       wrap_text=True,
       line_height=1.05,
     )
+    self.lateral_warning.set_visible(self._show_lateral_section_frame)
+    self.disable_BP_lat.set_visible(self._show_ford_lateral_settings)
 
-    ford_only_items = (
+    advanced_lateral_items = (
       self.enable_human_turn_detection,
       self.lane_change_factor_high,
       self.enable_lane_positioning,
@@ -103,10 +113,9 @@ class BluePilotLayoutMici(NavWidget):
       self.pc_blend_ratio_high_C,
       self.pc_blend_ratio_low_C,
       self.LC_PID_gain,
-      self.disable_BP_lat,
     )
-    for item in ford_only_items:
-      item.set_visible(self._show_ford_lateral_settings)
+    for item in advanced_lateral_items:
+      item.set_visible(self._show_advanced_lateral_tuning)
 
     #self.charging_btn = BigButton("charging", "", "icons_mici/settings/charge_icon.png")
     #self.charging_btn.set_click_callback(lambda: self._show_charging_view())

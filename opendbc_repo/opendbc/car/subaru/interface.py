@@ -5,7 +5,12 @@ from opendbc.car.subaru.carcontroller import CarController
 from opendbc.car.subaru.carstate import CarState
 from opendbc.car.subaru.values import CAR, GLOBAL_ES_ADDR, SubaruFlags, SubaruSafetyFlags
 
-TEMP_DISABLE_OUTBACK_ALPHA_LONG = False
+# Outback alpha-long phased bring-up gate (MostlyClueless branch only):
+# 0 = hidden/disabled — feature off, alphaLongitudinalAvailable = False
+# 1 = EyeSight disable only — no ES replay, no gas/brake actuation (Phase 1 validation)
+# 2 = EyeSight disable + ES replay/counter maintenance — no gas/brake override (Phase 2 validation)
+# 3 = full longitudinal actuation enabled
+OUTBACK_ALPHA_LONG_PHASE = 1
 
 
 class CarInterface(CarInterfaceBase):
@@ -91,7 +96,7 @@ class CarInterface(CarInterfaceBase):
       raise ValueError(f"unknown car: {candidate}")
 
     outback_alpha_long_candidate = candidate == CAR.SUBARU_OUTBACK_2023 and not is_release
-    ret.alphaLongitudinalAvailable = outback_alpha_long_candidate and not TEMP_DISABLE_OUTBACK_ALPHA_LONG
+    ret.alphaLongitudinalAvailable = outback_alpha_long_candidate and OUTBACK_ALPHA_LONG_PHASE >= 1
     ret.openpilotLongitudinalControl = alpha_long and ret.alphaLongitudinalAvailable
 
     if ret.flags & SubaruFlags.GLOBAL_GEN2 and ret.openpilotLongitudinalControl:
@@ -110,6 +115,14 @@ class CarInterface(CarInterfaceBase):
 
     if not stock_cp.flags & (SubaruFlags.GLOBAL_GEN2 | SubaruFlags.HYBRID):
       stock_cp.autoResumeSng = True
+
+    # Enable ICBM (map-based stock ACC set-speed automation) on modern angle-LKAS Gen2 platforms.
+    # Only on non-release builds until fully validated. Works with stock ACC (openpilot long off).
+    ret.intelligentCruiseButtonManagementAvailable = (
+      candidate in (CAR.SUBARU_OUTBACK_2023, CAR.SUBARU_ASCENT_2023, CAR.SUBARU_CROSSTREK_2025)
+      and not bool(stock_cp.flags & SubaruFlags.HYBRID)
+      and not is_release_sp
+    )
 
     return ret
 

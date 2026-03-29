@@ -13,8 +13,9 @@ def create_steering_control(packer, apply_torque, steer_req):
   return packer.make_can_msg("ES_LKAS", 0, values)
 
 
-def create_steering_control_angle(packer, apply_torque, steer_req):
+def create_steering_control_angle(packer, frame, apply_torque, steer_req):
   values = {
+    "COUNTER": frame % 0x10,
     "LKAS_Output": apply_torque,
     "LKAS_Request": steer_req,
     "SET_3": 3

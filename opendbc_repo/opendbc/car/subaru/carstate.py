@@ -214,10 +214,14 @@ class CarState(CarStateBase, MadsCarState, SnGCarState):
                            f"ACC available={ret.cruiseState.available} via ES_DashStatus")
       self._log_transition("cruise_enabled", ret.cruiseState.enabled,
                            f"ACC enabled={ret.cruiseState.enabled} via ES_Status")
+      # Log raw CAN signal values alongside the derived fault flags so logs can distinguish
+      # between EyeSight-disable-induced faults and EPS-internal faults.
+      steer_warning_raw = int(cp.vl["Steering_Torque"]["Steer_Warning"])
+      steer_error_1_raw = int(cp.vl["Steering_Torque"]["Steer_Error_1"])
       self._log_transition("steer_fault_temporary", ret.steerFaultTemporary,
-                           f"steerFaultTemporary={ret.steerFaultTemporary}")
+                           f"steerFaultTemporary={ret.steerFaultTemporary} Steer_Warning(raw)={steer_warning_raw}")
       self._log_transition("steer_fault_permanent", ret.steerFaultPermanent,
-                           f"steerFaultPermanent={ret.steerFaultPermanent}")
+                           f"steerFaultPermanent={ret.steerFaultPermanent} Steer_Error_1(raw)={steer_error_1_raw}")
 
       dash_status_state = (
         cp_cam.vl["ES_DashStatus"]["Cruise_On"],
@@ -234,10 +238,18 @@ class CarState(CarStateBase, MadsCarState, SnGCarState):
 
       if not (self.CP.flags & SubaruFlags.HYBRID):
         es_status_cruise = cp_es_brake.vl["ES_Status"]["Cruise_Activated"]
+        es_status_cruise_fault = int(cp_es_brake.vl["ES_Status"]["Cruise_Fault"])
+        es_distance_cruise_fault = int(cp_es_distance.vl["ES_Distance"]["Cruise_Fault"])
         self._log_transition("es_status_cruise_activated", es_status_cruise,
                              f"ES_Status Cruise_Activated={es_status_cruise}")
+        self._log_transition("es_status_cruise_fault", es_status_cruise_fault,
+                             f"ES_Status Cruise_Fault(raw)={es_status_cruise_fault}")
+        self._log_transition("es_distance_cruise_fault", es_distance_cruise_fault,
+                             f"ES_Distance Cruise_Fault(raw)={es_distance_cruise_fault}")
         self._log_transition("eyesight_fault", eyesight_fault,
-                             f"Eyesight cruise fault={eyesight_fault}")
+                             f"Eyesight cruise fault={eyesight_fault} "
+                             f"ES_Status.Cruise_Fault={es_status_cruise_fault} "
+                             f"ES_Distance.Cruise_Fault={es_distance_cruise_fault}")
 
     MadsCarState.update_mads(self, ret, can_parsers)
     SnGCarState.update(self, ret, can_parsers)

@@ -2,12 +2,13 @@ import copy
 import numpy as np
 from openpilot.common.params import Params
 from opendbc.can import CANPacker
-from opendbc.car import Bus, make_tester_present_msg, structs
+from opendbc.car import Bus, DT_CTRL, make_tester_present_msg, structs
 from opendbc.car.carlog import carlog
 from opendbc.car.lateral import apply_driver_steer_torque_limits, apply_std_steer_angle_limits, common_fault_avoidance
 from opendbc.car.interfaces import CarControllerBase
 from opendbc.car.subaru import subarucan
 from opendbc.car.subaru.values import DBC, GLOBAL_ES_ADDR, CanBus, CarControllerParams, SubaruFlags
+from opendbc.car.subaru.interface import OUTBACK_ALPHA_LONG_PHASE
 
 from opendbc.sunnypilot.car.subaru.stop_and_go import SnGCarController
 
@@ -32,6 +33,9 @@ LONGITUDINAL_SOURCE_KEYS = {
                   "Close_Distance", "Signal5", "Cruise_Cancel", "Cruise_Set", "Cruise_Resume", "Signal6", "COUNTER"),
 }
 
+# ICBM button press rate limit: one press per 50 ms
+ICBM_BUTTON_MIN_INTERVAL_FRAMES = max(1, int(round(0.05 / DT_CTRL)))
+
 
 class CarController(CarControllerBase, SnGCarController):
   def __init__(self, dbc_names, CP, CP_SP):
@@ -47,6 +51,19 @@ class CarController(CarControllerBase, SnGCarController):
       name: {"counter": None, "last_update_frame": -LONG_MESSAGE_STALE_MAX_FRAMES - 1, "msg": None}
       for name in LONGITUDINAL_SOURCE_KEYS
     }
+
+    # ICBM (stock ACC set-speed button emulation) state
+    self.icbm_last_button_frame = 0
+    self._icbm_available = getattr(CP_SP, "intelligentCruiseButtonManagementAvailable", False)
+    if self._icbm_available:
+      try:
+        from opendbc.sunnypilot.car.subaru.icbm import IntelligentCruiseButtonManagementInterface
+        self.icbm_interface = IntelligentCruiseButtonManagementInterface(CP, CP_SP)
+      except ImportError:
+        self.icbm_interface = None
+        self._icbm_available = False
+    else:
+      self.icbm_interface = None
 
     self.p = CarControllerParams(CP)
     self.packer = CANPacker(DBC[CP.carFingerprint][Bus.pt])
@@ -160,7 +177,16 @@ class CarController(CarControllerBase, SnGCarController):
       apply_steer = CS.out.steeringAngleDeg
 
     self.apply_angle_last = apply_steer
-    return subarucan.create_steering_control_angle(self.packer, apply_steer, lkas_request)
+
+    # Pass the current steering frame counter so ES_LKAS_ANGLE increments correctly.
+    # A pinned-at-zero counter causes Steer_Error_1 and the immediate LKAS fault.
+    angle_frame_counter = (self.frame // self.p.STEER_STEP) % 0x10
+    self._log_transition(
+      "angle_lkas_counter_sample",
+      angle_frame_counter,
+      f"angle LKAS ES_LKAS_ANGLE COUNTER={angle_frame_counter} lkas_request={lkas_request}",
+    )
+    return subarucan.create_steering_control_angle(self.packer, angle_frame_counter, apply_steer, lkas_request)
 
   def handle_torque_lateral(self, CC, CS):
     lat_active = CC.latActive and not self._human_turn_active(CS)
@@ -226,10 +252,27 @@ class CarController(CarControllerBase, SnGCarController):
     long_source_msgs = {}
     if self.CP.openpilotLongitudinalControl:
       long_sources_valid, long_source_msgs = self._get_longitudinal_source_messages(CS)
+      self._log_transition(
+        "long_sources_valid",
+        long_sources_valid,
+        f"long source validity changed: valid={long_sources_valid}",
+      )
 
     long_bus = CanBus.alt if self.CP.flags & SubaruFlags.GLOBAL_GEN2 else CanBus.main
     in_drive = CS.out.gearShifter == structs.CarState.GearShifter.drive
-    long_override_active = self.CP.openpilotLongitudinalControl and CC.longActive and in_drive
+
+    # Phase gate: Phase 3+ allows full actuation. Phase 1/2 force override off.
+    # Phase 2 allows replay for counter/message maintenance but no gas/brake.
+    # Phase 1 suppresses replay entirely (EyeSight disable only).
+    phase_allows_replay = OUTBACK_ALPHA_LONG_PHASE >= 2
+    phase_allows_actuation = OUTBACK_ALPHA_LONG_PHASE >= 3
+
+    long_override_active = (
+      self.CP.openpilotLongitudinalControl
+      and CC.longActive
+      and in_drive
+      and phase_allows_actuation
+    )
 
     # *** alerts and pcm cancel ***
     if self.CP.flags & SubaruFlags.PREGLOBAL:
@@ -263,10 +306,11 @@ class CarController(CarControllerBase, SnGCarController):
         if self.CP.flags & SubaruFlags.SEND_INFOTAINMENT:
           can_sends.append(subarucan.create_es_infotainment(self.packer, self.frame // 10, CS.es_infotainment_msg, hud_control.visualAlert))
 
-      if self.CP.openpilotLongitudinalControl:
+      if self.CP.openpilotLongitudinalControl and phase_allows_replay:
         if self.frame % 5 == 0:
           has_cached_long_sources = all(msg is not None for msg in long_source_msgs.values())
           if long_sources_valid:
+            self._log_transition("long_replay_branch", "live", "long replay: using live source messages")
             can_sends.append(subarucan.create_es_status(self.packer, self.frame // 5, long_source_msgs["es_status"],
                                                         long_bus, long_override_active, long_override_active, cruise_rpm))
 
@@ -276,23 +320,52 @@ class CarController(CarControllerBase, SnGCarController):
             can_sends.append(subarucan.create_es_distance(self.packer, self.frame // 5, long_source_msgs["es_distance"], long_bus, pcm_cancel_cmd,
                                                           long_override_active, cruise_brake > 0, cruise_throttle))
           elif has_cached_long_sources:
+            # Source has gone stale: maintain message cadence but suppress all actuation to avoid
+            # sending stale throttle/brake commands. Cancel is still forwarded for safety.
+            self._log_transition("long_replay_branch", "stale_cache", "long replay: source stale, using cached messages with actuation suppressed")
             can_sends.append(subarucan.create_es_status(self.packer, self.frame // 5, long_source_msgs["es_status"],
-                                                        long_bus, long_override_active, long_override_active, cruise_rpm))
+                                                        long_bus, False, False, CarControllerParams.RPM_MIN))
 
             can_sends.append(subarucan.create_es_brake(self.packer, self.frame // 5, long_source_msgs["es_brake"],
-                                                       long_bus, long_override_active, long_override_active, cruise_brake))
+                                                       long_bus, False, False, CarControllerParams.BRAKE_MIN))
 
             can_sends.append(subarucan.create_es_distance(self.packer, self.frame // 5, long_source_msgs["es_distance"], long_bus, pcm_cancel_cmd,
-                                                          long_override_active, cruise_brake > 0, cruise_throttle))
+                                                          False, False, CarControllerParams.THROTTLE_INACTIVE))
+          else:
+            self._log_transition("long_replay_branch", "skipped", "long replay: no valid cache, skipping ES replay this tick")
+
+      elif self.CP.openpilotLongitudinalControl and not phase_allows_replay:
+        # Phase 1: EyeSight disable is active but ES replay is intentionally suppressed.
+        # This isolates whether the LKAS fault comes from EyeSight disable alone.
+        if self.frame % 5 == 0:
+          self._log_transition("long_replay_branch", "phase1_suppressed", "long replay: suppressed by OUTBACK_ALPHA_LONG_PHASE=1")
+
       else:
+        # openpilot long is off: handle cancel and ICBM button emulation
         if pcm_cancel_cmd:
           if not (self.CP.flags & SubaruFlags.HYBRID):
             bus = CanBus.alt if self.CP.flags & SubaruFlags.GLOBAL_GEN2 else CanBus.main
             can_sends.append(subarucan.create_es_distance(self.packer, CS.es_distance_msg["COUNTER"] + 1, CS.es_distance_msg, bus, pcm_cancel_cmd))
 
+        # ICBM: map-based stock ACC set-speed automation via button emulation in ES_Distance.
+        # Fires only when openpilot long is off, ACC is available, and ICBM requests a button.
+        if (self._icbm_available
+            and self.icbm_interface is not None
+            and CS.out.cruiseState.available
+            and not (self.CP.flags & SubaruFlags.HYBRID)):
+          icbm_sends = self.icbm_interface.update(CC_SP, self.packer, self.frame, self.icbm_last_button_frame, CS)
+          if icbm_sends:
+            can_sends.extend(icbm_sends)
+            self.icbm_last_button_frame = self.frame
+
       if self.CP.flags & SubaruFlags.DISABLE_EYESIGHT:
         # Tester present (keeps eyesight disabled)
         if self.frame % 100 == 0:
+          self._log_transition(
+            "eyesight_disable_active",
+            True,
+            f"EyeSight disable: tester present sent at frame={self.frame} bus={CanBus.camera} addr={GLOBAL_ES_ADDR:#x}",
+          )
           can_sends.append(make_tester_present_msg(GLOBAL_ES_ADDR, CanBus.camera, suppress_response=True))
 
         # Create all of the other eyesight messages to keep the rest of the car happy when eyesight is disabled

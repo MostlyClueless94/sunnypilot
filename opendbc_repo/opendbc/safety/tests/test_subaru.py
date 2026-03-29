@@ -183,6 +183,40 @@ class TestSubaruTorqueSafetyBase(TestSubaruSafetyBase, common.DriverTorqueSteeri
     return self.packer.make_can_msg_safety("ES_LKAS", SUBARU_MAIN_BUS, values)
 
 
+class TestSubaruAngleSafetyBase(TestSubaruSafetyBase, common.AngleSteeringSafetyTest):
+  ALT_MAIN_BUS = SUBARU_ALT_BUS
+  ALT_CAM_BUS = SUBARU_ALT_BUS
+
+  TX_MSGS = lkas_tx_msgs(SUBARU_ALT_BUS, SubaruMsg.ES_LKAS_ANGLE)
+  RELAY_MALFUNCTION_ADDRS = {SUBARU_MAIN_BUS: (SubaruMsg.ES_LKAS_ANGLE, SubaruMsg.ES_DashStatus,
+                                               SubaruMsg.ES_LKAS_State, SubaruMsg.ES_Infotainment)}
+  FWD_BLACKLISTED_ADDRS = fwd_blacklisted_addr(SubaruMsg.ES_LKAS_ANGLE)
+
+  FLAGS = SubaruSafetyFlags.LKAS_ANGLE | SubaruSafetyFlags.GEN2
+
+  STEER_ANGLE_MAX = 545
+  STEER_ANGLE_TEST_MAX = 545
+  ANGLE_RATE_BP = [0, 5, 35]
+  ANGLE_RATE_UP = [5, 0.8, 0.15]
+  ANGLE_RATE_DOWN = [5, 0.8, 0.15]
+
+  def _angle_cmd_msg(self, angle, enabled=1):
+    values = {"LKAS_Output": angle, "LKAS_Request": enabled, "SET_3": 3}
+    return self.packer.make_can_msg_safety("ES_LKAS_ANGLE", SUBARU_MAIN_BUS, values)
+
+  def _angle_meas_msg(self, angle):
+    values = {"Steering_Angle": angle}
+    return self.packer.make_can_msg_safety("Steering_2", SUBARU_MAIN_BUS, values)
+
+  def _speed_msg(self, speed):
+    values = {s: speed * 3.6 for s in ["FR", "FL", "RR", "RL"]}
+    return self.packer.make_can_msg_safety("Wheel_Speeds", self.ALT_MAIN_BUS, values)
+
+  def _pcm_status_msg(self, enable):
+    values = {"Cruise_Activated": enable}
+    return self.packer.make_can_msg_safety("ES_Status", self.ALT_MAIN_BUS, values)
+
+
 class TestSubaruGen1TorqueStockLongitudinalSafety(TestSubaruStockLongitudinalSafetyBase, TestSubaruTorqueSafetyBase):
   FLAGS = 0
   TX_MSGS = lkas_tx_msgs(SUBARU_MAIN_BUS)
@@ -243,6 +277,38 @@ class TestSubaruGen2LongitudinalSafety(TestSubaruLongitudinalSafetyBase, TestSub
       self.assertEqual(self._tx(self._es_uds_msg(self._rdbi_msg(did))), should_tx)
 
     # any other msg is not allowed
+    for sid in range(0xFF):
+      msg = b'\x03' + sid.to_bytes(1) + b'\x00' * 6
+      self.assertFalse(self._tx(self._es_uds_msg(msg)))
+
+
+class TestSubaruGen2AngleLongitudinalSafety(TestSubaruLongitudinalSafetyBase, TestSubaruAngleSafetyBase):
+  FLAGS = SubaruSafetyFlags.LONG | SubaruSafetyFlags.GEN2 | SubaruSafetyFlags.LKAS_ANGLE
+  TX_MSGS = lkas_tx_msgs(SUBARU_ALT_BUS, SubaruMsg.ES_LKAS_ANGLE) + long_tx_msgs(SUBARU_ALT_BUS) + gen2_long_additional_tx_msgs()
+  FWD_BLACKLISTED_ADDRS = fwd_blacklisted_addr(SubaruMsg.ES_LKAS_ANGLE)
+  RELAY_MALFUNCTION_ADDRS = {SUBARU_MAIN_BUS: (SubaruMsg.ES_LKAS_ANGLE, SubaruMsg.ES_DashStatus,
+                                               SubaruMsg.ES_LKAS_State, SubaruMsg.ES_Infotainment),
+                             SUBARU_ALT_BUS: (SubaruMsg.ES_Brake, SubaruMsg.ES_Status, SubaruMsg.ES_Distance)}
+
+  def _rdbi_msg(self, did: int):
+    return b'\x03\x22' + did.to_bytes(2) + b'\x00\x00\x00\x00'
+
+  def _es_uds_msg(self, msg: bytes):
+    return libsafety_py.make_CANPacket(SubaruMsg.ES_UDS_Request, 2, msg)
+
+  def test_es_uds_message(self):
+    tester_present = b'\x02\x3E\x80\x00\x00\x00\x00\x00'
+    not_tester_present = b"\x03\xAA\xAA\x00\x00\x00\x00\x00"
+
+    button_did = 0x1130
+
+    self.assertTrue(self._tx(self._es_uds_msg(tester_present)))
+    self.assertFalse(self._tx(self._es_uds_msg(not_tester_present)))
+
+    for did in range(0xFFFF):
+      should_tx = (did == button_did)
+      self.assertEqual(self._tx(self._es_uds_msg(self._rdbi_msg(did))), should_tx)
+
     for sid in range(0xFF):
       msg = b'\x03' + sid.to_bytes(1) + b'\x00' * 6
       self.assertFalse(self._tx(self._es_uds_msg(msg)))

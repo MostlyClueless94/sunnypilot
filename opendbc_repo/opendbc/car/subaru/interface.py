@@ -5,6 +5,8 @@ from opendbc.car.subaru.carcontroller import CarController
 from opendbc.car.subaru.carstate import CarState
 from opendbc.car.subaru.values import CAR, GLOBAL_ES_ADDR, SubaruFlags, SubaruSafetyFlags
 
+TEMP_DISABLE_OUTBACK_ALPHA_LONG = False
+
 
 class CarInterface(CarInterfaceBase):
   CarState = CarState
@@ -88,8 +90,8 @@ class CarInterface(CarInterfaceBase):
     else:
       raise ValueError(f"unknown car: {candidate}")
 
-    ret.alphaLongitudinalAvailable = not (ret.flags & (SubaruFlags.GLOBAL_GEN2 | SubaruFlags.PREGLOBAL |
-                                                       SubaruFlags.LKAS_ANGLE | SubaruFlags.HYBRID))
+    outback_alpha_long_candidate = candidate == CAR.SUBARU_OUTBACK_2023 and not is_release
+    ret.alphaLongitudinalAvailable = outback_alpha_long_candidate and not TEMP_DISABLE_OUTBACK_ALPHA_LONG
     ret.openpilotLongitudinalControl = alpha_long and ret.alphaLongitudinalAvailable
 
     if ret.flags & SubaruFlags.GLOBAL_GEN2 and ret.openpilotLongitudinalControl:

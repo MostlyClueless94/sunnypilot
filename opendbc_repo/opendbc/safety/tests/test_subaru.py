@@ -147,6 +147,14 @@ class TestSubaruStockLongitudinalSafetyBase(TestSubaruSafetyBase):
     self.assertFalse(self._tx(self._stock_button_msg(cancel=True, resume=True, cruise_throttle=self.INACTIVE_GAS)))
     self.assertFalse(self._tx(self._stock_button_msg(set_speed=True, resume=True, cruise_throttle=self.INACTIVE_GAS)))
 
+  def test_repeated_stock_button_messages_are_allowed(self):
+    for msg in (
+      self._stock_button_msg(set_speed=True, cruise_throttle=self.INACTIVE_GAS),
+      self._stock_button_msg(resume=True, cruise_throttle=self.INACTIVE_GAS),
+    ):
+      for _ in range(20):
+        self.assertTrue(self._tx(msg))
+
 
 class TestSubaruLongitudinalSafetyBase(TestSubaruSafetyBase, common.LongitudinalGasBrakeSafetyTest):
   MIN_GAS = 808

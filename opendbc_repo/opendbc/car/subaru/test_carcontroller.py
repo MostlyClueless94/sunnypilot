@@ -2,6 +2,7 @@ import unittest
 from types import SimpleNamespace
 
 from openpilot.common.params import Params
+from openpilot.common.constants import CV
 from opendbc.car import structs
 from opendbc.car.subaru import subarucan
 from opendbc.car.subaru.carcontroller import CarController, LONG_MESSAGE_STALE_MAX_FRAMES, LOW_SPEED_STRAIGHT_SIGN_RELEASE_FRAMES
@@ -152,13 +153,13 @@ class TestSubaruCarController(unittest.TestCase):
     )
 
   @staticmethod
-  def _build_icbm_cc_sp(send_button):
+  def _build_icbm_cc_sp(send_button, v_target):
     return SimpleNamespace(
-      intelligentCruiseButtonManagement=SimpleNamespace(sendButton=send_button),
+      intelligentCruiseButtonManagement=SimpleNamespace(sendButton=send_button, vTarget=v_target),
     )
 
   @staticmethod
-  def _build_icbm_cs(cruise_enabled, es_distance_msg=None):
+  def _build_icbm_cs(cruise_enabled, cluster_speed=30, es_distance_msg=None, button_events=None):
     return SimpleNamespace(
       out=SimpleNamespace(
         vEgoRaw=12.0,
@@ -168,11 +169,12 @@ class TestSubaruCarController(unittest.TestCase):
         steeringPressed=False,
         steeringTorque=0,
         steeringRateDeg=0,
-        cruiseState=SimpleNamespace(available=True, enabled=cruise_enabled),
+        cruiseState=SimpleNamespace(available=True, enabled=cruise_enabled, speedCluster=cluster_speed * CV.MPH_TO_MS),
       ),
       es_distance_msg=es_distance_msg or {},
       es_dashstatus_msg={},
       es_lkas_state_msg={},
+      buttonEvents=button_events or [],
     )
 
   def test_mads_manual_override_still_wins(self):
@@ -426,7 +428,7 @@ class TestSubaruCarController(unittest.TestCase):
     _, _, es_distance_msg = self._build_long_source(counter=2)
     cs = self._build_icbm_cs(False, es_distance_msg=es_distance_msg)
     cc = self._build_long_cc(False)
-    cc_sp = self._build_icbm_cc_sp(structs.IntelligentCruiseButtonManagement.SendButtonState.increase)
+    cc_sp = self._build_icbm_cc_sp(structs.IntelligentCruiseButtonManagement.SendButtonState.increase, 35)
 
     controller.frame = 10
     _, can_sends = controller.update(cc, cc_sp, cs, 0)
@@ -439,12 +441,96 @@ class TestSubaruCarController(unittest.TestCase):
     _, _, es_distance_msg = self._build_long_source(counter=4)
     cs = self._build_icbm_cs(True, es_distance_msg=es_distance_msg)
     cc = self._build_long_cc(False)
-    cc_sp = self._build_icbm_cc_sp(structs.IntelligentCruiseButtonManagement.SendButtonState.increase)
+    cc_sp = self._build_icbm_cc_sp(structs.IntelligentCruiseButtonManagement.SendButtonState.increase, 35)
 
     controller.frame = 10
     _, can_sends = controller.update(cc, cc_sp, cs, 0)
 
     self.assertTrue(any(msg[0] == 0x221 for msg in can_sends))
+
+  def test_icbm_small_gap_waits_for_cluster_feedback_before_retrying(self):
+    Params().put_bool("IsMetric", False)
+    controller = self._build_controller()
+    _, _, es_distance_msg = self._build_long_source(counter=8)
+    cs = self._build_icbm_cs(True, cluster_speed=30, es_distance_msg=es_distance_msg)
+    cc = self._build_long_cc(False)
+    cc_sp = self._build_icbm_cc_sp(structs.IntelligentCruiseButtonManagement.SendButtonState.increase, 34)
+
+    controller.frame = 10
+    _, first_send = controller.update(cc, cc_sp, cs, 0)
+    for frame in range(11, 15):
+      controller.frame = frame
+      controller.update(cc, cc_sp, cs, 0)
+    controller.frame = 15
+    _, second_send = controller.update(cc, cc_sp, cs, 0)
+
+    self.assertTrue(any(msg[0] == 0x221 for msg in first_send))
+    self.assertFalse(any(msg[0] == 0x221 for msg in second_send))
+
+  def test_icbm_exact_five_mph_gap_uses_continuous_hold(self):
+    Params().put_bool("IsMetric", False)
+    controller = self._build_controller()
+    _, _, es_distance_msg = self._build_long_source(counter=9)
+    cs = self._build_icbm_cs(True, cluster_speed=30, es_distance_msg=es_distance_msg)
+    cc = self._build_long_cc(False)
+    cc_sp = self._build_icbm_cc_sp(structs.IntelligentCruiseButtonManagement.SendButtonState.increase, 35)
+
+    controller.frame = 10
+    _, first_send = controller.update(cc, cc_sp, cs, 0)
+    for frame in range(11, 15):
+      controller.frame = frame
+      controller.update(cc, cc_sp, cs, 0)
+    controller.frame = 15
+    _, second_send = controller.update(cc, cc_sp, cs, 0)
+
+    self.assertTrue(any(msg[0] == 0x221 for msg in first_send))
+    self.assertTrue(any(msg[0] == 0x221 for msg in second_send))
+
+  def test_icbm_hold_releases_before_single_tap_cleanup(self):
+    Params().put_bool("IsMetric", False)
+    controller = self._build_controller()
+    _, _, es_distance_msg = self._build_long_source(counter=10)
+    cc = self._build_long_cc(False)
+    cc_sp = self._build_icbm_cc_sp(structs.IntelligentCruiseButtonManagement.SendButtonState.increase, 36)
+
+    controller.frame = 10
+    _, hold_start = controller.update(cc, cc_sp, self._build_icbm_cs(True, cluster_speed=30, es_distance_msg=es_distance_msg), 0)
+    for frame in range(11, 15):
+      controller.frame = frame
+      controller.update(cc, cc_sp, self._build_icbm_cs(True, cluster_speed=30, es_distance_msg=es_distance_msg), 0)
+    controller.frame = 15
+    _, hold_continue = controller.update(cc, cc_sp, self._build_icbm_cs(True, cluster_speed=30, es_distance_msg=es_distance_msg), 0)
+    for frame in range(16, 20):
+      controller.frame = frame
+      controller.update(cc, cc_sp, self._build_icbm_cs(True, cluster_speed=35, es_distance_msg=es_distance_msg), 0)
+    controller.frame = 20
+    _, release_gap = controller.update(cc, cc_sp, self._build_icbm_cs(True, cluster_speed=35, es_distance_msg=es_distance_msg), 0)
+    controller.frame = 21
+    _, cleanup_tap = controller.update(cc, cc_sp, self._build_icbm_cs(True, cluster_speed=35, es_distance_msg=es_distance_msg), 0)
+
+    self.assertTrue(any(msg[0] == 0x221 for msg in hold_start))
+    self.assertTrue(any(msg[0] == 0x221 for msg in hold_continue))
+    self.assertFalse(any(msg[0] == 0x221 for msg in release_gap))
+    self.assertTrue(any(msg[0] == 0x221 for msg in cleanup_tap))
+
+  def test_icbm_manual_button_event_cancels_active_hold(self):
+    Params().put_bool("IsMetric", False)
+    controller = self._build_controller()
+    _, _, es_distance_msg = self._build_long_source(counter=11)
+    cc = self._build_long_cc(False)
+    cc_sp = self._build_icbm_cc_sp(structs.IntelligentCruiseButtonManagement.SendButtonState.increase, 35)
+
+    controller.frame = 10
+    _, hold_start = controller.update(cc, cc_sp, self._build_icbm_cs(True, cluster_speed=30, es_distance_msg=es_distance_msg), 0)
+    for frame in range(11, 15):
+      controller.frame = frame
+      controller.update(cc, cc_sp, self._build_icbm_cs(True, cluster_speed=30, es_distance_msg=es_distance_msg), 0)
+    controller.frame = 15
+    _, canceled = controller.update(cc, cc_sp, self._build_icbm_cs(True, cluster_speed=30, es_distance_msg=es_distance_msg,
+                                                                   button_events=[SimpleNamespace(pressed=True)]), 0)
+
+    self.assertTrue(any(msg[0] == 0x221 for msg in hold_start))
+    self.assertFalse(any(msg[0] == 0x221 for msg in canceled))
 
 
 if __name__ == "__main__":

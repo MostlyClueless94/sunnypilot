@@ -137,13 +137,13 @@ class BluePilotLayoutMici(NavWidget):
 
     subaru_stock_acc_items = (
       self.stock_acc_master,
-      self.custom_acc_toggle,
-      self.custom_acc_short_increment,
-      self.custom_acc_long_increment,
       self.stock_acc_speed_limit_mode,
       self.stock_acc_speed_limit_source,
       self.stock_acc_speed_limit_offset_type,
       self.stock_acc_speed_limit_offset_value,
+      self.custom_acc_toggle,
+      self.custom_acc_short_increment,
+      self.custom_acc_long_increment,
     )
     for item in subaru_stock_acc_items:
       item.set_visible(self._show_subaru_stock_acc_controls)
@@ -163,13 +163,13 @@ class BluePilotLayoutMici(NavWidget):
       self.rainbow_mode,
       self.custom_model_path_color,
       self.stock_acc_master,
-      self.custom_acc_toggle,
-      self.custom_acc_short_increment,
-      self.custom_acc_long_increment,
       self.stock_acc_speed_limit_mode,
       self.stock_acc_speed_limit_source,
       self.stock_acc_speed_limit_offset_type,
       self.stock_acc_speed_limit_offset_value,
+      self.custom_acc_toggle,
+      self.custom_acc_short_increment,
+      self.custom_acc_long_increment,
       self.lateral_warning,
       self.enable_human_turn_detection,
       self.lane_change_factor_high,

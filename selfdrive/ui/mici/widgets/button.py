@@ -308,9 +308,17 @@ class BigMultiToggle(BigToggle):
     super().__init__(text, "", toggle_callback=toggle_callback)
     assert len(options) > 0
     self._options = options
+    self._enabled_option_indices = set(range(len(options)))
     self._select_callback = select_callback
 
     self.set_value(self._options[0])
+
+  def set_enabled_buttons(self, enabled_indices: set[int]):
+    valid_indices = {idx for idx in enabled_indices if 0 <= idx < len(self._options)}
+    self._enabled_option_indices = valid_indices or set(range(len(self._options)))
+    current_idx = self._options.index(self.value)
+    if current_idx not in self._enabled_option_indices:
+      self.set_value(self._options[min(self._enabled_option_indices)])
 
   def _width_hint(self) -> int:
     return int(self._rect.width - self.LABEL_HORIZONTAL_PADDING * 2 - self._txt_enabled_toggle.width)
@@ -318,7 +326,13 @@ class BigMultiToggle(BigToggle):
   def _handle_mouse_release(self, mouse_pos: MousePos):
     super()._handle_mouse_release(mouse_pos)
     cur_idx = self._options.index(self.value)
-    new_idx = (cur_idx + 1) % len(self._options)
+    new_idx = cur_idx
+    for _ in range(len(self._options)):
+      new_idx = (new_idx + 1) % len(self._options)
+      if new_idx in self._enabled_option_indices:
+        break
+    if new_idx not in self._enabled_option_indices:
+      new_idx = cur_idx
     self.set_value(self._options[new_idx])
     if self._select_callback:
       self._select_callback(self.value)

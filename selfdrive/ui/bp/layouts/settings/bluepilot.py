@@ -4,6 +4,8 @@ from openpilot.common.params import Params
 from openpilot.common.params_pyx import UnknownKeyName
 from openpilot.common.swaglog import cloudlog
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.common import Mode as SpeedLimitMode, OffsetType as SpeedLimitOffsetType, Policy as SpeedLimitPolicy
+from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.helpers import ensure_subaru_stock_acc_osm_region, get_subaru_stock_acc_map_status, \
+                                                                          is_subaru_stock_acc_osm_ready
 from openpilot.system.ui.widgets import Widget, DialogResult
 from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog
 from openpilot.system.ui.widgets.list_view import toggle_item, multiple_button_item, button_item, ButtonAction, ListItem
@@ -364,7 +366,7 @@ class BluePilotLayout(Widget):
     self._stock_acc_speed_limit_source = button_item_sp(
       title=lambda: tr("Speed Limit Source"),
       button_text=lambda: tr("Map Only"),
-      description=lambda: tr("Subaru stock ACC speed control is map-backed only in this build."),
+      description=self._get_subaru_stock_acc_source_description,
       enabled=False,
     )
     self._stock_acc_speed_limit_source.set_visible(self._show_subaru_stock_acc_controls)
@@ -506,19 +508,35 @@ class BluePilotLayout(Widget):
     if self._get_int_param("SpeedLimitPolicy", int(SpeedLimitPolicy.map_data_only)) != int(SpeedLimitPolicy.map_data_only):
       self._params.put("SpeedLimitPolicy", int(SpeedLimitPolicy.map_data_only))
 
-    if not self._stock_acc_enabled():
+    maps_ready = False
+    if self._stock_acc_enabled():
+      ensure_subaru_stock_acc_osm_region(self._params)
+      maps_ready = is_subaru_stock_acc_osm_ready(self._params)
+
+    if not self._stock_acc_enabled() or not maps_ready:
       if self._get_int_param("SpeedLimitMode", int(SpeedLimitMode.warning)) == int(SpeedLimitMode.assist):
         self._params.put("SpeedLimitMode", int(SpeedLimitMode.warning))
-      if self._safe_get_bool(self._params, "CustomAccIncrementsEnabled"):
-        self._params.put_bool("CustomAccIncrementsEnabled", False)
+
+    if not self._stock_acc_enabled() and self._safe_get_bool(self._params, "CustomAccIncrementsEnabled"):
+      self._params.put_bool("CustomAccIncrementsEnabled", False)
 
   def _on_subaru_stock_acc_toggle(self, state: bool):
+    if state:
+      ensure_subaru_stock_acc_osm_region(self._params)
     if not state and self._get_int_param("SpeedLimitMode", int(SpeedLimitMode.warning)) == int(SpeedLimitMode.assist):
       self._params.put("SpeedLimitMode", int(SpeedLimitMode.warning))
     if not state and self._safe_get_bool(self._params, "CustomAccIncrementsEnabled"):
       self._params.put_bool("CustomAccIncrementsEnabled", False)
     self._enforce_subaru_stock_acc_constraints()
     self._update_toggles(just_toggled={"IntelligentCruiseButtonManagement": state, "CustomAccIncrementsEnabled": False} if not state else {"IntelligentCruiseButtonManagement": state})
+
+  def _get_subaru_stock_acc_source_description(self):
+    status = get_subaru_stock_acc_map_status(self._params)
+    if status == "ready":
+      return tr("Map-backed only. Offline OSM maps are ready for stock ACC speed control.")
+    if status == "downloading":
+      return tr("Map-backed only. Offline OSM maps are downloading; Assist becomes available when the download finishes.")
+    return tr("Map-backed only. Offline OSM maps are required before Assist can be used.")
 
   def _get_speed_limit_offset_label(self, value: int) -> str:
     offset_type = self._get_int_param("SpeedLimitOffsetType", int(SpeedLimitOffsetType.off))
@@ -568,12 +586,13 @@ class BluePilotLayout(Widget):
       custom_acc_enabled = fresh.get("CustomAccIncrementsEnabled") if "CustomAccIncrementsEnabled" in fresh else self._safe_get_bool(ui_state.params, "CustomAccIncrementsEnabled")
       speed_limit_mode = self._get_int_param("SpeedLimitMode", int(SpeedLimitMode.warning))
       offset_type = self._get_int_param("SpeedLimitOffsetType", int(SpeedLimitOffsetType.off))
+      maps_ready = is_subaru_stock_acc_osm_ready(self._params)
       enabled_speed_limit_modes = {
         int(SpeedLimitMode.off),
         int(SpeedLimitMode.information),
         int(SpeedLimitMode.warning),
       }
-      if stock_acc_enabled:
+      if stock_acc_enabled and maps_ready:
         enabled_speed_limit_modes.add(int(SpeedLimitMode.assist))
 
       self._custom_acc_toggle.action_item.set_enabled(stock_acc_enabled)

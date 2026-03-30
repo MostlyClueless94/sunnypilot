@@ -11,6 +11,8 @@ from openpilot.system.ui.widgets.nav_widget import NavWidget
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.common.params import Params
 from openpilot.common.swaglog import cloudlog
+from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.helpers import ensure_subaru_stock_acc_osm_region, get_subaru_stock_acc_map_status, \
+                                                                          is_subaru_stock_acc_osm_ready
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.lib.wifi_manager import WifiManager, Network
 from openpilot.system.ui.widgets.label import UnifiedLabel
@@ -228,13 +230,22 @@ class BluePilotLayoutMici(NavWidget):
     if self._get_int_param("SpeedLimitPolicy", int(SpeedLimitPolicy.map_data_only)) != int(SpeedLimitPolicy.map_data_only):
       self._params.put("SpeedLimitPolicy", int(SpeedLimitPolicy.map_data_only))
 
-    if not self._stock_acc_enabled():
+    maps_ready = False
+    if self._stock_acc_enabled():
+      ensure_subaru_stock_acc_osm_region(self._params)
+      maps_ready = is_subaru_stock_acc_osm_ready(self._params)
+
+    if not self._stock_acc_enabled() or not maps_ready:
       if self._get_int_param("SpeedLimitMode", int(SpeedLimitMode.warning)) == int(SpeedLimitMode.assist):
         self._params.put("SpeedLimitMode", int(SpeedLimitMode.warning))
+
+    if not self._stock_acc_enabled():
       if self._params.get_bool("CustomAccIncrementsEnabled"):
         self._params.put_bool("CustomAccIncrementsEnabled", False)
 
   def _on_stock_acc_toggle(self, enabled: bool):
+    if enabled:
+      ensure_subaru_stock_acc_osm_region(self._params)
     if not enabled and self._get_int_param("SpeedLimitMode", int(SpeedLimitMode.warning)) == int(SpeedLimitMode.assist):
       self._params.put("SpeedLimitMode", int(SpeedLimitMode.warning))
     if not enabled and self._params.get_bool("CustomAccIncrementsEnabled"):
@@ -349,6 +360,8 @@ class BluePilotLayoutMici(NavWidget):
     stock_acc_enabled = self._stock_acc_enabled()
     custom_acc_enabled = self._custom_acc_enabled()
     offset_type = self._get_int_param("SpeedLimitOffsetType", int(SpeedLimitOffsetType.off))
+    maps_ready = is_subaru_stock_acc_osm_ready(self._params) if show_stock_acc else False
+    map_status = get_subaru_stock_acc_map_status(self._params) if show_stock_acc else "required"
 
     self.stock_acc_master.set_visible(show_stock_acc)
     self.custom_acc_toggle.set_visible(show_stock_acc)
@@ -364,9 +377,16 @@ class BluePilotLayoutMici(NavWidget):
     self.custom_acc_long_increment.set_enabled(custom_acc_enabled)
     self.stock_acc_speed_limit_offset_value.set_enabled(show_stock_acc and offset_type != int(SpeedLimitOffsetType.off))
     self.custom_acc_long_increment.set_value(self._get_custom_acc_long_increment_label())
-    self.stock_acc_speed_limit_source.set_value(tr("map only"))
+    self.stock_acc_speed_limit_source.set_value(
+      tr("map only") if map_status == "ready" else tr("maps downloading") if map_status == "downloading" else tr("maps required")
+    )
 
-    if not stock_acc_enabled and self._get_int_param("SpeedLimitMode", int(SpeedLimitMode.warning)) == int(SpeedLimitMode.assist):
+    speed_limit_mode = self._get_int_param("SpeedLimitMode", int(SpeedLimitMode.warning))
+    self.stock_acc_speed_limit_mode.set_enabled_buttons(
+      {0, 1, 2, 3} if stock_acc_enabled and maps_ready else {0, 1, 2}
+    )
+
+    if (not stock_acc_enabled or not maps_ready) and speed_limit_mode == int(SpeedLimitMode.assist):
       self._params.put("SpeedLimitMode", int(SpeedLimitMode.warning))
       self.stock_acc_speed_limit_mode._load_value()
 

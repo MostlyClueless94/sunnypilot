@@ -92,6 +92,11 @@ class VisualsLayout(Widget):
         tr("When enabled, the speedometer on the onroad screen is not displayed."),
         None,
       ),
+      "ShowBrakeStatus": (
+        lambda: tr("Show Brake Status"),
+        tr("Display current speed in red when vehicle is braking."),
+        None,
+      ),
       "ShowTurnSignals": (
         lambda: tr("Display Turn Signals"),
         tr("When enabled, visual turn indicators are drawn on the HUD."),

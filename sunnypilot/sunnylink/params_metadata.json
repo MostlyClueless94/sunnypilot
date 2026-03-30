@@ -1144,6 +1144,10 @@
     "title": "[TIZI/TICI only] Real-time Acceleration Bar",
     "description": "Show an indicator on the left side of the screen to display real-time vehicle acceleration and deceleration. This displays what the car is currently doing, not what the planner is requesting."
   },
+  "ShowBrakeStatus": {
+    "title": "Show Brake Status",
+    "description": "Display current speed in red when vehicle is braking."
+  },
   "RouteCount": {
     "title": "Route Count",
     "description": ""

@@ -30,6 +30,11 @@ class IntelligentCruiseButtonManagement:
   def __init__(self, CP: structs.CarParams, CP_SP: structs.CarParamsSP):
     self.CP = CP
     self.CP_SP = CP_SP
+    self._subaru_speed_limit_trigger_mode = (
+      CP.brand == "subaru"
+      and CP_SP.intelligentCruiseButtonManagementAvailable
+      and not CP.openpilotLongitudinalControl
+    )
 
     self.v_target = 0
     self.v_cruise_cluster = 0
@@ -48,29 +53,65 @@ class IntelligentCruiseButtonManagement:
     # BluePilot: Track initial cruise speed when first enabled
     self.initial_cruise_speed_kph = 0
     self.cruise_enabled_prev = False
+    self.pending_speed_limit_target = 0
+    self.last_speed_limit_target = 0
 
   @property
   def v_cruise_equal(self) -> bool:
     return self.v_target == self.v_cruise_cluster
 
+  def _capture_cruise_enable_state(self, CS: car.CarState) -> bool:
+    cruise_enabled = CS.cruiseState.available and CS.cruiseState.enabled
+    if cruise_enabled and not self.cruise_enabled_prev:
+      current_speed_kph = CS.vEgo * CV.MS_TO_KPH
+      self.initial_cruise_speed_kph = round(current_speed_kph)
+    self.cruise_enabled_prev = cruise_enabled
+    return cruise_enabled
+
+  def _reset_pending_speed_limit_target(self) -> None:
+    self.pending_speed_limit_target = 0
+
+  def _get_subaru_resolved_speed_limit(self, LP_SP: custom.LongitudinalPlanSP) -> int:
+    speed_limit = getattr(LP_SP.speedLimit.resolver, "speedLimitFinalLast", 0.0)
+    if speed_limit <= 0.0:
+      return 0
+
+    speed_conv = CV.MS_TO_KPH if self.is_metric else CV.MS_TO_MPH
+    return round(speed_limit * speed_conv)
+
+  def _arm_subaru_speed_limit_target(self, CS: car.CarState, LP_SP: custom.LongitudinalPlanSP, cruise_enabled: bool) -> None:
+    resolved_speed_limit = self._get_subaru_resolved_speed_limit(LP_SP)
+    speed_limit_changed = resolved_speed_limit != self.last_speed_limit_target
+    assist_enabled = LP_SP.speedLimit.assist.enabled
+
+    if speed_limit_changed and resolved_speed_limit > 0:
+      if assist_enabled and self.is_ready and cruise_enabled:
+        if resolved_speed_limit == self.v_cruise_cluster:
+          self._reset_pending_speed_limit_target()
+          self.state = State.holding
+        else:
+          self.pending_speed_limit_target = resolved_speed_limit
+          self.pre_active_timer = int(INACTIVE_TIMER / DT_CTRL)
+          self.state = State.preActive
+
+    if speed_limit_changed:
+      self.last_speed_limit_target = resolved_speed_limit
+
   def update_calculations(self, CS: car.CarState, LP_SP: custom.LongitudinalPlanSP) -> None:
     speed_conv = CV.MS_TO_KPH if self.is_metric else CV.MS_TO_MPH
     ms_conv = CV.KPH_TO_MS if self.is_metric else CV.MPH_TO_MS
 
-    # BluePilot: Capture initial cruise speed when cruise is first enabled
-    # Use current speed (vEgo) as the initial setpoint if planner target is invalid/unreasonable
-    cruise_enabled = CS.cruiseState.available and CS.cruiseState.enabled
-    if cruise_enabled and not self.cruise_enabled_prev:
-      # Cruise just enabled - capture current speed as initial setpoint
-      current_speed_kph = CS.vEgo * CV.MS_TO_KPH
-      self.initial_cruise_speed_kph = round(current_speed_kph)
-    self.cruise_enabled_prev = cruise_enabled
-
-    self.v_target_ms_last = apply_hysteresis(LP_SP.vTarget, self.v_target_ms_last, HYST_GAP * ms_conv)
-
-    self.v_target = round(self.v_target_ms_last * speed_conv)
+    cruise_enabled = self._capture_cruise_enable_state(CS)
     self.v_cruise_min = get_minimum_set_speed(self.is_metric)
     self.v_cruise_cluster = round(CS.cruiseState.speedCluster * speed_conv)
+
+    if self._subaru_speed_limit_trigger_mode:
+      self._arm_subaru_speed_limit_target(CS, LP_SP, cruise_enabled)
+      self.v_target = self.pending_speed_limit_target if self.pending_speed_limit_target > 0 else self.v_cruise_cluster
+      return
+
+    self.v_target_ms_last = apply_hysteresis(LP_SP.vTarget, self.v_target_ms_last, HYST_GAP * ms_conv)
+    self.v_target = round(self.v_target_ms_last * speed_conv)
     
     # BluePilot: If planner target is invalid/unreasonable and we have an initial cruise speed,
     # use the initial speed as the target (or cluster speed if it's been set)
@@ -84,6 +125,35 @@ class IntelligentCruiseButtonManagement:
 
   def update_state_machine(self) -> custom.IntelligentCruiseButtonManagement.SendButtonState:
     self.pre_active_timer = max(0, self.pre_active_timer - 1)
+
+    if self._subaru_speed_limit_trigger_mode:
+      if not self.is_ready:
+        self._reset_pending_speed_limit_target()
+        self.state = State.inactive
+      elif self.pending_speed_limit_target <= 0:
+        self.state = State.holding
+      else:
+        self.v_target = self.pending_speed_limit_target
+        if self.v_cruise_equal:
+          self._reset_pending_speed_limit_target()
+          self.state = State.holding
+        elif self.state == State.preActive:
+          if self.pre_active_timer <= 0:
+            self.state = State.increasing if self.v_target > self.v_cruise_cluster else State.decreasing
+        elif self.state in (State.inactive, State.holding):
+          self.state = State.preActive
+          self.pre_active_timer = int(INACTIVE_TIMER / DT_CTRL)
+        elif self.state == State.increasing:
+          if self.v_target < self.v_cruise_cluster:
+            self.state = State.decreasing
+        elif self.state == State.decreasing:
+          if self.v_target > self.v_cruise_cluster:
+            self.state = State.increasing
+          elif self.v_cruise_cluster <= self.v_cruise_min:
+            self._reset_pending_speed_limit_target()
+            self.state = State.holding
+
+      return SEND_BUTTONS.get(self.state, SendButtonState.none)
 
     # HOLDING, ACCELERATING, DECELERATING, PRE_ACTIVE
     if self.state != State.inactive:
@@ -157,8 +227,12 @@ class IntelligentCruiseButtonManagement:
       # BluePilot: Reset initial cruise speed when cruise is disabled
       # This ensures we capture a fresh initial speed when cruise is re-enabled
       self.initial_cruise_speed_kph = 0
+      if self._subaru_speed_limit_trigger_mode:
+        self._reset_pending_speed_limit_target()
 
     self.is_ready = ready and not button_pressed
+    if self._subaru_speed_limit_trigger_mode and not self.is_ready:
+      self._reset_pending_speed_limit_target()
 
   def run(self, CS: car.CarState, CC: car.CarControl, LP_SP: custom.LongitudinalPlanSP, is_metric: bool) -> None:
     if self.CP_SP.pcmCruiseSpeed:

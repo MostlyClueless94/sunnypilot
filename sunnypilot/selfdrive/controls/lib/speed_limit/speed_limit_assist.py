@@ -221,9 +221,21 @@ class SpeedLimitAssist:
     else:
       self.state = SpeedLimitAssistState.pending
 
+  @property
+  def uses_icbm_cluster_confirmation(self) -> bool:
+    return (
+      self.CP.brand == "subaru"
+      and self.CP_SP.intelligentCruiseButtonManagementAvailable
+      and not self.pcm_op_long
+      and not self.CP_SP.pcmCruiseSpeed
+    )
+
   def _update_non_pcm_long_confirmed_state(self) -> bool:
     if self.target_set_speed_confirmed:
       return True
+
+    if self.uses_icbm_cluster_confirmation:
+      return False
 
     if self.state != SpeedLimitAssistState.preActive:
       return False

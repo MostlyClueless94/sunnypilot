@@ -5,6 +5,8 @@ This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
 
+from types import SimpleNamespace
+
 import pytest
 
 from cereal import custom
@@ -12,6 +14,7 @@ from opendbc.car.car_helpers import interfaces
 from opendbc.car.rivian.values import CAR as RIVIAN
 from opendbc.car.tesla.values import CAR as TESLA
 from opendbc.car.toyota.values import CAR as TOYOTA
+import openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.speed_limit_assist as speed_limit_assist_module
 from openpilot.common.constants import CV
 from openpilot.common.params import Params
 from openpilot.common.realtime import DT_MDL
@@ -276,3 +279,57 @@ class TestSpeedLimitAssist:
         assert self.sla.state in [SpeedLimitAssistState.preActive, SpeedLimitAssistState.active]
       elif initial_state in ACTIVE_STATES:
         assert self.sla.state in ACTIVE_STATES
+
+
+def _build_subaru_stock_acc_sla(monkeypatch):
+  monkeypatch.setattr(speed_limit_assist_module, "set_speed_limit_assist_availability", lambda *args, **kwargs: True)
+  params = Params()
+  params.put("SpeedLimitMode", int(Mode.assist))
+  params.put_bool("IntelligentCruiseButtonManagement", True)
+  params.put_bool("IsMetric", False)
+
+  cp = SimpleNamespace(brand="subaru", openpilotLongitudinalControl=False, pcmCruise=True)
+  cp_sp = SimpleNamespace(intelligentCruiseButtonManagementAvailable=True, pcmCruiseSpeed=False)
+  sla = speed_limit_assist_module.SpeedLimitAssist(cp, cp_sp)
+  sla.enabled = True
+  return sla
+
+
+def test_subaru_stock_acc_confirms_when_cluster_matches_target(monkeypatch):
+  sla = _build_subaru_stock_acc_sla(monkeypatch)
+  events_sp = EventsSP()
+  sla.state = SpeedLimitAssistState.preActive
+  sla.pre_active_timer = int(PRE_ACTIVE_GUARD_PERIOD[sla.pcm_op_long] / DT_MDL)
+
+  sla.update(True, False, SPEED_LIMITS['city'], 0, SPEED_LIMITS['city'], SPEED_LIMITS['city'],
+             SPEED_LIMITS['city'], True, 0, events_sp)
+
+  assert sla.state == SpeedLimitAssistState.active
+  assert sla.is_enabled and sla.is_active
+  assert sla.output_v_target == SPEED_LIMITS['city']
+
+
+def test_subaru_stock_acc_preactive_times_out_without_cluster_convergence(monkeypatch):
+  sla = _build_subaru_stock_acc_sla(monkeypatch)
+  events_sp = EventsSP()
+  sla.state = SpeedLimitAssistState.preActive
+  sla.pre_active_timer = 1
+
+  sla.update(True, False, SPEED_LIMITS['city'], 0, SPEED_LIMITS['residential'], SPEED_LIMITS['city'],
+             SPEED_LIMITS['city'], True, 0, events_sp)
+
+  assert sla.state == SpeedLimitAssistState.inactive
+  assert sla.is_enabled and not sla.is_active
+
+
+def test_subaru_stock_acc_does_not_require_button_events_for_confirmation(monkeypatch):
+  sla = _build_subaru_stock_acc_sla(monkeypatch)
+  events_sp = EventsSP()
+  sla.state = SpeedLimitAssistState.preActive
+  sla.pre_active_timer = int(PRE_ACTIVE_GUARD_PERIOD[sla.pcm_op_long] / DT_MDL)
+
+  sla.update(True, False, SPEED_LIMITS['city'], 0, SPEED_LIMITS['residential'], SPEED_LIMITS['city'],
+             SPEED_LIMITS['city'], True, 0, events_sp)
+
+  assert sla.state == SpeedLimitAssistState.preActive
+  assert sla.is_enabled and not sla.is_active

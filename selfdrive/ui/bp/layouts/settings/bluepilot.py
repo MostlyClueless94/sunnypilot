@@ -94,6 +94,7 @@ class BluePilotLayout(Widget):
       ("BPAnimateSteeringWheel", self._animate_steering_wheel),
       ("FordPrefShowRadarLeadOverlay", self._show_ford_radar_overlay),
       ("IntelligentCruiseButtonManagement", self._stock_acc_master),
+      ("SubaruStockAccDevButtonsEnabled", self._stock_acc_dev_buttons_toggle),
       ("CustomAccIncrementsEnabled", self._custom_acc_toggle),
       ("enable_human_turn_detection", self._enable_human_turn_detection),
       ("BlinkerPauseLaneChange", self._disable_lane_change_under_speed),
@@ -331,6 +332,15 @@ class BluePilotLayout(Widget):
     )
     self._stock_acc_master.set_visible(self._show_subaru_stock_acc_controls)
 
+    self._stock_acc_dev_buttons_toggle = toggle_item_sp(
+      title=lambda: tr("Show Onroad Stock ACC Test Buttons"),
+      description=lambda: tr("Temporary Subaru dev tools. Tap sends one stock ACC +/- press, hold sends a continuous stock long press."),
+      param="SubaruStockAccDevButtonsEnabled",
+      callback=self._on_subaru_stock_acc_dev_buttons_toggle,
+      enabled=self._stock_acc_enabled,
+    )
+    self._stock_acc_dev_buttons_toggle.set_visible(self._show_subaru_stock_acc_controls)
+
     self._custom_acc_toggle = toggle_item_sp(
       title=lambda: tr("Custom ACC Speed Increments"),
       description=lambda: tr("Enable custom short and long press increments for stock ACC speed changes."),
@@ -471,6 +481,7 @@ class BluePilotLayout(Widget):
       self._radar_overlay_size_btn,
       self._stock_acc_header,
       self._stock_acc_master,
+      self._stock_acc_dev_buttons_toggle,
       self._stock_acc_speed_limit_mode,
       self._stock_acc_speed_limit_source,
       self._stock_acc_speed_limit_offset_type,
@@ -541,8 +552,15 @@ class BluePilotLayout(Widget):
       self._params.put("SpeedLimitMode", int(SpeedLimitMode.warning))
     if not state and self._safe_get_bool(self._params, "CustomAccIncrementsEnabled"):
       self._params.put_bool("CustomAccIncrementsEnabled", False)
+    if not state:
+      self._params.put("SubaruStockAccDevButtonCommand", 0)
     self._enforce_subaru_stock_acc_constraints()
     self._update_toggles(just_toggled={"IntelligentCruiseButtonManagement": state, "CustomAccIncrementsEnabled": False} if not state else {"IntelligentCruiseButtonManagement": state})
+
+  def _on_subaru_stock_acc_dev_buttons_toggle(self, state: bool):
+    if not state:
+      self._params.put("SubaruStockAccDevButtonCommand", 0)
+    self._update_toggles(just_toggled={"SubaruStockAccDevButtonsEnabled": state})
 
   def _get_subaru_stock_acc_source_description(self):
     status = get_subaru_stock_acc_map_status(self._params)
@@ -611,6 +629,7 @@ class BluePilotLayout(Widget):
       if stock_acc_enabled and maps_ready:
         enabled_speed_limit_modes.add(int(SpeedLimitMode.assist))
 
+      self._stock_acc_dev_buttons_toggle.action_item.set_enabled(stock_acc_enabled)
       self._custom_acc_toggle.action_item.set_enabled(stock_acc_enabled)
       self._custom_acc_short_increment.action_item.set_enabled(stock_acc_enabled and custom_acc_enabled)
       self._custom_acc_long_increment.action_item.set_enabled(stock_acc_enabled and custom_acc_enabled)

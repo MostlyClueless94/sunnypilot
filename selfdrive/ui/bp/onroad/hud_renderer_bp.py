@@ -2,6 +2,7 @@ import pyray as rl
 from openpilot.common.params import Params
 from openpilot.selfdrive.ui.onroad.hud_renderer import UI_CONFIG, FONT_SIZES, COLORS
 from openpilot.selfdrive.ui.sunnypilot.onroad.hud_renderer import HudRendererSP
+from openpilot.selfdrive.ui.bp.onroad.subaru_stock_acc_dev_buttons import SubaruStockAccDevButtons
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.text_measure import measure_text_cached
 from openpilot.selfdrive.ui.bp.lib.ui_debug_logger import bp_ui_log
@@ -25,6 +26,7 @@ class HudRendererBP(HudRendererSP):
     self._brakes_on = False
     self.speed_right = 0
     self._gradient_rect = None  # BluePilot: Full-width rect for header gradient
+    self._stock_acc_dev_buttons = SubaruStockAccDevButtons()
 
   def set_gradient_rect(self, rect: rl.Rectangle):
     """Set full-width rect for header gradient (when HUD renders offset for confidence ball)."""
@@ -70,6 +72,14 @@ class HudRendererBP(HudRendererSP):
     button_x = rect.x + rect.width - UI_CONFIG.border_size - UI_CONFIG.button_size
     button_y = rect.y + UI_CONFIG.border_size
     self._exp_button.render(rl.Rectangle(button_x, button_y, UI_CONFIG.button_size, UI_CONFIG.button_size))
+    dev_button_x = button_x + (UI_CONFIG.button_size - SubaruStockAccDevButtons.BUTTON_SIZE) / 2
+    dev_button_y = button_y + UI_CONFIG.button_size + SubaruStockAccDevButtons.BUTTON_GAP
+    self._stock_acc_dev_buttons.render(rl.Rectangle(
+      dev_button_x,
+      dev_button_y,
+      SubaruStockAccDevButtons.BUTTON_SIZE,
+      SubaruStockAccDevButtons.HEIGHT,
+    ))
 
     # SP additions (dev UI, road name, speed limit, SCC, turn signals, circular alerts, rocket fuel)
     self.developer_ui.render(rect)
@@ -79,6 +89,12 @@ class HudRendererBP(HudRendererSP):
     self.turn_signal_controller.render(rect)
     self.circular_alerts_renderer.render(rect)
     self.rocket_fuel.render(rect, ui_state.sm)
+
+  def user_interacting(self) -> bool:
+    return super().user_interacting() or self._stock_acc_dev_buttons.user_interacting()
+
+  def clear_subaru_stock_acc_dev_command(self) -> None:
+    self._stock_acc_dev_buttons.clear_command()
 
   def _draw_current_speed(self, rect: rl.Rectangle) -> None:
     """Override to add brake status red coloring and track speed_right."""

@@ -14,6 +14,10 @@ from opendbc.car.subaru.values import CAR, OUTBACK_ALPHA_LONG_PHASE, SubaruFlags
 class TestSubaruCarController(unittest.TestCase):
   def setUp(self):
     self._set_custom_acc_params(False, 1, 5)
+    params = Params()
+    params.put_bool("IntelligentCruiseButtonManagement", True)
+    params.put_bool("SubaruStockAccDevButtonsEnabled", False)
+    params.put("SubaruStockAccDevButtonCommand", 0)
 
   @staticmethod
   def _set_custom_acc_params(enabled, short_increment, long_increment):
@@ -624,6 +628,79 @@ class TestSubaruCarController(unittest.TestCase):
     self.assertFalse(controller.icbm_interface.hold_active)
     self.assertEqual(controller.icbm_interface.tap_wait_direction,
                      structs.IntelligentCruiseButtonManagement.SendButtonState.increase)
+
+  def test_icbm_dev_tap_increase_sends_once_and_clears_command(self):
+    controller = self._build_controller()
+    params = Params()
+    params.put_bool("SubaruStockAccDevButtonsEnabled", True)
+    params.put("SubaruStockAccDevButtonCommand", 1)
+    _, _, es_distance_msg = self._build_long_source(counter=16)
+    cs = self._build_icbm_cs(True, es_distance_msg=es_distance_msg)
+    cc = self._build_long_cc(False)
+    cc.enabled = False
+
+    controller.frame = 10
+    _, can_sends = controller.update(cc, SimpleNamespace(), cs, 0)
+
+    self.assertTrue(any(msg[0] == 0x221 for msg in can_sends))
+    self.assertEqual(int(params.get("SubaruStockAccDevButtonCommand", return_default=True) or 0), 0)
+
+  def test_icbm_dev_hold_decrease_continues_until_released(self):
+    controller = self._build_controller()
+    params = Params()
+    params.put_bool("SubaruStockAccDevButtonsEnabled", True)
+    params.put("SubaruStockAccDevButtonCommand", 4)
+    _, _, es_distance_msg = self._build_long_source(counter=17)
+    cs = self._build_icbm_cs(True, es_distance_msg=es_distance_msg)
+    cc = self._build_long_cc(False)
+
+    controller.frame = 10
+    _, first_send = controller.update(cc, SimpleNamespace(), cs, 0)
+    controller.frame = 15
+    _, second_send = controller.update(cc, SimpleNamespace(), cs, 0)
+    params.put("SubaruStockAccDevButtonCommand", 0)
+    controller.frame = 20
+    _, released = controller.update(cc, SimpleNamespace(), cs, 0)
+
+    self.assertTrue(any(msg[0] == 0x221 for msg in first_send))
+    self.assertTrue(any(msg[0] == 0x221 for msg in second_send))
+    self.assertFalse(any(msg[0] == 0x221 for msg in released))
+
+  def test_icbm_dev_manual_button_event_cancels_hold(self):
+    controller = self._build_controller()
+    params = Params()
+    params.put_bool("SubaruStockAccDevButtonsEnabled", True)
+    params.put("SubaruStockAccDevButtonCommand", 3)
+    _, _, es_distance_msg = self._build_long_source(counter=18)
+    cc = self._build_long_cc(False)
+
+    controller.frame = 10
+    _, hold_start = controller.update(cc, SimpleNamespace(), self._build_icbm_cs(True, es_distance_msg=es_distance_msg), 0)
+    controller.frame = 15
+    _, canceled = controller.update(
+      cc,
+      SimpleNamespace(),
+      self._build_icbm_cs(True, es_distance_msg=es_distance_msg, button_events=[SimpleNamespace(pressed=True)]),
+      0,
+    )
+
+    self.assertTrue(any(msg[0] == 0x221 for msg in hold_start))
+    self.assertFalse(any(msg[0] == 0x221 for msg in canceled))
+    self.assertEqual(int(params.get("SubaruStockAccDevButtonCommand", return_default=True) or 0), 0)
+
+  def test_icbm_dev_commands_do_not_send_when_stock_acc_is_not_engaged(self):
+    controller = self._build_controller()
+    params = Params()
+    params.put_bool("SubaruStockAccDevButtonsEnabled", True)
+    params.put("SubaruStockAccDevButtonCommand", 2)
+    _, _, es_distance_msg = self._build_long_source(counter=19)
+    cc = self._build_long_cc(False)
+
+    controller.frame = 10
+    _, can_sends = controller.update(cc, SimpleNamespace(), self._build_icbm_cs(False, es_distance_msg=es_distance_msg), 0)
+
+    self.assertFalse(any(msg[0] == 0x221 for msg in can_sends))
+    self.assertEqual(int(params.get("SubaruStockAccDevButtonCommand", return_default=True) or 0), 0)
 
 
 if __name__ == "__main__":

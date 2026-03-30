@@ -152,6 +152,8 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"CustomAccIncrementsEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"CustomAccLongPressIncrement", {PERSISTENT | BACKUP, INT, "5"}},
     {"CustomAccShortPressIncrement", {PERSISTENT | BACKUP, INT, "1"}},
+    {"SubaruStockAccDevButtonsEnabled", {PERSISTENT | DEVELOPMENT_ONLY | BACKUP, BOOL, "0"}},
+    {"SubaruStockAccDevButtonCommand", {CLEAR_ON_MANAGER_START | CLEAR_ON_ONROAD_TRANSITION | CLEAR_ON_OFFROAD_TRANSITION, INT, "0"}},
     {"DeviceBootMode", {PERSISTENT | BACKUP, INT, "0"}},
     {"DevUIInfo", {PERSISTENT | BACKUP, INT, "0"}},
     {"EnableCopyparty", {PERSISTENT | BACKUP, BOOL}},

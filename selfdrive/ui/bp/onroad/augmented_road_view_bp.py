@@ -75,6 +75,10 @@ class AugmentedRoadViewBP(AugmentedRoadView, BlindspotRendererMixin):
     """BluePilot: Skip MICI fade overlay on TICI — causes unwanted black gradient at bottom."""
     pass
 
+  def hide_event(self):
+    self._hud_renderer.clear_subaru_stock_acc_dev_command()
+    super().hide_event()
+
   def _render(self, rect):
     """Override render to add blindspot, gauges, confidence ball on left."""
     start_draw = time.monotonic()

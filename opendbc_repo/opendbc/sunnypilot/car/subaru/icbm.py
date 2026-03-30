@@ -53,6 +53,12 @@ ICBM_TAP_SETTLE_FRAMES = max(ICBM_BUTTON_MIN_INTERVAL_FRAMES, ICBM_MANUAL_LONG_P
 # Do not allow an unbounded synthetic hold if the cluster never reacts.
 ICBM_HOLD_MAX_FRAMES = ICBM_MANUAL_LONG_PRESS_FRAMES * 6
 
+DEV_BUTTON_COMMAND_NONE = 0
+DEV_BUTTON_COMMAND_TAP_INCREASE = 1
+DEV_BUTTON_COMMAND_TAP_DECREASE = 2
+DEV_BUTTON_COMMAND_HOLD_INCREASE = 3
+DEV_BUTTON_COMMAND_HOLD_DECREASE = 4
+
 
 class IntelligentCruiseButtonManagementInterface(IntelligentCruiseButtonManagementInterfaceBase):
   """
@@ -77,6 +83,8 @@ class IntelligentCruiseButtonManagementInterface(IntelligentCruiseButtonManageme
     self.release_until_frame = 0
 
     self.params = Params()
+    self.icbm_enabled = False
+    self.dev_buttons_enabled = False
     self.custom_acc_enabled = False
     self.short_increment = ICBM_TAP_INCREMENT_MPH
     self.long_increment = ICBM_HOLD_INCREMENT_MPH
@@ -114,9 +122,80 @@ class IntelligentCruiseButtonManagementInterface(IntelligentCruiseButtonManageme
       return
 
     self.custom_acc_enabled = self.params.get_bool("CustomAccIncrementsEnabled")
+    self.icbm_enabled = self.params.get_bool("IntelligentCruiseButtonManagement")
+    self.dev_buttons_enabled = self.params.get_bool("SubaruStockAccDevButtonsEnabled")
     self.short_increment = normalize_custom_short_press_increment(self.params.get("CustomAccShortPressIncrement", return_default=True))
     self.long_increment = normalize_custom_long_press_increment(self.params.get("CustomAccLongPressIncrement", return_default=True))
     self.last_config_refresh_frame = frame
+
+  def _get_dev_button_command(self) -> int:
+    try:
+      return int(self.params.get("SubaruStockAccDevButtonCommand", return_default=True) or DEV_BUTTON_COMMAND_NONE)
+    except (TypeError, ValueError):
+      return DEV_BUTTON_COMMAND_NONE
+
+  def _clear_dev_button_command(self) -> None:
+    self.params.put("SubaruStockAccDevButtonCommand", DEV_BUTTON_COMMAND_NONE)
+
+  @staticmethod
+  def _get_dev_send_button(command: int) -> structs.IntelligentCruiseButtonManagement.SendButtonState:
+    if command in (DEV_BUTTON_COMMAND_TAP_INCREASE, DEV_BUTTON_COMMAND_HOLD_INCREASE):
+      return SendButtonState.increase
+    if command in (DEV_BUTTON_COMMAND_TAP_DECREASE, DEV_BUTTON_COMMAND_HOLD_DECREASE):
+      return SendButtonState.decrease
+    return SendButtonState.none
+
+  @staticmethod
+  def _dev_command_is_hold(command: int) -> bool:
+    return command in (DEV_BUTTON_COMMAND_HOLD_INCREASE, DEV_BUTTON_COMMAND_HOLD_DECREASE)
+
+  def _update_dev_override(
+    self,
+    command: int,
+    packer,
+    frame: int,
+    last_button_frame: int,
+    CS,
+    es_distance_msg,
+  ) -> list[CanData]:
+    send_button = self._get_dev_send_button(command)
+    if send_button == SendButtonState.none:
+      self._clear_dev_button_command()
+      self._reset_state()
+      return []
+
+    if not self.icbm_enabled or not self.dev_buttons_enabled or not CS.out.cruiseState.enabled:
+      self._clear_dev_button_command()
+      self._reset_state()
+      return []
+
+    if self._has_manual_button_event(CS):
+      self._clear_dev_button_command()
+      self._reset_state()
+      carlog.info(f"subaru[{self.CP.carFingerprint}] ICBM: manual input canceled dev button override")
+      return []
+
+    if not es_distance_msg:
+      self._clear_dev_button_command()
+      self._reset_state()
+      carlog.warning(f"subaru[{self.CP.carFingerprint}] ICBM: dev button override missing es_distance_msg")
+      return []
+
+    self._reset_tap_wait()
+
+    if self._dev_command_is_hold(command):
+      if not self.hold_active or self.hold_direction != send_button:
+        self.hold_active = True
+        self.hold_direction = send_button
+        self.hold_start_frame = frame
+      return self._build_button_message(send_button, es_distance_msg, packer, frame, last_button_frame, mode_label="dev-hold")
+
+    self._reset_hold()
+    can_sends = self._build_button_message(send_button, es_distance_msg, packer, frame, last_button_frame, mode_label="dev-tap")
+    if can_sends:
+      self._clear_dev_button_command()
+      self._reset_state()
+    return can_sends
 
   def _get_hold_increment(self) -> int:
     if not self.custom_acc_enabled:
@@ -184,6 +263,7 @@ class IntelligentCruiseButtonManagementInterface(IntelligentCruiseButtonManageme
     packer,
     frame: int,
     last_button_frame: int,
+    mode_label: str | None = None,
   ) -> list[CanData]:
     can_sends: list[CanData] = []
 
@@ -202,7 +282,7 @@ class IntelligentCruiseButtonManagementInterface(IntelligentCruiseButtonManageme
     values["Cruise_Resume"] = 0
     values["Cruise_Cancel"] = 0
 
-    mode = "hold" if self.hold_active else "tap"
+    mode = mode_label or ("hold" if self.hold_active else "tap")
     if send_button == SendButtonState.decrease:
       values["Cruise_Set"] = 1
       carlog.info(f"subaru[{self.CP.carFingerprint}] ICBM: sending Cruise_Set ({mode}) counter={values['COUNTER']}")
@@ -233,13 +313,23 @@ class IntelligentCruiseButtonManagementInterface(IntelligentCruiseButtonManageme
     """
     can_sends: list[CanData] = []
 
-    icbm = CC_SP.intelligentCruiseButtonManagement
-    send_button = icbm.sendButton
     self._refresh_custom_increment_config(frame)
 
     if self.last_update_frame != -1 and (frame - self.last_update_frame) > 1:
       self._reset_state()
     self.last_update_frame = frame
+
+    es_distance_msg = getattr(CS, "es_distance_msg", None)
+    dev_command = self._get_dev_button_command()
+    if dev_command != DEV_BUTTON_COMMAND_NONE:
+      return self._update_dev_override(dev_command, packer, frame, last_button_frame, CS, es_distance_msg)
+
+    icbm = getattr(CC_SP, "intelligentCruiseButtonManagement", None)
+    if icbm is None:
+      self._reset_state()
+      return can_sends
+
+    send_button = icbm.sendButton
 
     if send_button == SendButtonState.none:
       self._reset_state()
@@ -249,7 +339,6 @@ class IntelligentCruiseButtonManagementInterface(IntelligentCruiseButtonManageme
       self._reset_state()
       return can_sends
 
-    es_distance_msg = getattr(CS, "es_distance_msg", None)
     if not es_distance_msg:
       self._reset_state()
       carlog.warning(f"subaru[{self.CP.carFingerprint}] ICBM: es_distance_msg not available, skipping button press")

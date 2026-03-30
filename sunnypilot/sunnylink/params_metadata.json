@@ -254,6 +254,10 @@
     "max": 10,
     "step": 1
   },
+  "SubaruStockAccDevButtonsEnabled": {
+    "title": "Show Onroad Stock ACC Test Buttons",
+    "description": "Temporary Subaru dev tools. Tap sends one stock ACC +/- press and hold sends a continuous synthetic stock long press."
+  },
   "CustomTorqueParams": {
     "title": "Enable Custom Torque Tuning",
     "description": "Enables custom tuning for Torque lateral control"

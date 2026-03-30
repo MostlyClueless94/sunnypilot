@@ -25,6 +25,12 @@ V_CRUISE_MIN = 8
 V_CRUISE_MAX = 145
 V_CRUISE_UNSET = 255
 
+CUSTOM_ACC_LONG_INCREMENT_VALUE_MAP = {
+  1: 1,
+  2: 5,
+  3: 10,
+}
+
 
 def update_manual_button_timers(CS: car.CarState, button_timers: dict[car.CarState.ButtonEvent.Type, int]) -> None:
   # increment timer for buttons still pressed
@@ -38,6 +44,26 @@ def update_manual_button_timers(CS: car.CarState, button_timers: dict[car.CarSta
       button_timers[b.type.raw] = 1 if b.pressed else 0
 
 
+def normalize_custom_short_press_increment(value) -> int:
+  try:
+    value_int = int(value)
+  except (TypeError, ValueError):
+    value_int = 1
+  return int(np.clip(value_int, 1, 10))
+
+
+def normalize_custom_long_press_increment(value) -> int:
+  try:
+    value_int = int(value)
+  except (TypeError, ValueError):
+    value_int = 5
+
+  if value_int in CUSTOM_ACC_LONG_INCREMENT_VALUE_MAP:
+    return CUSTOM_ACC_LONG_INCREMENT_VALUE_MAP[value_int]
+
+  return int(np.clip(value_int, 1, 10))
+
+
 class VCruiseHelperSP:
   def __init__(self, CP: structs.CarParams, CP_SP: structs.CarParamsSP) -> None:
     self.CP = CP
@@ -49,8 +75,8 @@ class VCruiseHelperSP:
     self.enabled_prev = False
 
     self.custom_acc_enabled = self.params.get_bool("CustomAccIncrementsEnabled")
-    self.short_increment = self.params.get("CustomAccShortPressIncrement", return_default=True)
-    self.long_increment = self.params.get("CustomAccLongPressIncrement", return_default=True)
+    self.short_increment = normalize_custom_short_press_increment(self.params.get("CustomAccShortPressIncrement", return_default=True))
+    self.long_increment = normalize_custom_long_press_increment(self.params.get("CustomAccLongPressIncrement", return_default=True))
 
     self.enable_button_timers = CRUISE_BUTTON_TIMER
 
@@ -66,8 +92,8 @@ class VCruiseHelperSP:
 
   def read_custom_set_speed_params(self) -> None:
     self.custom_acc_enabled = self.params.get_bool("CustomAccIncrementsEnabled")
-    self.short_increment = self.params.get("CustomAccShortPressIncrement", return_default=True)
-    self.long_increment = self.params.get("CustomAccLongPressIncrement", return_default=True)
+    self.short_increment = normalize_custom_short_press_increment(self.params.get("CustomAccShortPressIncrement", return_default=True))
+    self.long_increment = normalize_custom_long_press_increment(self.params.get("CustomAccLongPressIncrement", return_default=True))
 
   def update_v_cruise_delta(self, long_press: bool, v_cruise_delta: float) -> tuple[bool, float]:
     if not self.custom_acc_enabled:
@@ -75,8 +101,8 @@ class VCruiseHelperSP:
       return long_press, v_cruise_delta
 
     # Apply user-specified multipliers to the base increment
-    short_increment = np.clip(self.short_increment, 1, 10)
-    long_increment = np.clip(self.long_increment, 1, 10)
+    short_increment = normalize_custom_short_press_increment(self.short_increment)
+    long_increment = normalize_custom_long_press_increment(self.long_increment)
 
     actual_increment = long_increment if long_press else short_increment
     round_to_nearest = actual_increment in (5, 10)

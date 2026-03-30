@@ -101,6 +101,12 @@ class TestCustomAccIncrements(TestVCruiseHelper):
 
     assert self.v_cruise_helper.v_cruise_kph == expected_speed
 
+  @pytest.mark.parametrize(("stored_value", "normalized_value"), ((2, 5), (3, 10)))
+  def test_legacy_long_press_values_normalize_to_actual_increment(self, stored_value, normalized_value):
+    self.set_custom_increments(enabled=True, short_inc=1, long_inc=stored_value)
+
+    assert self.v_cruise_helper.long_increment == normalized_value
+
   @pytest.mark.parametrize("button_type", [ButtonType.accelCruise, ButtonType.decelCruise])
   def test_accel_decel_symmetry(self, button_type):
     """Test that acceleration and deceleration work symmetrically"""

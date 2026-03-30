@@ -28,6 +28,11 @@ from opendbc.car.subaru.values import CanBus, SubaruFlags
 from opendbc.sunnypilot.car.intelligent_cruise_button_management_interface_base import (
   IntelligentCruiseButtonManagementInterfaceBase,
 )
+from openpilot.common.params import Params
+from openpilot.sunnypilot.selfdrive.car.cruise_ext import (
+  normalize_custom_long_press_increment,
+  normalize_custom_short_press_increment,
+)
 
 SendButtonState = structs.IntelligentCruiseButtonManagement.SendButtonState
 
@@ -35,9 +40,11 @@ SendButtonState = structs.IntelligentCruiseButtonManagement.SendButtonState
 ICBM_BUTTON_MIN_INTERVAL = 0.05  # seconds
 ICBM_BUTTON_MIN_INTERVAL_FRAMES = max(1, int(round(ICBM_BUTTON_MIN_INTERVAL / DT_CTRL)))
 ICBM_MANUAL_LONG_PRESS_FRAMES = 50  # match the repo's existing 0.5 s cruise long-press convention
+ICBM_CONFIG_REFRESH_FRAMES = max(1, int(round(0.5 / DT_CTRL)))
 
 # Subaru long-press behavior advances the set speed in larger OEM chunks.
 ICBM_HOLD_INCREMENT_MPH = 5
+ICBM_TAP_INCREMENT_MPH = 1
 MS_TO_MPH = 2.2369362920544
 
 # Single taps should wait for cluster feedback before another synthetic press is sent.
@@ -69,11 +76,19 @@ class IntelligentCruiseButtonManagementInterface(IntelligentCruiseButtonManageme
     self.hold_start_frame = 0
     self.release_until_frame = 0
 
+    self.params = Params()
+    self.custom_acc_enabled = False
+    self.short_increment = ICBM_TAP_INCREMENT_MPH
+    self.long_increment = ICBM_HOLD_INCREMENT_MPH
+    self.last_config_refresh_frame = -ICBM_CONFIG_REFRESH_FRAMES
+
     self.tap_wait_direction = SendButtonState.none
     self.tap_wait_cluster_speed = 0
+    self.tap_target_speed = 0
     self.tap_wait_until_frame = 0
 
     self.last_update_frame = -1
+    self._refresh_custom_increment_config(frame=0, force=True)
 
   def _reset_hold(self) -> None:
     self.hold_active = False
@@ -83,6 +98,7 @@ class IntelligentCruiseButtonManagementInterface(IntelligentCruiseButtonManageme
   def _reset_tap_wait(self) -> None:
     self.tap_wait_direction = SendButtonState.none
     self.tap_wait_cluster_speed = 0
+    self.tap_target_speed = 0
     self.tap_wait_until_frame = 0
 
   def _reset_state(self) -> None:
@@ -93,8 +109,61 @@ class IntelligentCruiseButtonManagementInterface(IntelligentCruiseButtonManageme
   def _get_display_speed(self, speed_ms: float) -> int:
     return round(speed_ms * MS_TO_MPH)
 
+  def _refresh_custom_increment_config(self, frame: int, force: bool = False) -> None:
+    if not force and (frame - self.last_config_refresh_frame) < ICBM_CONFIG_REFRESH_FRAMES:
+      return
+
+    self.custom_acc_enabled = self.params.get_bool("CustomAccIncrementsEnabled")
+    self.short_increment = normalize_custom_short_press_increment(self.params.get("CustomAccShortPressIncrement", return_default=True))
+    self.long_increment = normalize_custom_long_press_increment(self.params.get("CustomAccLongPressIncrement", return_default=True))
+    self.last_config_refresh_frame = frame
+
   def _get_hold_increment(self) -> int:
-    return ICBM_HOLD_INCREMENT_MPH
+    if not self.custom_acc_enabled:
+      return ICBM_HOLD_INCREMENT_MPH
+    return max(1, self.long_increment)
+
+  def _get_tap_increment(self) -> int:
+    if not self.custom_acc_enabled:
+      return ICBM_TAP_INCREMENT_MPH
+    return max(1, self.short_increment)
+
+  @staticmethod
+  def _allow_hold(hold_increment: int) -> bool:
+    return hold_increment > 1
+
+  def _get_tap_target_speed(
+    self,
+    cluster_speed: int,
+    target_speed: int,
+    send_button: structs.IntelligentCruiseButtonManagement.SendButtonState,
+  ) -> int:
+    tap_increment = self._get_tap_increment()
+    if send_button == SendButtonState.increase:
+      return min(target_speed, cluster_speed + tap_increment)
+    if send_button == SendButtonState.decrease:
+      return max(target_speed, cluster_speed - tap_increment)
+    return cluster_speed
+
+  def _clamp_tap_target_speed(
+    self,
+    target_speed: int,
+    send_button: structs.IntelligentCruiseButtonManagement.SendButtonState,
+  ) -> None:
+    if self.tap_target_speed == 0:
+      return
+
+    if send_button == SendButtonState.increase:
+      self.tap_target_speed = min(self.tap_target_speed, target_speed)
+    elif send_button == SendButtonState.decrease:
+      self.tap_target_speed = max(self.tap_target_speed, target_speed)
+
+  def _tap_chunk_complete(self, cluster_speed: int) -> bool:
+    if self.tap_wait_direction == SendButtonState.increase:
+      return cluster_speed >= self.tap_target_speed
+    if self.tap_wait_direction == SendButtonState.decrease:
+      return cluster_speed <= self.tap_target_speed
+    return True
 
   @staticmethod
   def _requested_direction(target_speed: int, cluster_speed: int) -> structs.IntelligentCruiseButtonManagement.SendButtonState:
@@ -166,6 +235,7 @@ class IntelligentCruiseButtonManagementInterface(IntelligentCruiseButtonManageme
 
     icbm = CC_SP.intelligentCruiseButtonManagement
     send_button = icbm.sendButton
+    self._refresh_custom_increment_config(frame)
 
     if self.last_update_frame != -1 and (frame - self.last_update_frame) > 1:
       self._reset_state()
@@ -190,6 +260,7 @@ class IntelligentCruiseButtonManagementInterface(IntelligentCruiseButtonManageme
     requested_direction = self._requested_direction(target_speed, cluster_speed)
     remaining_gap = abs(target_speed - cluster_speed)
     hold_increment = self._get_hold_increment()
+    allow_hold = self._allow_hold(hold_increment)
 
     if requested_direction == SendButtonState.none or requested_direction != send_button:
       self._reset_state()
@@ -203,7 +274,7 @@ class IntelligentCruiseButtonManagementInterface(IntelligentCruiseButtonManageme
         self._reset_state()
         return can_sends
 
-      if remaining_gap < hold_increment:
+      if not allow_hold or remaining_gap < hold_increment:
         self._reset_hold()
         self.release_until_frame = frame + ICBM_BUTTON_MIN_INTERVAL_FRAMES
         carlog.info(f"subaru[{self.CP.carFingerprint}] ICBM: releasing hold for cleanup target={target_speed} cluster={cluster_speed}")
@@ -218,21 +289,33 @@ class IntelligentCruiseButtonManagementInterface(IntelligentCruiseButtonManageme
       return self._build_button_message(send_button, es_distance_msg, packer, frame, last_button_frame)
 
     if self.tap_wait_direction != SendButtonState.none:
-      cluster_updated = cluster_speed != self.tap_wait_cluster_speed
+      self._clamp_tap_target_speed(target_speed, send_button)
       direction_changed = send_button != self.tap_wait_direction
+      cluster_updated = cluster_speed != self.tap_wait_cluster_speed
       tap_wait_expired = frame >= self.tap_wait_until_frame
-      if cluster_updated or direction_changed or tap_wait_expired:
+      if direction_changed:
         self._reset_tap_wait()
-      else:
+      elif cluster_updated:
+        self.tap_wait_cluster_speed = cluster_speed
+        if self._tap_chunk_complete(cluster_speed) or requested_direction == SendButtonState.none:
+          self._reset_tap_wait()
+      elif not tap_wait_expired:
         return can_sends
+      else:
+        self._reset_tap_wait()
 
-    if remaining_gap >= hold_increment:
+    if allow_hold and remaining_gap >= hold_increment:
       self._reset_tap_wait()
       self.hold_active = True
       self.hold_direction = send_button
       self.hold_start_frame = frame
       carlog.info(f"subaru[{self.CP.carFingerprint}] ICBM: entering hold target={target_speed} cluster={cluster_speed}")
       return self._build_button_message(send_button, es_distance_msg, packer, frame, last_button_frame)
+
+    if self.tap_wait_direction != send_button or self.tap_target_speed == 0:
+      self.tap_target_speed = self._get_tap_target_speed(cluster_speed, target_speed, send_button)
+    else:
+      self._clamp_tap_target_speed(target_speed, send_button)
 
     can_sends = self._build_button_message(send_button, es_distance_msg, packer, frame, last_button_frame)
     if can_sends:

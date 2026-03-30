@@ -19,6 +19,7 @@ from openpilot.system.ui.widgets.label import UnifiedLabel
 from openpilot.system.ui.widgets import DialogResult
 from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog
 from openpilot.selfdrive.ui.bp.mici.widgets.preferred_network_select import PreferredNetworkSelectMici
+from openpilot.sunnypilot.selfdrive.car.cruise_ext import normalize_custom_long_press_increment
 
 class BluePilotLayoutMici(NavWidget):
   @staticmethod
@@ -254,11 +255,17 @@ class BluePilotLayoutMici(NavWidget):
     self._update_buttons()
 
   def _get_custom_acc_long_increment_label(self) -> str:
-    return {1: "1", 2: "5", 3: "10"}.get(self._get_int_param("CustomAccLongPressIncrement", 2), "5")
+    current = self._get_int_param("CustomAccLongPressIncrement", 5)
+    return {1: "1", 2: "5", 3: "10", 5: "5", 10: "10"}.get(current, str(normalize_custom_long_press_increment(current)))
 
   def _cycle_custom_acc_long_increment(self):
-    current = self._get_int_param("CustomAccLongPressIncrement", 2)
-    next_value = 1 if current >= 3 else current + 1
+    values = [1, 5, 10]
+    current = normalize_custom_long_press_increment(self._get_int_param("CustomAccLongPressIncrement", 5))
+    try:
+      current_index = values.index(current)
+    except ValueError:
+      current_index = 1
+    next_value = values[(current_index + 1) % len(values)]
     self._params.put("CustomAccLongPressIncrement", next_value)
     self.custom_acc_long_increment.set_value(self._get_custom_acc_long_increment_label())
     self._update_buttons()

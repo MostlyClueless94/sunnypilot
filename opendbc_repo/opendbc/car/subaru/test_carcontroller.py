@@ -12,6 +12,16 @@ from opendbc.car.subaru.values import CAR, OUTBACK_ALPHA_LONG_PHASE, SubaruFlags
 
 
 class TestSubaruCarController(unittest.TestCase):
+  def setUp(self):
+    self._set_custom_acc_params(False, 1, 5)
+
+  @staticmethod
+  def _set_custom_acc_params(enabled, short_increment, long_increment):
+    params = Params()
+    params.put_bool("CustomAccIncrementsEnabled", enabled)
+    params.put("CustomAccShortPressIncrement", short_increment)
+    params.put("CustomAccLongPressIncrement", long_increment)
+
   def test_subaru_import_smoke(self):
     self.assertIsNotNone(CarInterface)
     self.assertIsNotNone(CarController)
@@ -531,6 +541,89 @@ class TestSubaruCarController(unittest.TestCase):
 
     self.assertTrue(any(msg[0] == 0x221 for msg in hold_start))
     self.assertFalse(any(msg[0] == 0x221 for msg in canceled))
+
+  def test_icbm_custom_increments_disabled_preserves_fixed_oem_behavior(self):
+    Params().put_bool("IsMetric", False)
+    self._set_custom_acc_params(False, 3, 10)
+    controller = self._build_controller()
+    _, _, es_distance_msg = self._build_long_source(counter=12)
+    cs = self._build_icbm_cs(True, cluster_speed=30, es_distance_msg=es_distance_msg)
+    cc = self._build_long_cc(False)
+    cc_sp = self._build_icbm_cc_sp(structs.IntelligentCruiseButtonManagement.SendButtonState.increase, 35)
+
+    controller.frame = 10
+    _, first_send = controller.update(cc, cc_sp, cs, 0)
+    controller.frame = 15
+    _, second_send = controller.update(cc, cc_sp, cs, 0)
+
+    self.assertEqual(controller.icbm_interface._get_hold_increment(), 5)
+    self.assertEqual(controller.icbm_interface._get_tap_increment(), 1)
+    self.assertTrue(any(msg[0] == 0x221 for msg in first_send))
+    self.assertTrue(any(msg[0] == 0x221 for msg in second_send))
+
+  def test_icbm_custom_long_increment_10_releases_hold_below_custom_threshold(self):
+    Params().put_bool("IsMetric", False)
+    self._set_custom_acc_params(True, 1, 10)
+    controller = self._build_controller()
+    _, _, es_distance_msg = self._build_long_source(counter=13)
+    cc = self._build_long_cc(False)
+    cc_sp = self._build_icbm_cc_sp(structs.IntelligentCruiseButtonManagement.SendButtonState.increase, 55)
+
+    controller.frame = 10
+    _, hold_start = controller.update(cc, cc_sp, self._build_icbm_cs(True, cluster_speed=30, es_distance_msg=es_distance_msg), 0)
+    controller.frame = 15
+    _, hold_continue = controller.update(cc, cc_sp, self._build_icbm_cs(True, cluster_speed=40, es_distance_msg=es_distance_msg), 0)
+    controller.frame = 20
+    _, release_gap = controller.update(cc, cc_sp, self._build_icbm_cs(True, cluster_speed=50, es_distance_msg=es_distance_msg), 0)
+
+    self.assertEqual(controller.icbm_interface._get_hold_increment(), 10)
+    self.assertTrue(any(msg[0] == 0x221 for msg in hold_start))
+    self.assertTrue(any(msg[0] == 0x221 for msg in hold_continue))
+    self.assertFalse(any(msg[0] == 0x221 for msg in release_gap))
+    self.assertFalse(controller.icbm_interface.hold_active)
+
+  def test_icbm_custom_short_increment_chunks_cleanup_without_overshoot(self):
+    Params().put_bool("IsMetric", False)
+    self._set_custom_acc_params(True, 3, 10)
+    controller = self._build_controller()
+    _, _, es_distance_msg = self._build_long_source(counter=14)
+    cc = self._build_long_cc(False)
+    cc_sp = self._build_icbm_cc_sp(structs.IntelligentCruiseButtonManagement.SendButtonState.increase, 34)
+
+    controller.frame = 10
+    _, first_send = controller.update(cc, cc_sp, self._build_icbm_cs(True, cluster_speed=30, es_distance_msg=es_distance_msg), 0)
+    first_target = controller.icbm_interface.tap_target_speed
+
+    controller.frame = 15
+    _, second_send = controller.update(cc, cc_sp, self._build_icbm_cs(True, cluster_speed=31, es_distance_msg=es_distance_msg), 0)
+    second_target = controller.icbm_interface.tap_target_speed
+
+    controller.frame = 20
+    _, final_chunk_send = controller.update(cc, cc_sp, self._build_icbm_cs(True, cluster_speed=33, es_distance_msg=es_distance_msg), 0)
+    final_target = controller.icbm_interface.tap_target_speed
+
+    self.assertTrue(any(msg[0] == 0x221 for msg in first_send))
+    self.assertTrue(any(msg[0] == 0x221 for msg in second_send))
+    self.assertTrue(any(msg[0] == 0x221 for msg in final_chunk_send))
+    self.assertEqual(first_target, 33)
+    self.assertEqual(second_target, 33)
+    self.assertEqual(final_target, 34)
+
+  def test_icbm_custom_long_increment_one_falls_back_to_tap_only(self):
+    Params().put_bool("IsMetric", False)
+    self._set_custom_acc_params(True, 1, 1)
+    controller = self._build_controller()
+    _, _, es_distance_msg = self._build_long_source(counter=15)
+    cc = self._build_long_cc(False)
+    cc_sp = self._build_icbm_cc_sp(structs.IntelligentCruiseButtonManagement.SendButtonState.increase, 35)
+
+    controller.frame = 10
+    _, first_send = controller.update(cc, cc_sp, self._build_icbm_cs(True, cluster_speed=30, es_distance_msg=es_distance_msg), 0)
+
+    self.assertTrue(any(msg[0] == 0x221 for msg in first_send))
+    self.assertFalse(controller.icbm_interface.hold_active)
+    self.assertEqual(controller.icbm_interface.tap_wait_direction,
+                     structs.IntelligentCruiseButtonManagement.SendButtonState.increase)
 
 
 if __name__ == "__main__":

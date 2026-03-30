@@ -16,6 +16,7 @@ from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.lib.wifi_manager import WifiManager, Network
 from openpilot.system.ui.sunnypilot.widgets.list_view import button_item_sp, multiple_button_item_sp, option_item_sp, toggle_item_sp
+from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import CUSTOM_MODEL_PATH_COLOR_LABELS
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.selfdrive.ui.bp.widgets.float_control_item import float_control_item
 from openpilot.selfdrive.ui.bp.widgets.section_header import SectionHeader
@@ -119,7 +120,7 @@ class BluePilotLayout(Widget):
     # Brake status toggle
     self._show_brake_status = toggle_item(
       lambda: tr("Show Brake Status"),
-      lambda: tr("Display speed setpoint in red when vehicle is braking."),
+      lambda: tr("Display current speed in red when vehicle is braking."),
       initial_state=self._safe_get_bool(self._params, "ShowBrakeStatus"),
       callback=lambda state: self._toggle_callback(state, "ShowBrakeStatus"),
       icon="warning.png"
@@ -150,6 +151,18 @@ class BluePilotLayout(Widget):
       initial_state=self._safe_get_bool(self._params, "BPAnimateSteeringWheel"),
       callback=lambda state: self._toggle_callback(state, "BPAnimateSteeringWheel"),
       icon="chffr_wheel.png"
+    )
+
+    self._custom_model_path_color = multiple_button_item_sp(
+      title=lambda: tr("Custom Model Path Color"),
+      description=lambda: tr("Use SubiPilot preset colors for the driving path overlay. "
+                             "Lane lines and road edges follow the selected color family. "
+                             "Stock keeps the current path behavior. "
+                             "When a preset is selected, it overrides Rainbow Mode."),
+      buttons=[lambda label=label: tr(label) for label in CUSTOM_MODEL_PATH_COLOR_LABELS],
+      param="CustomModelPathColor",
+      button_width=160,
+      inline=False,
     )
 
     # Lead overlay toggle
@@ -453,6 +466,7 @@ class BluePilotLayout(Widget):
       self._show_brake_status,
       self._show_confidence_ball,
       self._animate_steering_wheel,
+      self._custom_model_path_color,
       self._show_ford_radar_overlay,
       self._radar_overlay_size_btn,
       self._stock_acc_header,
@@ -573,6 +587,8 @@ class BluePilotLayout(Widget):
     except (TypeError, ValueError):
       overlay_idx = 1
     self._radar_overlay_size_btn.action_item.set_selected_button(overlay_idx)
+    selected_color = max(0, min(self._get_int_param("CustomModelPathColor", 0), len(CUSTOM_MODEL_PATH_COLOR_LABELS) - 1))
+    self._custom_model_path_color.action_item.set_selected_button(selected_color)
     # Use just_toggled for params we just wrote to avoid update_params refresh race
     lane_pos = fresh.get("enable_lane_positioning") if "enable_lane_positioning" in fresh else self._safe_get_bool(ui_state.params, "enable_lane_positioning")
     custom_prof = fresh.get("custom_profile") if "custom_profile" in fresh else self._safe_get_bool(ui_state.params, "custom_profile")

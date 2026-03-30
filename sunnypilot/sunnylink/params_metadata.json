@@ -1447,8 +1447,8 @@
     ]
   },
   "ShowBrakeStatus": {
-    "title": "SubiPilot: Show Brake Light Status",
-    "description": "Displays Brake light indication"
+    "title": "SubiPilot: Show Brake Status",
+    "description": "Displays current speed in red when the vehicle is braking."
   },
   "enable_human_turn_detection": {
     "title": "SubiPilot: Enable Human Turn Detection",

@@ -2,6 +2,7 @@ import pyray as rl
 from collections.abc import Callable
 
 from openpilot.system.ui.widgets.scroller import Scroller
+from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.common import Mode as SpeedLimitMode, OffsetType as SpeedLimitOffsetType, Policy as SpeedLimitPolicy
 from openpilot.selfdrive.ui.bp.mici.widgets.button_bp import BigButtonBP, BigParamControlBP, BigMultiToggleBP, BigMultiParamToggleBP
 from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import CUSTOM_MODEL_PATH_COLOR_LABELS
 from openpilot.selfdrive.ui.bp.mici.widgets.floatbutton import BigParamFloatControl, BigParamIntControl
@@ -38,6 +39,12 @@ class BluePilotLayoutMici(NavWidget):
   def _show_lateral_section_frame(cls) -> bool:
     return cls._get_active_brand() != "subaru"
 
+  @classmethod
+  def _show_subaru_stock_acc_controls(cls) -> bool:
+    return cls._get_active_brand() == "subaru" and bool(
+      ui_state.CP_SP is not None and ui_state.CP_SP.intelligentCruiseButtonManagementAvailable
+    )
+
   def __init__(self, back_callback: Callable):
     super().__init__()
     self.set_back_callback(back_callback)
@@ -67,6 +74,15 @@ class BluePilotLayoutMici(NavWidget):
     self.show_blindspot_ui = BigParamControlBP("show blindspot overlay", "ShowBlindspotOverlay")
     self.rainbow_mode = BigParamControlBP("rainbow mode", "RainbowMode")
     self.custom_model_path_color = BigMultiParamToggleBP("custom model path color", "CustomModelPathColor", CUSTOM_MODEL_PATH_COLOR_LABELS)
+    self.stock_acc_master = BigParamControlBP("allow SubiPilot to control stock ACC", "IntelligentCruiseButtonManagement", toggle_callback=self._on_stock_acc_toggle)
+    self.custom_acc_toggle = BigParamControlBP("custom ACC speed increments", "CustomAccIncrementsEnabled", toggle_callback=lambda _state: self._update_buttons())
+    self.custom_acc_short_increment = BigParamIntControl("short press increment", "CustomAccShortPressIncrement", min=1, max=10, step=1)
+    self.custom_acc_long_increment = BigButtonBP("long press increment", "")
+    self.custom_acc_long_increment.set_click_callback(self._cycle_custom_acc_long_increment)
+    self.stock_acc_speed_limit_mode = BigMultiParamToggleBP("speed limit", "SpeedLimitMode", ["off", "info", "warning", "assist"])
+    self.stock_acc_speed_limit_source = BigButtonBP("speed limit source", tr("map only"))
+    self.stock_acc_speed_limit_offset_type = BigMultiParamToggleBP("speed limit offset", "SpeedLimitOffsetType", ["none", "fixed", "%"])
+    self.stock_acc_speed_limit_offset_value = BigParamIntControl("speed limit offset value", "SpeedLimitValueOffset", min=-30, max=30, step=1)
     self.enable_human_turn_detection = BigParamControlBP("enable human turn detection", "enable_human_turn_detection")
     self.lane_change_factor_high = BigParamFloatControl("lane change factor high", "lane_change_factor_high", min=0.5, max=1.0)
     self.enable_lane_positioning = BigParamControlBP("enable lane positioning", "enable_lane_positioning", tint=rl.GREEN)
@@ -117,6 +133,20 @@ class BluePilotLayoutMici(NavWidget):
     for item in advanced_lateral_items:
       item.set_visible(self._show_advanced_lateral_tuning)
 
+    subaru_stock_acc_items = (
+      self.stock_acc_master,
+      self.custom_acc_toggle,
+      self.custom_acc_short_increment,
+      self.custom_acc_long_increment,
+      self.stock_acc_speed_limit_mode,
+      self.stock_acc_speed_limit_source,
+      self.stock_acc_speed_limit_offset_type,
+      self.stock_acc_speed_limit_offset_value,
+    )
+    for item in subaru_stock_acc_items:
+      item.set_visible(self._show_subaru_stock_acc_controls)
+    self.stock_acc_speed_limit_source.set_enabled(False)
+
     #self.charging_btn = BigButton("charging", "", "icons_mici/settings/charge_icon.png")
     #self.charging_btn.set_click_callback(lambda: self._show_charging_view())
 
@@ -130,6 +160,14 @@ class BluePilotLayoutMici(NavWidget):
       self.show_blindspot_ui,
       self.rainbow_mode,
       self.custom_model_path_color,
+      self.stock_acc_master,
+      self.custom_acc_toggle,
+      self.custom_acc_short_increment,
+      self.custom_acc_long_increment,
+      self.stock_acc_speed_limit_mode,
+      self.stock_acc_speed_limit_source,
+      self.stock_acc_speed_limit_offset_type,
+      self.stock_acc_speed_limit_offset_value,
       self.lateral_warning,
       self.enable_human_turn_detection,
       self.lane_change_factor_high,
@@ -156,6 +194,8 @@ class BluePilotLayoutMici(NavWidget):
       ("ShowBrakeStatus", self.show_brake_status),
       ("ShowBlindspotOverlay", self.show_blindspot_ui),
       ("RainbowMode", self.rainbow_mode),
+      ("IntelligentCruiseButtonManagement", self.stock_acc_master),
+      ("CustomAccIncrementsEnabled", self.custom_acc_toggle),
       ("enable_human_turn_detection", self.enable_human_turn_detection),
       ("BlinkerPauseLaneChange", self.disable_lane_change_under_speed),
       ("enable_lane_positioning", self.enable_lane_positioning),
@@ -168,6 +208,49 @@ class BluePilotLayoutMici(NavWidget):
     )
 
     ui_state.add_offroad_transition_callback(self._update_toggles)
+
+  def _get_int_param(self, param: str, default: int) -> int:
+    try:
+      return int(self._params.get(param, return_default=True))
+    except (TypeError, ValueError):
+      return default
+
+  def _stock_acc_enabled(self) -> bool:
+    return self._show_subaru_stock_acc_controls() and self._params.get_bool("IntelligentCruiseButtonManagement")
+
+  def _custom_acc_enabled(self) -> bool:
+    return self._stock_acc_enabled() and self._params.get_bool("CustomAccIncrementsEnabled")
+
+  def _enforce_subaru_stock_acc_constraints(self):
+    if not self._show_subaru_stock_acc_controls():
+      return
+
+    if self._get_int_param("SpeedLimitPolicy", int(SpeedLimitPolicy.map_data_only)) != int(SpeedLimitPolicy.map_data_only):
+      self._params.put("SpeedLimitPolicy", int(SpeedLimitPolicy.map_data_only))
+
+    if not self._stock_acc_enabled():
+      if self._get_int_param("SpeedLimitMode", int(SpeedLimitMode.warning)) == int(SpeedLimitMode.assist):
+        self._params.put("SpeedLimitMode", int(SpeedLimitMode.warning))
+      if self._params.get_bool("CustomAccIncrementsEnabled"):
+        self._params.put_bool("CustomAccIncrementsEnabled", False)
+
+  def _on_stock_acc_toggle(self, enabled: bool):
+    if not enabled and self._get_int_param("SpeedLimitMode", int(SpeedLimitMode.warning)) == int(SpeedLimitMode.assist):
+      self._params.put("SpeedLimitMode", int(SpeedLimitMode.warning))
+    if not enabled and self._params.get_bool("CustomAccIncrementsEnabled"):
+      self._params.put_bool("CustomAccIncrementsEnabled", False)
+    self._enforce_subaru_stock_acc_constraints()
+    self._update_buttons()
+
+  def _get_custom_acc_long_increment_label(self) -> str:
+    return {1: "1", 2: "5", 3: "10"}.get(self._get_int_param("CustomAccLongPressIncrement", 2), "5")
+
+  def _cycle_custom_acc_long_increment(self):
+    current = self._get_int_param("CustomAccLongPressIncrement", 2)
+    next_value = 1 if current >= 3 else current + 1
+    self._params.put("CustomAccLongPressIncrement", next_value)
+    self.custom_acc_long_increment.set_value(self._get_custom_acc_long_increment_label())
+    self._update_buttons()
 
   # def _show_charging_view(self):
   #   dlg = BigChargingDialog()
@@ -229,11 +312,16 @@ class BluePilotLayoutMici(NavWidget):
     super()._update_state()
     self.show_lead_vehicle._load_value()
     self.custom_model_path_color._load_value()
+    self.stock_acc_speed_limit_mode._load_value()
+    self.stock_acc_speed_limit_offset_type._load_value()
+    self.stock_acc_master.refresh()
+    self.custom_acc_toggle.refresh()
     # Refresh dependent control enabled state (e.g. after toggling enable_lane_positioning)
     self._update_buttons()
 
   def _update_buttons(self):
     """Update button enabled state based on server status and parameter dependencies (see MICI_MENU.csv)."""
+    self._enforce_subaru_stock_acc_constraints()
     ui_state.update_params()
     p = self._params
 
@@ -256,6 +344,31 @@ class BluePilotLayoutMici(NavWidget):
     # Preferred WiFi Network: enable when saved networks exist, refresh display value
     self.preferred_network_btn.set_enabled(len(self._saved_networks) > 0)
     self.preferred_network_btn.set_value(self._get_preferred_network_display())
+
+    show_stock_acc = self._show_subaru_stock_acc_controls()
+    stock_acc_enabled = self._stock_acc_enabled()
+    custom_acc_enabled = self._custom_acc_enabled()
+    offset_type = self._get_int_param("SpeedLimitOffsetType", int(SpeedLimitOffsetType.off))
+
+    self.stock_acc_master.set_visible(show_stock_acc)
+    self.custom_acc_toggle.set_visible(show_stock_acc)
+    self.custom_acc_short_increment.set_visible(show_stock_acc)
+    self.custom_acc_long_increment.set_visible(show_stock_acc)
+    self.stock_acc_speed_limit_mode.set_visible(show_stock_acc)
+    self.stock_acc_speed_limit_source.set_visible(show_stock_acc)
+    self.stock_acc_speed_limit_offset_type.set_visible(show_stock_acc)
+    self.stock_acc_speed_limit_offset_value.set_visible(show_stock_acc)
+
+    self.custom_acc_toggle.set_enabled(stock_acc_enabled)
+    self.custom_acc_short_increment.set_enabled(custom_acc_enabled)
+    self.custom_acc_long_increment.set_enabled(custom_acc_enabled)
+    self.stock_acc_speed_limit_offset_value.set_enabled(show_stock_acc and offset_type != int(SpeedLimitOffsetType.off))
+    self.custom_acc_long_increment.set_value(self._get_custom_acc_long_increment_label())
+    self.stock_acc_speed_limit_source.set_value(tr("map only"))
+
+    if not stock_acc_enabled and self._get_int_param("SpeedLimitMode", int(SpeedLimitMode.warning)) == int(SpeedLimitMode.assist):
+      self._params.put("SpeedLimitMode", int(SpeedLimitMode.warning))
+      self.stock_acc_speed_limit_mode._load_value()
 
   def _on_network_updated(self, networks: list[Network]):
     """Update saved networks list when WiFi networks are updated (callback from WifiManager)."""

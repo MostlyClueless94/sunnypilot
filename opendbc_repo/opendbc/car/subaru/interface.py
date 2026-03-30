@@ -108,10 +108,10 @@ class CarInterface(CarInterfaceBase):
     if not stock_cp.flags & (SubaruFlags.GLOBAL_GEN2 | SubaruFlags.HYBRID):
       stock_cp.autoResumeSng = True
 
-    # Enable ICBM (map-based stock ACC set-speed automation) on modern angle-LKAS Gen2 platforms.
-    # Only on non-release builds until fully validated. Works with stock ACC (openpilot long off).
+    # Enable ICBM (map-based stock ACC set-speed automation) only on the validated Outback path
+    # for now. This works with stock ACC only (openpilot long off).
     ret.intelligentCruiseButtonManagementAvailable = (
-      candidate in (CAR.SUBARU_OUTBACK_2023, CAR.SUBARU_ASCENT_2023, CAR.SUBARU_CROSSTREK_2025)
+      candidate == CAR.SUBARU_OUTBACK_2023
       and not bool(stock_cp.flags & SubaruFlags.HYBRID)
       and not is_release_sp
     )

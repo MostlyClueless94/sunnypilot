@@ -7,7 +7,6 @@ from opendbc.car.structs import CarParams
 from opendbc.safety.tests.libsafety import libsafety_py
 import opendbc.safety.tests.common as common
 from opendbc.safety.tests.common import CANPackerSafety
-from functools import partial
 
 
 class SubaruMsg(enum.IntEnum):
@@ -124,14 +123,29 @@ class TestSubaruSafetyBase(common.CarSafetyTest):
 
 
 class TestSubaruStockLongitudinalSafetyBase(TestSubaruSafetyBase):
-  def _cancel_msg(self, cancel, cruise_throttle=0):
-    values = {"Cruise_Cancel": cancel, "Cruise_Throttle": cruise_throttle}
+  def _stock_button_msg(self, cancel=False, set_speed=False, resume=False, cruise_throttle=0):
+    values = {
+      "Cruise_Cancel": cancel,
+      "Cruise_Set": set_speed,
+      "Cruise_Resume": resume,
+      "Cruise_Throttle": cruise_throttle,
+    }
     return self.packer.make_can_msg_safety("ES_Distance", self.ALT_MAIN_BUS, values)
 
-  def test_cancel_message(self):
-    # test that we can only send the cancel message (ES_Distance) with inactive throttle (1818) and Cruise_Cancel=1
-    for cancel in [True, False]:
-      self._generic_limit_safety_check(partial(self._cancel_msg, cancel), self.INACTIVE_GAS, self.INACTIVE_GAS, 0, 2**12, 1, self.INACTIVE_GAS, cancel)
+  def test_stock_button_messages_require_inactive_throttle(self):
+    for kwargs in (
+      {"cancel": True},
+      {"set_speed": True},
+      {"resume": True},
+    ):
+      self.assertTrue(self._tx(self._stock_button_msg(cruise_throttle=self.INACTIVE_GAS, **kwargs)))
+      self.assertFalse(self._tx(self._stock_button_msg(cruise_throttle=self.INACTIVE_GAS - 1, **kwargs)))
+
+  def test_only_one_stock_button_message_is_allowed(self):
+    self.assertFalse(self._tx(self._stock_button_msg()))
+    self.assertFalse(self._tx(self._stock_button_msg(cancel=True, set_speed=True, cruise_throttle=self.INACTIVE_GAS)))
+    self.assertFalse(self._tx(self._stock_button_msg(cancel=True, resume=True, cruise_throttle=self.INACTIVE_GAS)))
+    self.assertFalse(self._tx(self._stock_button_msg(set_speed=True, resume=True, cruise_throttle=self.INACTIVE_GAS)))
 
 
 class TestSubaruLongitudinalSafetyBase(TestSubaruSafetyBase, common.LongitudinalGasBrakeSafetyTest):

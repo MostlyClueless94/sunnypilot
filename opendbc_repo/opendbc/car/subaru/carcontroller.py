@@ -412,10 +412,10 @@ class CarController(CarControllerBase, SnGCarController):
             can_sends.append(subarucan.create_es_distance(self.packer, CS.es_distance_msg["COUNTER"] + 1, CS.es_distance_msg, bus, pcm_cancel_cmd))
 
         # ICBM: map-based stock ACC set-speed automation via button emulation in ES_Distance.
-        # Fires only when openpilot long is off, ACC is available, and ICBM requests a button.
+        # Fires only when openpilot long is off, ACC is actively engaged, and ICBM requests a button.
         if (self._icbm_available
             and self.icbm_interface is not None
-            and CS.out.cruiseState.available
+            and CS.out.cruiseState.enabled
             and not (self.CP.flags & SubaruFlags.HYBRID)):
           icbm_sends = self.icbm_interface.update(CC_SP, self.packer, self.frame, self.icbm_last_button_frame, CS)
           if icbm_sends:

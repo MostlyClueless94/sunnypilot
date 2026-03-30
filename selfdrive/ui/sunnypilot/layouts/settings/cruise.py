@@ -32,6 +32,18 @@ ONROAD_ONLY_DESCRIPTION = tr_noop("Start the vehicle to check vehicle compatibil
 
 
 class CruiseLayout(Widget):
+  @staticmethod
+  def _get_active_brand() -> str:
+    if (bundle := ui_state.params.get("CarPlatformBundle")) and hasattr(bundle, "get"):
+      return str(bundle.get("brand", "")).lower()
+    if ui_state.CP is not None and ui_state.CP.carFingerprint != "MOCK":
+      return str(ui_state.CP.brand).lower()
+    return ""
+
+  @classmethod
+  def _show_cruise_stock_acc_controls(cls) -> bool:
+    return cls._get_active_brand() != "subaru"
+
   def __init__(self):
     super().__init__()
     self._current_panel = PanelType.CRUISE
@@ -86,6 +98,12 @@ class CruiseLayout(Widget):
       title=tr("Enable Dynamic Experimental Control"),
       description=tr("Enable toggle to allow the model to determine when to use sunnypilot ACC or sunnypilot End to End Longitudinal."),
       param="DynamicExperimentalControl")
+
+    self.icbm_toggle.set_visible(self._show_cruise_stock_acc_controls)
+    self.custom_acc_toggle.set_visible(self._show_cruise_stock_acc_controls)
+    self.custom_acc_short_increment.set_visible(self._show_cruise_stock_acc_controls)
+    self.custom_acc_long_increment.set_visible(self._show_cruise_stock_acc_controls)
+    self.sla_settings_button.set_visible(self._show_cruise_stock_acc_controls)
 
     items = [
       self.icbm_toggle,
@@ -187,7 +205,8 @@ class CruiseLayout(Widget):
     self._on_custom_acc_toggle(self.custom_acc_toggle.action_item.get_state())
 
   def _on_custom_acc_toggle(self, state):
-    self.custom_acc_short_increment.set_visible(state)
-    self.custom_acc_long_increment.set_visible(state)
+    visible = self._show_cruise_stock_acc_controls() and state
+    self.custom_acc_short_increment.set_visible(visible)
+    self.custom_acc_long_increment.set_visible(visible)
     self.custom_acc_short_increment.action_item.set_enabled(self.custom_acc_toggle.action_item.enabled)
     self.custom_acc_long_increment.action_item.set_enabled(self.custom_acc_toggle.action_item.enabled)

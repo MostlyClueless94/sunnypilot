@@ -231,14 +231,17 @@ static bool subaru_tx_hook(const CANPacket_t *msg) {
   if (msg->addr == MSG_SUBARU_ES_Distance) {
     int cruise_throttle = (GET_BYTES(msg, 2, 2) & 0x1FFFU);
     bool cruise_cancel = (msg->data[7] >> 0) & 1U;
+    bool cruise_set = (msg->data[7] >> 1) & 1U;
+    bool cruise_resume = (msg->data[7] >> 2) & 1U;
+    uint8_t stock_button_count = (uint8_t)cruise_cancel + (uint8_t)cruise_set + (uint8_t)cruise_resume;
 
     if (subaru_longitudinal) {
       violation |= longitudinal_gas_checks(cruise_throttle, SUBARU_LONG_LIMITS);
     } else {
-      // If openpilot is not controlling long, only allow ES_Distance for cruise cancel requests,
-      // (when Cruise_Cancel is true, and Cruise_Throttle is inactive)
+      // If openpilot is not controlling long, only allow a single stock ACC button request
+      // (cancel, set, or resume) with inactive throttle.
       violation |= (cruise_throttle != SUBARU_LONG_LIMITS.inactive_gas);
-      violation |= (!cruise_cancel);
+      violation |= (stock_button_count != 1U);
     }
   }
 

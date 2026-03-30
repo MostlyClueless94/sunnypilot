@@ -151,6 +151,30 @@ class TestSubaruCarController(unittest.TestCase):
       cruiseControl=SimpleNamespace(cancel=cancel),
     )
 
+  @staticmethod
+  def _build_icbm_cc_sp(send_button):
+    return SimpleNamespace(
+      intelligentCruiseButtonManagement=SimpleNamespace(sendButton=send_button),
+    )
+
+  @staticmethod
+  def _build_icbm_cs(cruise_enabled, es_distance_msg=None):
+    return SimpleNamespace(
+      out=SimpleNamespace(
+        vEgoRaw=12.0,
+        steeringAngleDeg=0.0,
+        gearShifter=structs.CarState.GearShifter.drive,
+        standstill=False,
+        steeringPressed=False,
+        steeringTorque=0,
+        steeringRateDeg=0,
+        cruiseState=SimpleNamespace(available=True, enabled=cruise_enabled),
+      ),
+      es_distance_msg=es_distance_msg or {},
+      es_dashstatus_msg={},
+      es_lkas_state_msg={},
+    )
+
   def test_mads_manual_override_still_wins(self):
     controller = self._build_controller()
     expected_controller = self._build_controller()
@@ -281,6 +305,17 @@ class TestSubaruCarController(unittest.TestCase):
         self.assertFalse(CP.alphaLongitudinalAvailable)
         self.assertFalse(CP.openpilotLongitudinalControl)
 
+  def test_icbm_is_only_available_for_outback_2023_on_mostlyclueless(self):
+    outback_cp = CarInterface.get_non_essential_params(CAR.SUBARU_OUTBACK_2023)
+    outback_cp_sp = CarInterface.get_non_essential_params_sp(outback_cp, CAR.SUBARU_OUTBACK_2023)
+    self.assertTrue(outback_cp_sp.intelligentCruiseButtonManagementAvailable)
+
+    for platform in (CAR.SUBARU_ASCENT_2023, CAR.SUBARU_CROSSTREK_2025, CAR.SUBARU_FORESTER_2022):
+      with self.subTest(platform=platform):
+        cp = CarInterface.get_non_essential_params(platform)
+        cp_sp = CarInterface.get_non_essential_params_sp(cp, platform)
+        self.assertFalse(cp_sp.intelligentCruiseButtonManagementAvailable)
+
   def test_crosstrek_2025_params_construct(self):
     CP = CarInterface.get_non_essential_params(CAR.SUBARU_CROSSTREK_2025)
     _ = CarInterface.get_non_essential_params_sp(CP, CAR.SUBARU_CROSSTREK_2025)
@@ -385,6 +420,31 @@ class TestSubaruCarController(unittest.TestCase):
 
     expected_distance = subarucan.create_es_distance(controller.packer, controller.frame // 5, es_distance_msg, 1, True, False, False, 1818)
     self.assertIn(expected_distance, can_sends)
+
+  def test_icbm_does_not_press_buttons_when_stock_acc_is_not_engaged(self):
+    controller = self._build_controller()
+    _, _, es_distance_msg = self._build_long_source(counter=2)
+    cs = self._build_icbm_cs(False, es_distance_msg=es_distance_msg)
+    cc = self._build_long_cc(False)
+    cc_sp = self._build_icbm_cc_sp(structs.IntelligentCruiseButtonManagement.SendButtonState.increase)
+
+    controller.frame = 10
+    _, can_sends = controller.update(cc, cc_sp, cs, 0)
+
+    sent_addrs = {msg[0] for msg in can_sends}
+    self.assertNotIn(0x221, sent_addrs)
+
+  def test_icbm_sends_resume_when_stock_acc_is_engaged(self):
+    controller = self._build_controller()
+    _, _, es_distance_msg = self._build_long_source(counter=4)
+    cs = self._build_icbm_cs(True, es_distance_msg=es_distance_msg)
+    cc = self._build_long_cc(False)
+    cc_sp = self._build_icbm_cc_sp(structs.IntelligentCruiseButtonManagement.SendButtonState.increase)
+
+    controller.frame = 10
+    _, can_sends = controller.update(cc, cc_sp, cs, 0)
+
+    self.assertTrue(any(msg[0] == 0x221 for msg in can_sends))
 
 
 if __name__ == "__main__":

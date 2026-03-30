@@ -3,6 +3,7 @@ import pyray as rl
 from openpilot.common.params import Params
 from openpilot.common.params_pyx import UnknownKeyName
 from openpilot.common.swaglog import cloudlog
+from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.common import Mode as SpeedLimitMode, OffsetType as SpeedLimitOffsetType, Policy as SpeedLimitPolicy
 from openpilot.system.ui.widgets import Widget, DialogResult
 from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog
 from openpilot.system.ui.widgets.list_view import toggle_item, multiple_button_item, button_item, ButtonAction, ListItem
@@ -12,6 +13,7 @@ from openpilot.system.ui.widgets.label import UnifiedLabel
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.lib.wifi_manager import WifiManager, Network
+from openpilot.system.ui.sunnypilot.widgets.list_view import button_item_sp, multiple_button_item_sp, option_item_sp, toggle_item_sp
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.selfdrive.ui.bp.widgets.float_control_item import float_control_item
 from openpilot.selfdrive.ui.bp.widgets.section_header import SectionHeader
@@ -57,6 +59,12 @@ class BluePilotLayout(Widget):
   def _show_lateral_section_frame(cls) -> bool:
     return cls._get_active_brand() != "subaru"
 
+  @classmethod
+  def _show_subaru_stock_acc_controls(cls) -> bool:
+    return cls._get_active_brand() == "subaru" and bool(
+      ui_state.CP_SP is not None and ui_state.CP_SP.intelligentCruiseButtonManagementAvailable
+    )
+
   def __init__(self):
     super().__init__()
     self._params = Params()
@@ -82,6 +90,8 @@ class BluePilotLayout(Widget):
       ("BPShowConfidenceBall", self._show_confidence_ball),
       ("BPAnimateSteeringWheel", self._animate_steering_wheel),
       ("FordPrefShowRadarLeadOverlay", self._show_ford_radar_overlay),
+      ("IntelligentCruiseButtonManagement", self._stock_acc_master),
+      ("CustomAccIncrementsEnabled", self._custom_acc_toggle),
       ("enable_human_turn_detection", self._enable_human_turn_detection),
       ("BlinkerPauseLaneChange", self._disable_lane_change_under_speed),
       ("enable_lane_positioning", self._enable_lane_positioning),
@@ -295,6 +305,93 @@ class BluePilotLayout(Widget):
       icon="chffr_wheel.png"
     )
 
+    self._stock_acc_header = SectionHeader(tr("Stock ACC Control"))
+    self._stock_acc_header.set_visible(self._show_subaru_stock_acc_controls)
+
+    self._stock_acc_master = toggle_item_sp(
+      title=lambda: tr("Allow SubiPilot to Control Stock ACC"),
+      description=lambda: tr("Allow SubiPilot to change the stock ACC set speed with stock SET/RESUME button presses."),
+      param="IntelligentCruiseButtonManagement",
+      callback=self._on_subaru_stock_acc_toggle,
+    )
+    self._stock_acc_master.set_visible(self._show_subaru_stock_acc_controls)
+
+    self._custom_acc_toggle = toggle_item_sp(
+      title=lambda: tr("Custom ACC Speed Increments"),
+      description=lambda: tr("Enable custom short and long press increments for stock ACC speed changes."),
+      param="CustomAccIncrementsEnabled",
+      callback=lambda _state: self._update_toggles(),
+      enabled=self._stock_acc_enabled,
+    )
+    self._custom_acc_toggle.set_visible(self._show_subaru_stock_acc_controls)
+
+    self._custom_acc_short_increment = option_item_sp(
+      title=lambda: tr("Short Press Increment"),
+      param="CustomAccShortPressIncrement",
+      min_value=1,
+      max_value=10,
+      value_change_step=1,
+      description=lambda: tr("Set the stock ACC change for a short +/- button press."),
+      enabled=self._custom_acc_controls_enabled,
+      inline=True,
+    )
+    self._custom_acc_short_increment.set_visible(self._show_subaru_stock_acc_controls)
+
+    self._custom_acc_long_increment = option_item_sp(
+      title=lambda: tr("Long Press Increment"),
+      param="CustomAccLongPressIncrement",
+      min_value=1,
+      max_value=3,
+      value_change_step=1,
+      value_map={1: 1, 2: 5, 3: 10},
+      description=lambda: tr("Set the stock ACC change for a long +/- button press."),
+      enabled=self._custom_acc_controls_enabled,
+      inline=True,
+    )
+    self._custom_acc_long_increment.set_visible(self._show_subaru_stock_acc_controls)
+
+    self._stock_acc_speed_limit_mode = multiple_button_item_sp(
+      title=lambda: tr("Speed Limit"),
+      description=lambda: tr("Display, warn on, or use map speed limits to adjust the stock ACC set speed."),
+      buttons=[tr("Off"), tr("Info"), tr("Warning"), tr("Assist")],
+      selected_index=self._get_int_param("SpeedLimitMode", int(SpeedLimitMode.warning)),
+      param="SpeedLimitMode",
+      button_width=170,
+      inline=True,
+    )
+    self._stock_acc_speed_limit_mode.set_visible(self._show_subaru_stock_acc_controls)
+
+    self._stock_acc_speed_limit_source = button_item_sp(
+      title=lambda: tr("Speed Limit Source"),
+      button_text=lambda: tr("Map Only"),
+      description=lambda: tr("Subaru stock ACC speed control is map-backed only in this build."),
+      enabled=False,
+    )
+    self._stock_acc_speed_limit_source.set_visible(self._show_subaru_stock_acc_controls)
+
+    self._stock_acc_speed_limit_offset_type = multiple_button_item_sp(
+      title=lambda: tr("Speed Limit Offset"),
+      description=lambda: tr("Choose how much offset to apply to the detected map speed limit."),
+      buttons=[tr("None"), tr("Fixed"), tr("%")],
+      selected_index=self._get_int_param("SpeedLimitOffsetType", int(SpeedLimitOffsetType.off)),
+      param="SpeedLimitOffsetType",
+      button_width=170,
+      inline=True,
+    )
+    self._stock_acc_speed_limit_offset_type.set_visible(self._show_subaru_stock_acc_controls)
+
+    self._stock_acc_speed_limit_offset_value = option_item_sp(
+      title=lambda: tr("Speed Limit Offset Value"),
+      param="SpeedLimitValueOffset",
+      min_value=-30,
+      max_value=30,
+      description=lambda: tr("Set the map speed-limit offset value."),
+      enabled=self._stock_acc_offset_value_enabled,
+      label_callback=self._get_speed_limit_offset_label,
+      inline=True,
+    )
+    self._stock_acc_speed_limit_offset_value.set_visible(self._show_subaru_stock_acc_controls)
+
     self._lateral_warning = UnifiedLabel(
       lambda: tr("Experimental settings. May have unintended results."),
       font_size=28,
@@ -356,6 +453,15 @@ class BluePilotLayout(Widget):
       self._animate_steering_wheel,
       self._show_ford_radar_overlay,
       self._radar_overlay_size_btn,
+      self._stock_acc_header,
+      self._stock_acc_master,
+      self._custom_acc_toggle,
+      self._custom_acc_short_increment,
+      self._custom_acc_long_increment,
+      self._stock_acc_speed_limit_mode,
+      self._stock_acc_speed_limit_source,
+      self._stock_acc_speed_limit_offset_type,
+      self._stock_acc_speed_limit_offset_value,
       self._lateral_tuning_header,
       self._lateral_warning,
       self._disable_BP_lat,
@@ -377,6 +483,52 @@ class BluePilotLayout(Widget):
     except (TypeError, ValueError):
       return default
 
+  def _get_int_param(self, param: str, default: int) -> int:
+    try:
+      return int(self._params.get(param, return_default=True))
+    except (TypeError, ValueError):
+      return default
+
+  def _stock_acc_enabled(self) -> bool:
+    return self._show_subaru_stock_acc_controls() and self._safe_get_bool(self._params, "IntelligentCruiseButtonManagement")
+
+  def _custom_acc_controls_enabled(self) -> bool:
+    return self._stock_acc_enabled() and self._safe_get_bool(self._params, "CustomAccIncrementsEnabled")
+
+  def _stock_acc_offset_value_enabled(self) -> bool:
+    offset_type = self._get_int_param("SpeedLimitOffsetType", int(SpeedLimitOffsetType.off))
+    return self._show_subaru_stock_acc_controls() and offset_type != int(SpeedLimitOffsetType.off)
+
+  def _enforce_subaru_stock_acc_constraints(self):
+    if not self._show_subaru_stock_acc_controls():
+      return
+
+    if self._get_int_param("SpeedLimitPolicy", int(SpeedLimitPolicy.map_data_only)) != int(SpeedLimitPolicy.map_data_only):
+      self._params.put("SpeedLimitPolicy", int(SpeedLimitPolicy.map_data_only))
+
+    if not self._stock_acc_enabled():
+      if self._get_int_param("SpeedLimitMode", int(SpeedLimitMode.warning)) == int(SpeedLimitMode.assist):
+        self._params.put("SpeedLimitMode", int(SpeedLimitMode.warning))
+      if self._safe_get_bool(self._params, "CustomAccIncrementsEnabled"):
+        self._params.put_bool("CustomAccIncrementsEnabled", False)
+
+  def _on_subaru_stock_acc_toggle(self, state: bool):
+    if not state and self._get_int_param("SpeedLimitMode", int(SpeedLimitMode.warning)) == int(SpeedLimitMode.assist):
+      self._params.put("SpeedLimitMode", int(SpeedLimitMode.warning))
+    if not state and self._safe_get_bool(self._params, "CustomAccIncrementsEnabled"):
+      self._params.put_bool("CustomAccIncrementsEnabled", False)
+    self._enforce_subaru_stock_acc_constraints()
+    self._update_toggles(just_toggled={"IntelligentCruiseButtonManagement": state, "CustomAccIncrementsEnabled": False} if not state else {"IntelligentCruiseButtonManagement": state})
+
+  def _get_speed_limit_offset_label(self, value: int) -> str:
+    offset_type = self._get_int_param("SpeedLimitOffsetType", int(SpeedLimitOffsetType.off))
+    unit = tr("km/h") if ui_state.is_metric else tr("mph")
+    if offset_type == int(SpeedLimitOffsetType.percentage):
+      return f"{value}%"
+    if offset_type == int(SpeedLimitOffsetType.fixed):
+      return f"{value} {unit}"
+    return str(value)
+
   def _toggle_callback(self, state: bool, param: str):
     """Handle toggle state changes."""
     try:
@@ -387,6 +539,7 @@ class BluePilotLayout(Widget):
 
   def _update_toggles(self, just_toggled: dict | None = None):
     """Update toggle states from params. just_toggled: {param: value} for params we just wrote (avoids refresh race)."""
+    self._enforce_subaru_stock_acc_constraints()
     ui_state.update_params()
     fresh = just_toggled or {}
 
@@ -409,6 +562,27 @@ class BluePilotLayout(Widget):
     self._pc_blend_ratio_high_C.action_item.set_enabled(custom_prof)
     self._pc_blend_ratio_low_C.action_item.set_enabled(custom_prof)
     self._lc_pid_gain.action_item.set_enabled(lane_pos and custom_prof)
+
+    if self._show_subaru_stock_acc_controls():
+      stock_acc_enabled = fresh.get("IntelligentCruiseButtonManagement") if "IntelligentCruiseButtonManagement" in fresh else self._safe_get_bool(ui_state.params, "IntelligentCruiseButtonManagement")
+      custom_acc_enabled = fresh.get("CustomAccIncrementsEnabled") if "CustomAccIncrementsEnabled" in fresh else self._safe_get_bool(ui_state.params, "CustomAccIncrementsEnabled")
+      speed_limit_mode = self._get_int_param("SpeedLimitMode", int(SpeedLimitMode.warning))
+      offset_type = self._get_int_param("SpeedLimitOffsetType", int(SpeedLimitOffsetType.off))
+      enabled_speed_limit_modes = {
+        int(SpeedLimitMode.off),
+        int(SpeedLimitMode.information),
+        int(SpeedLimitMode.warning),
+      }
+      if stock_acc_enabled:
+        enabled_speed_limit_modes.add(int(SpeedLimitMode.assist))
+
+      self._custom_acc_toggle.action_item.set_enabled(stock_acc_enabled)
+      self._custom_acc_short_increment.action_item.set_enabled(stock_acc_enabled and custom_acc_enabled)
+      self._custom_acc_long_increment.action_item.set_enabled(stock_acc_enabled and custom_acc_enabled)
+      self._stock_acc_speed_limit_mode.action_item.set_selected_button(speed_limit_mode)
+      self._stock_acc_speed_limit_mode.action_item.set_enabled_buttons(enabled_speed_limit_modes)
+      self._stock_acc_speed_limit_offset_type.action_item.set_selected_button(offset_type)
+      self._stock_acc_speed_limit_offset_value.action_item.set_enabled(offset_type != int(SpeedLimitOffsetType.off))
 
   def show_event(self):
     super().show_event()

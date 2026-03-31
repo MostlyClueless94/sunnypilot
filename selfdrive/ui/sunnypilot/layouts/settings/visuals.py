@@ -142,8 +142,8 @@ class VisualsLayout(Widget):
     )
     self._dynamic_path_color_palette = multiple_button_item_sp(
       title=lambda: tr("Dynamic Path Color Palette"),
-      description=lambda: tr("Choose whether Dynamic Path Color uses the custom color palette "
-                             "or the stock border/status palette for the path fill and path outline. "
+      description=lambda: tr("Choose whether Dynamic Path Color uses the custom BP palette "
+                             "or stock-themed fill colors with a vibrant outline. "
                              "Lane lines and road edges keep BP-style rendering."),
       buttons=[lambda label=label: tr(label) for label in DYNAMIC_PATH_COLOR_PALETTE_LABELS],
       param="DynamicPathColorPalette",

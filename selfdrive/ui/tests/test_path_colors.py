@@ -6,6 +6,7 @@ from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import (
   DYNAMIC_PATH_COLOR_PALETTE_STOCK,
   PATH_GRADIENT_STOPS,
   STOCK_DYNAMIC_BORDER_COLORS,
+  STOCK_DYNAMIC_EDGE_COLORS,
   get_default_path_edge_color,
   get_dynamic_edge_color,
   vibrant_edge_color_from_gradient,
@@ -32,9 +33,16 @@ def test_dynamic_custom_edge_colors_follow_custom_status_palette():
   assert _color_tuple(color) == _color_tuple(CUSTOM_DYNAMIC_BORDER_COLORS[UIStatus.LAT_ONLY])
 
 
-def test_dynamic_stock_edge_colors_follow_stock_status_palette():
+def test_dynamic_stock_edge_colors_use_brightened_stock_outline():
   color = get_dynamic_edge_color(UIStatus.ENGAGED, DYNAMIC_PATH_COLOR_PALETTE_STOCK)
-  assert _color_tuple(color) == _color_tuple(STOCK_DYNAMIC_BORDER_COLORS[UIStatus.ENGAGED])
+  expected = STOCK_DYNAMIC_EDGE_COLORS[UIStatus.ENGAGED]
+  base = STOCK_DYNAMIC_BORDER_COLORS[UIStatus.ENGAGED]
+
+  assert _color_tuple(color) == _color_tuple(expected)
+  assert color.r >= base.r
+  assert color.g >= base.g
+  assert color.b >= base.b
+  assert _color_tuple(color) != _color_tuple(base)
 
 
 def test_default_path_edge_colors_use_bp_status_fallback():

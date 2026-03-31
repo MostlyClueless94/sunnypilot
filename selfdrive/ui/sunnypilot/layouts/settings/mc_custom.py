@@ -9,7 +9,7 @@ from openpilot.selfdrive.ui.bp.widgets.section_header import SectionHeader
 from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import CUSTOM_MODEL_PATH_COLOR_LABELS
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.multilang import tr
-from openpilot.system.ui.sunnypilot.widgets.list_view import multiple_button_item_sp
+from openpilot.system.ui.sunnypilot.widgets.list_view import multiple_button_item_sp, toggle_item_sp
 from openpilot.system.ui.widgets import Widget
 from openpilot.system.ui.widgets.scroller_tici import Scroller
 
@@ -41,10 +41,19 @@ class MCCustomLayout(Widget):
       button_width=160,
       inline=False
     )
+    self._show_vehicle_brake_status = toggle_item_sp(
+      title=lambda: tr("Show Vehicle Brake Status"),
+      description=lambda: tr("Display current speed in red whenever the vehicle is braking, "
+                             "including ACC/openpilot braking when available."),
+      param="MCShowVehicleBrakeStatus",
+      initial_state=self._params.get_bool("MCShowVehicleBrakeStatus"),
+    )
 
     return [
       SectionHeader(tr("Pathing")),
       self._custom_model_path_color,
+      SectionHeader(tr("Driving Status")),
+      self._show_vehicle_brake_status,
     ]
 
   def _update_state(self):
@@ -52,6 +61,7 @@ class MCCustomLayout(Widget):
 
     selected_color = max(0, min(self._get_int_param("CustomModelPathColor"), len(CUSTOM_MODEL_PATH_COLOR_LABELS) - 1))
     self._custom_model_path_color.action_item.set_selected_button(selected_color)
+    self._show_vehicle_brake_status.action_item.set_state(self._params.get_bool("MCShowVehicleBrakeStatus"))
 
   def _render(self, rect):
     self._scroller.render(rect)

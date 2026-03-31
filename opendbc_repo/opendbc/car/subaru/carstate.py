@@ -1,4 +1,5 @@
 import copy
+from cereal import messaging
 from opendbc.can import CANDefine, CANParser
 from opendbc.car import Bus, structs
 from opendbc.car.carlog import carlog
@@ -21,6 +22,7 @@ class CarState(CarStateBase, MadsCarState, SnGCarState):
 
     self.angle_rate_calulator = CanSignalRateCalculator(50)
     self._debug_state = {}
+    self.car_state_bp_msg = None
 
   def _log_transition(self, key, value, message):
     if self._debug_state.get(key) != value:
@@ -185,8 +187,62 @@ class CarState(CarStateBase, MadsCarState, SnGCarState):
 
     MadsCarState.update_mads(self, ret, can_parsers)
     SnGCarState.update(self, ret, can_parsers)
+    self.car_state_bp_msg = self.update_car_state_bp(cp, cp_cam, cp_alt)
 
     return ret, ret_sp
+
+  @staticmethod
+  def _read_bool_signal(parser, message: str, signal: str) -> tuple[bool, bool]:
+    try:
+      return True, bool(parser.vl[message][signal])
+    except (KeyError, AttributeError, TypeError):
+      return False, False
+
+  def update_car_state_bp(self, cp, cp_cam, cp_alt):
+    dat = messaging.new_message("carStateBP")
+    dat.valid = True
+
+    brake_light_status = dat.carStateBP.brakeLightStatus
+    brake_light_status.dataAvailable = False
+    brake_light_status.brakeLightsOn = False
+
+    if self.CP.flags & SubaruFlags.PREGLOBAL:
+      return dat
+
+    cp_brakes = cp_alt if self.CP.flags & SubaruFlags.GLOBAL_GEN2 else cp
+    cp_es_brake = cp_alt if self.CP.flags & SubaruFlags.GLOBAL_GEN2 else cp_cam
+
+    driver_brake_candidates = [
+      (cp_cam, "ES_DashStatus", "Brake_Lights"),
+      (cp_es_brake, "ES_Status", "Brake_Lights"),
+      (cp_brakes, "Brake_Pedal", "Brake_Lights"),
+    ]
+    cruise_brake_candidates = [
+      (cp_es_brake, "ES_Brake", "Cruise_Brake_Lights"),
+      (cp_es_brake, "ES_Brake", "Cruise_Brake_Active"),
+    ]
+
+    driver_available = False
+    driver_brake_lights = False
+    for parser, message, signal in driver_brake_candidates:
+      available, value = self._read_bool_signal(parser, message, signal)
+      if available:
+        driver_available = True
+        driver_brake_lights = value
+        break
+
+    cruise_available = False
+    cruise_brake_lights = False
+    for parser, message, signal in cruise_brake_candidates:
+      available, value = self._read_bool_signal(parser, message, signal)
+      if available:
+        cruise_available = True
+        cruise_brake_lights = cruise_brake_lights or value
+
+    brake_light_status.dataAvailable = driver_available or cruise_available
+    brake_light_status.brakeLightsOn = driver_brake_lights or cruise_brake_lights
+
+    return dat
 
   @staticmethod
   def get_can_parsers(CP, CP_SP):

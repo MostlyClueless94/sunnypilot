@@ -1,6 +1,7 @@
 import pyray as rl
 from openpilot.common.params import Params
 from openpilot.selfdrive.ui.onroad.hud_renderer import UI_CONFIG, FONT_SIZES, COLORS
+from openpilot.selfdrive.ui.sunnypilot.onroad.brake_status import should_highlight_braking_speed
 from openpilot.selfdrive.ui.sunnypilot.onroad.hud_renderer import HudRendererSP
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.text_measure import measure_text_cached
@@ -36,20 +37,12 @@ class HudRendererBP(HudRendererSP):
   def _update_state(self) -> None:
     super()._update_state()
 
-    # Check brake status if enabled
-    if self._bp_params.get_bool("ShowBrakeStatus"):
-      sm = ui_state.sm
-      if sm.valid['carStateBP']:
-        try:
-          car_state_bp = sm['carStateBP']
-          brake_light_status = car_state_bp.brakeLightStatus
-          self._brakes_on = brake_light_status.dataAvailable and brake_light_status.brakeLightsOn
-        except (KeyError, AttributeError):
-          self._brakes_on = False
-      else:
-        self._brakes_on = False
-    else:
-      self._brakes_on = False
+    self._brakes_on = should_highlight_braking_speed(
+      self._bp_params.get_bool("ShowBrakeStatus"),
+      self._bp_params.get_bool("MCShowVehicleBrakeStatus"),
+      ui_state.sm,
+      ui_state.CP,
+    )
 
     bp_ui_log.state("HudRendererBP", "brakes_on", self._brakes_on)
 

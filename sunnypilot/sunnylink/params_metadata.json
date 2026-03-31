@@ -236,6 +236,10 @@
       }
     ]
   },
+  "MCShowVehicleBrakeStatus": {
+    "title": "MC Custom: Show Vehicle Brake Status",
+    "description": "Display current speed in red whenever the vehicle is braking, including ACC/openpilot braking when available."
+  },
   "CustomAccIncrementsEnabled": {
     "title": "Custom ACC Increments",
     "description": ""

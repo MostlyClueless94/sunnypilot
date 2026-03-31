@@ -100,6 +100,18 @@ def solid_color_from_gradient(colors: list[rl.Color], fallback: rl.Color | None 
   return fallback if fallback is not None else rl.Color(255, 255, 255, 255)
 
 
+def vibrant_edge_color_from_gradient(colors: list[rl.Color], fallback: rl.Color | None = None) -> rl.Color:
+  base_color = solid_color_from_gradient(colors, fallback)
+
+  # Keep the outline aligned to the fill family, but brighten it to match BP's more vivid edging.
+  return rl.Color(
+    min(base_color.r + 51, 255),
+    min(base_color.g + 51, 255),
+    min(base_color.b + 51, 255),
+    255,
+  )
+
+
 CUSTOM_MODEL_PATH_COLOR_PRESETS = {
   1: BLUEPILOT_BLUE_PATH_COLORS,
   2: BLUEPILOT_GREEN_PATH_COLORS,
@@ -112,6 +124,10 @@ CUSTOM_MODEL_PATH_COLOR_PRESETS = {
 
 CUSTOM_MODEL_PATH_SOLID_COLORS = {
   key: solid_color_from_gradient(colors) for key, colors in CUSTOM_MODEL_PATH_COLOR_PRESETS.items()
+}
+
+CUSTOM_MODEL_PATH_EDGE_COLORS = {
+  key: vibrant_edge_color_from_gradient(colors) for key, colors in CUSTOM_MODEL_PATH_COLOR_PRESETS.items()
 }
 
 CUSTOM_DYNAMIC_PATH_COLORS = {
@@ -152,6 +168,8 @@ DYNAMIC_BORDER_COLORS_BY_PALETTE = {
   DYNAMIC_PATH_COLOR_PALETTE_STOCK: STOCK_DYNAMIC_BORDER_COLORS,
 }
 
+DEFAULT_PATH_EDGE_COLORS = CUSTOM_DYNAMIC_BORDER_COLORS
+
 # Backward-compatible aliases for the original custom dynamic palette.
 DYNAMIC_PATH_COLORS = CUSTOM_DYNAMIC_PATH_COLORS
 DYNAMIC_BORDER_COLORS = CUSTOM_DYNAMIC_BORDER_COLORS
@@ -162,6 +180,14 @@ def get_dynamic_path_colors(status: UIStatus, palette: int):
   return colors_by_status.get(status, CUSTOM_DYNAMIC_PATH_COLORS[UIStatus.DISENGAGED])
 
 
-def get_dynamic_solid_color(status: UIStatus, palette: int):
+def get_dynamic_edge_color(status: UIStatus, palette: int):
   colors_by_status = DYNAMIC_BORDER_COLORS_BY_PALETTE.get(palette, CUSTOM_DYNAMIC_BORDER_COLORS)
   return colors_by_status.get(status, CUSTOM_DYNAMIC_BORDER_COLORS[UIStatus.DISENGAGED])
+
+
+def get_dynamic_solid_color(status: UIStatus, palette: int):
+  return get_dynamic_edge_color(status, palette)
+
+
+def get_default_path_edge_color(status: UIStatus):
+  return DEFAULT_PATH_EDGE_COLORS.get(status, DEFAULT_PATH_EDGE_COLORS[UIStatus.DISENGAGED])

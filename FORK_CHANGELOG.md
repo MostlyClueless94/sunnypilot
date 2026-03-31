@@ -1,10 +1,14 @@
-# SubiPilot 1.0 Hotfix
+# SubiPilot 1.0 Update
 - Stable install: `https://installer.comma.ai/MostlyClueless94/subi-1.0`
 - Broad testing: `https://installer.comma.ai/MostlyClueless94/subi-staging`
 - Personal testing: `https://installer.comma.ai/MostlyClueless94/MostlyClueless`
-- Fixed a 2025 Subaru Crosstrek Wilderness startup crash on `subi-1.0`.
-- The vehicle was already fingerprinting correctly as `SUBARU_CROSSTREK_2025`; this hotfix fixes the missing release torque-data entry that caused `card` to crash and left the UI stuck on `sunnypilot Unavailable / Waiting to start`.
-- No Subaru tuning, safety, or settings behavior changed in this hotfix.
+- Promotes the current `subi-staging` candidate to `subi-1.0`.
+- Adds BluePilot-style vibrant path fill and outline on C3X and C4.
+- Adds BluePilot-style lane lines, road edges, and chevron visuals.
+- `Show Brake Status` now turns the current speed red during actual braking, including pedal, regen, ACC, and openpilot braking.
+- Preserves Subaru angle-based lateral support, including the 2025 Crosstrek startup hotfix.
+- Adds the low-speed straight-tracking stability improvement for Subaru.
+- No experimental `MostlyClueless` stock-ACC or dev-button features are included in this stable release.
 
 # SubiPilot 1.0
 - Stable install: `https://installer.comma.ai/MostlyClueless94/subi-1.0`

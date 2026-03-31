@@ -15,6 +15,7 @@ from openpilot.selfdrive.ui.sunnypilot.layouts.settings.cruise import CruiseLayo
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.developer import DeveloperLayoutSP
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.device import DeviceLayoutSP
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.display import DisplayLayout
+from openpilot.selfdrive.ui.sunnypilot.layouts.settings.mc_custom import MCCustomLayout
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.models import ModelsLayout
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.network import NetworkUISP
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.osm import OSMLayout
@@ -46,6 +47,7 @@ OP.PanelType = IntEnum(
   [es.name for es in OP.PanelType] + [
     "SUNNYLINK",
     "MODELS",
+    "MC_CUSTOM",
     "STEERING",
     "CRUISE",
     "VISUALS",
@@ -122,6 +124,7 @@ class SettingsLayoutSP(OP.SettingsLayout):
       OP.PanelType.TOGGLES: PanelInfo(tr_noop("Toggles"), TogglesLayout(), icon="../../sunnypilot/selfdrive/assets/offroad/icon_toggle.png"),
       OP.PanelType.SOFTWARE: PanelInfo(tr_noop("Software"), SoftwareLayoutSP(), icon="../../sunnypilot/selfdrive/assets/offroad/icon_software.png"),
       OP.PanelType.MODELS: PanelInfo(tr_noop("Models"), ModelsLayout(), icon="../../sunnypilot/selfdrive/assets/offroad/icon_models.png"),
+      OP.PanelType.MC_CUSTOM: PanelInfo(tr_noop("MC Custom"), MCCustomLayout()),
       OP.PanelType.STEERING: PanelInfo(tr_noop("Steering"), SteeringLayout(), icon="../../sunnypilot/selfdrive/assets/offroad/icon_lateral.png"),
       OP.PanelType.CRUISE: PanelInfo(tr_noop("Cruise"), CruiseLayout(), icon="icons/speed_limit.png"),
       OP.PanelType.VISUALS: PanelInfo(tr_noop("Visuals"), VisualsLayout(), icon="../../sunnypilot/selfdrive/assets/offroad/icon_visuals.png"),

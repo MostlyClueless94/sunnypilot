@@ -14,6 +14,7 @@ from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import (
   get_default_path_edge_color,
   get_dynamic_edge_color,
   get_dynamic_path_colors,
+  vibrant_edge_color_from_gradient,
 )
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.shader_polygon import draw_polygon, Gradient
@@ -26,9 +27,9 @@ MIN_DRAW_DISTANCE = 10.0
 MAX_DRAW_DISTANCE = 100.0
 
 THROTTLE_COLORS = [
-  rl.Color(13, 248, 122, 102),   # HSLF(148/360, 0.94, 0.51, 0.4)
-  rl.Color(114, 255, 92, 89),    # HSLF(112/360, 1.0, 0.68, 0.35)
-  rl.Color(114, 255, 92, 0),     # HSLF(112/360, 1.0, 0.68, 0.0)
+  rl.Color(0, 255, 80, 140),
+  rl.Color(0, 255, 100, 110),
+  rl.Color(0, 255, 100, 0),
 ]
 
 NO_THROTTLE_COLORS = [
@@ -291,6 +292,10 @@ class ModelRenderer(Widget, ModelRendererSP):
         self._active_path_color = rl.Color(0, 0, 0, 90)
       elif len(self._exp_gradient.colors) > 1:
         self._active_path_gradient = self._exp_gradient
+        self._active_path_edge_color = vibrant_edge_color_from_gradient(
+          self._exp_gradient.colors,
+          get_default_path_edge_color(ui_state.status),
+        )
       return
 
     if ui_state.dynamic_path_color:
@@ -331,6 +336,10 @@ class ModelRenderer(Widget, ModelRendererSP):
         end=(0.0, 0.0),
         colors=blended_colors,
         stops=PATH_GRADIENT_STOPS,
+      )
+      self._active_path_edge_color = vibrant_edge_color_from_gradient(
+        blended_colors,
+        get_default_path_edge_color(ui_state.status),
       )
 
   def _update_lead_vehicle(self, d_rel, v_rel, point, rect):
@@ -399,7 +408,7 @@ class ModelRenderer(Widget, ModelRendererSP):
     self._draw_road_edge_glow_effects()
 
   def _draw_lane_glow_effects(self):
-    glow_widths = [18.0, 11.0, 5.0]
+    glow_widths = [20.0, 12.0, 6.0]
     glow_alphas = [0.05, 0.10, 0.20]
 
     for i, lane_line in enumerate(self._lane_lines):
@@ -421,7 +430,7 @@ class ModelRenderer(Widget, ModelRendererSP):
         draw_polygon(self._rect, expanded_points, color)
 
   def _draw_road_edge_glow_effects(self):
-    glow_widths = [24.0, 16.0, 8.0]
+    glow_widths = [28.0, 18.0, 10.0]
     glow_alphas = [0.03, 0.07, 0.15]
 
     for i, road_edge in enumerate(self._road_edges):
@@ -468,7 +477,7 @@ class ModelRenderer(Widget, ModelRendererSP):
       rl.draw_line_ex(
         rl.Vector2(left_edge[i][0], left_edge[i][1]),
         rl.Vector2(left_edge[i + 1][0], left_edge[i + 1][1]),
-        3.6,
+        4.0,
         self._active_path_edge_color,
       )
 
@@ -476,7 +485,7 @@ class ModelRenderer(Widget, ModelRendererSP):
       rl.draw_line_ex(
         rl.Vector2(right_edge[i][0], right_edge[i][1]),
         rl.Vector2(right_edge[i + 1][0], right_edge[i + 1][1]),
-        3.6,
+        4.0,
         self._active_path_edge_color,
       )
 
@@ -484,7 +493,7 @@ class ModelRenderer(Widget, ModelRendererSP):
       rl.draw_line_ex(
         rl.Vector2(left_edge[-1][0], left_edge[-1][1]),
         rl.Vector2(right_edge[-1][0], right_edge[-1][1]),
-        3.6,
+        4.0,
         self._active_path_edge_color,
       )
 

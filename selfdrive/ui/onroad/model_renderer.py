@@ -15,6 +15,7 @@ from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import (
   get_default_path_edge_color,
   get_dynamic_edge_color,
   get_dynamic_path_colors,
+  vibrant_edge_color_from_gradient,
 )
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.shader_polygon import draw_polygon, Gradient
@@ -27,9 +28,9 @@ MIN_DRAW_DISTANCE = 10.0
 MAX_DRAW_DISTANCE = 100.0
 
 THROTTLE_COLORS = [
-  rl.Color(13, 248, 122, 102),   # HSLF(148/360, 0.94, 0.51, 0.4)
-  rl.Color(114, 255, 92, 89),    # HSLF(112/360, 1.0, 0.68, 0.35)
-  rl.Color(114, 255, 92, 0),     # HSLF(112/360, 1.0, 0.68, 0.0)
+  rl.Color(0, 255, 80, 140),
+  rl.Color(0, 255, 100, 110),
+  rl.Color(0, 255, 100, 0),
 ]
 
 NO_THROTTLE_COLORS = [
@@ -200,12 +201,12 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     # Update lane lines using raw points
     for i, lane_line in enumerate(self._lane_lines):
       lane_line.projected_points = self._map_line_to_polygon(
-        lane_line.raw_points, 0.025 * self._lane_line_probs[i], 0.0, max_idx, max_distance
+        lane_line.raw_points, 0.05 * self._lane_line_probs[i], 0.0, max_idx, max_distance
       )
 
     # Update road edges using raw points
     for road_edge in self._road_edges:
-      road_edge.projected_points = self._map_line_to_polygon(road_edge.raw_points, 0.025, 0.0, max_idx, max_distance)
+      road_edge.projected_points = self._map_line_to_polygon(road_edge.raw_points, 0.05, 0.0, max_idx, max_distance)
 
     # Update path using raw points
     if lead and lead.status:
@@ -275,6 +276,10 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     if self._experimental_mode:
       if len(self._exp_gradient.colors) > 1:
         self._active_path_gradient = self._exp_gradient
+        self._active_path_edge_color = vibrant_edge_color_from_gradient(
+          self._exp_gradient.colors,
+          get_default_path_edge_color(ui_state.status),
+        )
       return
 
     if ui_state.dynamic_path_color:
@@ -312,6 +317,10 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
       end=(0.0, 0.0),
       colors=blended_colors,
       stops=PATH_GRADIENT_STOPS,
+    )
+    self._active_path_edge_color = vibrant_edge_color_from_gradient(
+      blended_colors,
+      get_default_path_edge_color(ui_state.status),
     )
 
   def _update_lead_vehicle(self, d_rel, v_rel, point, rect):

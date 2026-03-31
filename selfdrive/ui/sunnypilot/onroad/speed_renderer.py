@@ -8,6 +8,7 @@ import pyray as rl
 
 from openpilot.common.constants import CV
 from openpilot.common.params import Params
+from openpilot.selfdrive.ui.sunnypilot.onroad.brake_status import should_highlight_braking_speed
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import gui_app, FontWeight
 from openpilot.system.ui.lib.multilang import tr
@@ -32,7 +33,7 @@ class SpeedRenderer:
     v_ego = v_ego_cluster if self.v_ego_cluster_seen and not ui_state.true_v_ego_ui else car_state.vEgo
     speed_conversion = CV.MS_TO_KPH if ui_state.is_metric else CV.MS_TO_MPH
     self.speed = max(0.0, v_ego * speed_conversion)
-    self._brakes_on = self._params.get_bool("ShowBrakeStatus") and (car_state.brakePressed or car_state.regenBraking)
+    self._brakes_on = should_highlight_braking_speed(self._params.get_bool("ShowBrakeStatus"))
 
   def render(self, rect: rl.Rectangle) -> None:
     if ui_state.hide_v_ego_ui:

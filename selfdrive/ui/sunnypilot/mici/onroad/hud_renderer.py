@@ -10,6 +10,7 @@ from openpilot.common.params import Params
 from openpilot.selfdrive.ui.mici.onroad.hud_renderer import HudRenderer
 from openpilot.selfdrive.ui.mici.onroad.hud_renderer import COLORS, FONT_SIZES
 from openpilot.selfdrive.ui.sunnypilot.onroad.blind_spot_indicators import BlindSpotIndicators
+from openpilot.selfdrive.ui.sunnypilot.onroad.brake_status import should_highlight_braking_speed
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.lib.text_measure import measure_text_cached
@@ -24,8 +25,7 @@ class HudRendererSP(HudRenderer):
 
   def _update_state(self) -> None:
     super()._update_state()
-    car_state = ui_state.sm['carState']
-    self._brakes_on = self._params.get_bool("ShowBrakeStatus") and (car_state.brakePressed or car_state.regenBraking)
+    self._brakes_on = should_highlight_braking_speed(self._params.get_bool("ShowBrakeStatus"))
     self.blind_spot_indicators.update()
 
   def _render(self, rect: rl.Rectangle) -> None:

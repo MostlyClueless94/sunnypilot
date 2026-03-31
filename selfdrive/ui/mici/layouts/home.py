@@ -10,8 +10,6 @@ from openpilot.system.ui.widgets.icon_widget import IconWidget
 from openpilot.system.ui.widgets.label import UnifiedLabel
 from openpilot.system.ui.lib.application import gui_app, FontWeight, MousePos
 from openpilot.selfdrive.ui.ui_state import ui_state
-from openpilot.selfdrive.ui.sunnypilot.widgets.drive_stats import DriveStatsWidget
-from openpilot.selfdrive.ui.sunnypilot.widgets.model_info import ModelInfoWidget
 from openpilot.system.version import RELEASE_BRANCHES
 
 HEAD_BUTTON_FONT_SIZE = 40
@@ -86,7 +84,6 @@ class MiciHomeLayout(Widget):
   def __init__(self):
     super().__init__()
     self._on_settings_click: Callable | None = None
-    self._on_models_click: Callable | None = None
 
     self._last_refresh = 0
     self._mouse_down_t: None | float = None
@@ -112,9 +109,6 @@ class MiciHomeLayout(Widget):
     self._date_label = UnifiedLabel("", font_size=36, text_color=rl.GRAY, font_weight=FontWeight.ROMAN, max_width=480, wrap_text=False)
     self._branch_label = UnifiedLabel("", font_size=36, text_color=rl.GRAY, font_weight=FontWeight.ROMAN, scroll=True)
     self._version_commit_label = UnifiedLabel("", font_size=36, text_color=rl.GRAY, font_weight=FontWeight.ROMAN, max_width=480, wrap_text=False)
-    self._drive_stats_widget = DriveStatsWidget()
-    self._model_info_widget = ModelInfoWidget()
-    self._model_card_rect = rl.Rectangle()
 
   def show_event(self):
     super().show_event()
@@ -147,15 +141,12 @@ class MiciHomeLayout(Widget):
       self._last_refresh = rl.get_time()
       self._update_params()
 
-  def set_callbacks(self, on_settings: Callable | None = None, on_models: Callable | None = None):
+  def set_callbacks(self, on_settings: Callable | None = None):
     self._on_settings_click = on_settings
-    self._on_models_click = on_models
 
   def _handle_mouse_release(self, mouse_pos: MousePos):
     if not self._did_long_press:
-      if self._on_models_click and rl.check_collision_point_rec(mouse_pos, self._model_card_rect):
-        self._on_models_click()
-      elif self._on_settings_click:
+      if self._on_settings_click:
         self._on_settings_click()
     self._did_long_press = False
 
@@ -205,19 +196,6 @@ class MiciHomeLayout(Widget):
         self._version_commit_label.set_text(self._version_text[2])
         self._version_commit_label.set_position(version_pos.x, version_pos.y + self._date_label.font_size + 7)
         self._version_commit_label.render()
-
-    cards_top = self.rect.y + 220
-    cards_bottom = self.rect.y + self.rect.height - 90
-    cards_rect = rl.Rectangle(self.rect.x + 18, cards_top, self.rect.width - 36, cards_bottom - cards_top)
-    spacing = 18
-    stats_height = cards_rect.height * 0.58 - spacing / 2
-    model_height = cards_rect.height - stats_height - spacing
-
-    stats_rect = rl.Rectangle(cards_rect.x, cards_rect.y, cards_rect.width, stats_height)
-    self._drive_stats_widget.render(stats_rect)
-
-    self._model_card_rect = rl.Rectangle(cards_rect.x, cards_rect.y + stats_height + spacing, cards_rect.width, model_height)
-    self._model_info_widget.render(self._model_card_rect)
 
     # ***** Center-aligned bottom section icons *****
     self._experimental_icon.set_visible(self._experimental_mode)

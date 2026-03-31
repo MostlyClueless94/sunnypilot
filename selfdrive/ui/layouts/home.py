@@ -7,8 +7,6 @@ from openpilot.selfdrive.ui.widgets.offroad_alerts import UpdateAlert, OffroadAl
 from openpilot.selfdrive.ui.widgets.exp_mode_button import ExperimentalModeButton
 from openpilot.selfdrive.ui.widgets.prime import PrimeWidget
 from openpilot.selfdrive.ui.widgets.setup import SetupWidget
-from openpilot.selfdrive.ui.sunnypilot.widgets.drive_stats import DriveStatsWidget
-from openpilot.selfdrive.ui.sunnypilot.widgets.model_info import ModelInfoWidget
 from openpilot.system.ui.lib.text_measure import measure_text_cached
 from openpilot.system.ui.lib.application import gui_app, FontWeight, MousePos
 from openpilot.system.ui.lib.multilang import tr, trn
@@ -59,9 +57,6 @@ class HomeLayout(Widget):
 
     self._prime_widget = PrimeWidget()
     self._setup_widget = SetupWidget()
-    self._drive_stats_widget = DriveStatsWidget()
-    self._model_info_widget = ModelInfoWidget()
-    self._model_settings_callback: Callable[[], None] | None = None
 
     self._exp_mode_button = ExperimentalModeButton()
     self._setup_callbacks()
@@ -79,9 +74,6 @@ class HomeLayout(Widget):
 
   def set_settings_callback(self, callback: Callable):
     self.settings_callback = callback
-
-  def set_model_settings_callback(self, callback: Callable):
-    self._model_settings_callback = callback
 
   def _set_state(self, state: HomeLayoutState):
     # propagate show/hide events
@@ -142,9 +134,7 @@ class HomeLayout(Widget):
   def _handle_mouse_release(self, mouse_pos: MousePos):
     super()._handle_mouse_release(mouse_pos)
 
-    if gui_app.sunnypilot_ui() and self._model_settings_callback and rl.check_collision_point_rec(mouse_pos, self._model_info_widget.rect):
-      self._model_settings_callback()
-    elif self.update_available and rl.check_collision_point_rec(mouse_pos, self.update_notif_rect):
+    if self.update_available and rl.check_collision_point_rec(mouse_pos, self.update_notif_rect):
       self._set_state(HomeLayoutState.UPDATE)
     elif self.alert_count > 0 and rl.check_collision_point_rec(mouse_pos, self.alert_notif_rect):
       self._set_state(HomeLayoutState.ALERTS)
@@ -201,22 +191,7 @@ class HomeLayout(Widget):
     self.offroad_alert.render(self.content_rect)
 
   def _render_left_column(self):
-    if gui_app.sunnypilot_ui():
-      stats_height = self.left_column_rect.height * 0.6 - SPACING / 2
-      model_height = self.left_column_rect.height * 0.4 - SPACING / 2
-
-      stats_rect = rl.Rectangle(self.left_column_rect.x, self.left_column_rect.y, self.left_column_rect.width, stats_height)
-      self._drive_stats_widget.render(stats_rect)
-
-      model_rect = rl.Rectangle(
-        self.left_column_rect.x,
-        self.left_column_rect.y + stats_height + SPACING,
-        self.left_column_rect.width,
-        model_height,
-      )
-      self._model_info_widget.render(model_rect)
-    else:
-      self._prime_widget.render(self.left_column_rect)
+    self._prime_widget.render(self.left_column_rect)
 
   def _render_right_column(self):
     exp_height = 125

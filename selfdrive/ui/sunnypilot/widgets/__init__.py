@@ -1,1 +1,0 @@
-"""sunnypilot-specific shared widgets."""

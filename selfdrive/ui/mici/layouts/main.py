@@ -12,7 +12,6 @@ from openpilot.system.ui.lib.application import gui_app
 
 if gui_app.sunnypilot_ui():
   from openpilot.selfdrive.ui.sunnypilot.mici.layouts.settings import SettingsLayoutSP as SettingsLayout
-  from openpilot.selfdrive.ui.sunnypilot.mici.layouts.models import ModelsLayoutMici
 
 
 ONROAD_DELAY = 2.5  # seconds
@@ -34,7 +33,6 @@ class MiciMainLayout(Scroller):
     self._alerts_layout = MiciOffroadAlerts()
     self._settings_layout = SettingsLayout()
     self._onroad_layout = AugmentedRoadView(bookmark_callback=self._on_bookmark_clicked)
-    self._models_layout = ModelsLayoutMici(back_callback=gui_app.pop_widget) if gui_app.sunnypilot_ui() else None
 
     # Initialize widget rects
     for widget in (self._home_layout, self._settings_layout, self._alerts_layout, self._onroad_layout):
@@ -63,10 +61,7 @@ class MiciMainLayout(Scroller):
       gui_app.push_widget(self._onboarding_window)
 
   def _setup_callbacks(self):
-    self._home_layout.set_callbacks(
-      on_settings=lambda: gui_app.push_widget(self._settings_layout),
-      on_models=(lambda: gui_app.push_widget(self._models_layout)) if self._models_layout is not None else None,
-    )
+    self._home_layout.set_callbacks(on_settings=lambda: gui_app.push_widget(self._settings_layout))
     self._onroad_layout.set_click_callback(lambda: self._scroll_to(self._home_layout))
     device.add_interactive_timeout_callback(self._on_interactive_timeout)
 

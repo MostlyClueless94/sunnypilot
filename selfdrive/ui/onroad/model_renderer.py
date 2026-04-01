@@ -278,14 +278,15 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
       return
 
     if ui_state.dynamic_path_color:
-      dynamic_colors = get_dynamic_path_colors(ui_state.status, ui_state.dynamic_path_color_palette)
+      dynamic_status = ui_state.get_dynamic_path_status(sm['selfdriveState'], sm['selfdriveStateSP'], sm['onroadEvents'])
+      dynamic_colors = get_dynamic_path_colors(dynamic_status, ui_state.dynamic_path_color_palette)
       self._active_path_gradient = Gradient(
         start=(0.0, 1.0),
         end=(0.0, 0.0),
         colors=dynamic_colors,
         stops=PATH_GRADIENT_STOPS,
       )
-      self._active_path_edge_color = get_dynamic_edge_color(ui_state.status, ui_state.dynamic_path_color_palette)
+      self._active_path_edge_color = get_dynamic_edge_color(dynamic_status, ui_state.dynamic_path_color_palette)
       return
 
     if ui_state.custom_model_path_color in CUSTOM_MODEL_PATH_COLOR_PRESETS:

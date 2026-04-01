@@ -120,6 +120,19 @@ class UIStateSP:
 
     return "disengaged"
 
+  @staticmethod
+  def get_dynamic_path_status(ss, ss_sp, onroad_evt) -> str:
+    state = ss.state
+    mads = ss_sp.mads
+    mads_state = mads.state
+
+    if (state == OpenpilotState.preEnabled and mads.available and mads.enabled and not ss.enabled and
+        mads_state not in (MADSState.paused, MADSState.overriding) and
+        not any(e.overrideLongitudinal for e in onroad_evt)):
+      return "lat_only"
+
+    return UIStateSP.update_status(ss, ss_sp, onroad_evt)
+
   def _get_int_param(self, key: str, default: int = 0) -> int:
     value = self.params.get(key, return_default=True)
     try:

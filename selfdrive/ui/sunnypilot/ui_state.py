@@ -136,6 +136,8 @@ class UIStateSP:
     self.blindspot = self.params.get_bool("BlindSpot")
     self.chevron_metrics = self.params.get("ChevronInfo")
     self.custom_model_path_color = self._get_int_param("CustomModelPathColor")
+    self.dynamic_path_color = self.params.get_bool("DynamicPathColor")
+    self.dynamic_path_color_palette = self._get_int_param("DynamicPathColorPalette")
     self.custom_interactive_timeout = self.params.get("InteractivityTimeout", return_default=True)
     self.developer_ui = self.params.get("DevUIInfo")
     self.hide_v_ego_ui = self.params.get_bool("HideVEgoUI")

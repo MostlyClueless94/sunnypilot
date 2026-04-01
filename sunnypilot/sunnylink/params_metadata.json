@@ -200,7 +200,7 @@
   },
   "CustomModelPathColor": {
     "title": "Custom Model Path Color",
-    "description": "Use BluePilot-style preset colors for the driving path overlay. Lane lines and road edges follow the selected color family. Overrides Rainbow Mode when set to anything other than Stock.",
+    "description": "Use BluePilot-style preset colors for the driving path overlay. Lane lines and road edges follow the selected color family. Overrides Rainbow Mode when set to anything other than Stock. Dynamic Path Color takes priority when enabled.",
     "options": [
       {
         "value": 0,
@@ -233,6 +233,24 @@
       {
         "value": 7,
         "label": "Yellow"
+      }
+    ]
+  },
+  "DynamicPathColor": {
+    "title": "Dynamic Path Color",
+    "description": "Color the driving path by drive mode. Dynamic Path Color changes the path fill and path outline, overrides Custom Model Path Color and Rainbow Mode, and keeps the current BP lane line and road edge rendering unchanged."
+  },
+  "DynamicPathColorPalette": {
+    "title": "Dynamic Path Color Palette",
+    "description": "Choose whether Dynamic Path Color uses the custom BP palette or stock-themed fill colors with a vibrant outline.",
+    "options": [
+      {
+        "value": 0,
+        "label": "Custom"
+      },
+      {
+        "value": 1,
+        "label": "Stock"
       }
     ]
   },

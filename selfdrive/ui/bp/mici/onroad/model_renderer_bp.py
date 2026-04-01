@@ -18,7 +18,8 @@ class ModelRendererBP(ModelRenderer):
       self._rainbow_v = np.clip(v, 2.5, 35) / 30
 
   def _draw_path(self):
-    if ui_state.rainbow_path:
+    if (ui_state.rainbow_path and not ui_state.dynamic_path_color and
+        not ui_state.custom_model_path_color and not self._experimental_mode):
       draw_polygon(self._rect, self._path.projected_points, rainbow=True, rainbow_v=self._rainbow_v)
     else:
       super()._draw_path()

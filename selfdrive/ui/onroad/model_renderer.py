@@ -9,10 +9,15 @@ from openpilot.common.filter_simple import FirstOrderFilter
 from openpilot.common.params import Params
 from openpilot.selfdrive.locationd.calibrationd import HEIGHT_INIT
 from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import (
+  CUSTOM_MODEL_PATH_EDGE_COLORS,
   CUSTOM_MODEL_PATH_COLOR_PRESETS,
   CUSTOM_MODEL_PATH_SOLID_COLORS,
   PATH_GRADIENT_STOPS,
+  get_default_path_edge_color,
+  get_dynamic_edge_color,
+  get_dynamic_path_colors,
   solid_color_from_gradient,
+  vibrant_edge_color_from_gradient,
 )
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import gui_app
@@ -85,6 +90,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     )
     self._active_path_gradient: Gradient | None = None
     self._active_path_color = rl.Color(255, 255, 255, 30)
+    self._active_path_edge_color = rl.Color(255, 255, 255, 255)
     self._custom_marking_color: rl.Color | None = None
 
     # Get longitudinal control setting from car parameters
@@ -256,6 +262,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
   def _prepare_active_path_style(self, sm):
     self._active_path_gradient = None
     self._active_path_color = rl.Color(255, 255, 255, 30)
+    self._active_path_edge_color = get_default_path_edge_color(ui_state.status)
     self._custom_marking_color = None
 
     if not self._path.projected_points.size:
@@ -264,6 +271,21 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     if self._experimental_mode:
       if len(self._exp_gradient.colors) > 1:
         self._active_path_gradient = self._exp_gradient
+        self._active_path_edge_color = vibrant_edge_color_from_gradient(
+          self._exp_gradient.colors,
+          get_default_path_edge_color(ui_state.status),
+        )
+      return
+
+    if ui_state.dynamic_path_color:
+      dynamic_colors = get_dynamic_path_colors(ui_state.status, ui_state.dynamic_path_color_palette)
+      self._active_path_gradient = Gradient(
+        start=(0.0, 1.0),
+        end=(0.0, 0.0),
+        colors=dynamic_colors,
+        stops=PATH_GRADIENT_STOPS,
+      )
+      self._active_path_edge_color = get_dynamic_edge_color(ui_state.status, ui_state.dynamic_path_color_palette)
       return
 
     if ui_state.custom_model_path_color in CUSTOM_MODEL_PATH_COLOR_PRESETS:
@@ -278,6 +300,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
         ui_state.custom_model_path_color,
         solid_color_from_gradient(preset_colors),
       )
+      self._active_path_edge_color = CUSTOM_MODEL_PATH_EDGE_COLORS[ui_state.custom_model_path_color]
       return
 
     if ui_state.rainbow_path:
@@ -293,6 +316,10 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
       end=(0.0, 0.0),
       colors=blended_colors,
       stops=PATH_GRADIENT_STOPS,
+    )
+    self._active_path_edge_color = vibrant_edge_color_from_gradient(
+      blended_colors,
+      get_default_path_edge_color(ui_state.status),
     )
 
   def _update_lead_vehicle(self, d_rel, v_rel, point, rect):

@@ -155,6 +155,8 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"CustomAccShortPressIncrement", {PERSISTENT | BACKUP, INT, "1"}},
     {"DeviceBootMode", {PERSISTENT | BACKUP, INT, "0"}},
     {"DevUIInfo", {PERSISTENT | BACKUP, INT, "0"}},
+    {"DynamicPathColor", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"DynamicPathColorPalette", {PERSISTENT | BACKUP, INT, "0"}},
     {"EnableCopyparty", {PERSISTENT | BACKUP, BOOL}},
     {"EnableGithubRunner", {PERSISTENT | BACKUP, BOOL}},
     {"GreenLightAlert", {PERSISTENT | BACKUP, BOOL, "0"}},

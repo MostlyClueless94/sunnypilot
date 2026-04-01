@@ -3,7 +3,6 @@ import pyray as rl
 from openpilot.common.filter_simple import FirstOrderFilter
 from openpilot.common.params import Params
 from openpilot.selfdrive.ui.onroad.model_renderer import ModelRenderer, LeadVehicle, CLIP_MARGIN, MIN_DRAW_DISTANCE, MAX_DRAW_DISTANCE
-from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import CUSTOM_MODEL_PATH_EDGE_COLORS
 from openpilot.selfdrive.ui.bp.onroad.chevron_metrics_bp import ChevronMetricsBP
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.system.ui.lib.application import gui_app
@@ -392,7 +391,8 @@ class ModelRendererBP(ModelRenderer):
   def _draw_path(self):
     """Draw path with status-colored edges."""
 
-    if ui_state.rainbow_path:
+    if (ui_state.rainbow_path and not ui_state.dynamic_path_color and
+        not ui_state.custom_model_path_color and not self._experimental_mode):
       draw_polygon(self._rect, self._path.projected_points, rainbow=True, rainbow_v=self._rainbow_v)
     else:
       super()._draw_path()
@@ -413,10 +413,7 @@ class ModelRendererBP(ModelRenderer):
     left_edge = points[:mid_point]
     right_edge = points[mid_point:][::-1]
 
-    edge_color = LANE_LINE_COLORS_BP.get(ui_state.status, LANE_LINE_COLORS_BP[UIStatus.DISENGAGED])
-    if (not self._experimental_mode and not ui_state.rainbow_path and
-        ui_state.custom_model_path_color in CUSTOM_MODEL_PATH_EDGE_COLORS):
-      edge_color = CUSTOM_MODEL_PATH_EDGE_COLORS[ui_state.custom_model_path_color]
+    edge_color = self._active_path_edge_color
 
     for i in range(len(left_edge) - 1):
       rl.draw_line_ex(

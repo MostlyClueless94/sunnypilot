@@ -45,9 +45,15 @@ def test_tici_bp_renderer_prepares_active_path_style_before_drawing():
   assert prepare_idx < lane_idx < draw_path_idx
 
 
-def test_tici_bp_renderer_uses_custom_path_edge_colors_only_for_outline():
+def test_bp_renderers_only_use_rainbow_override_when_dynamic_and_custom_are_inactive():
+  for renderer_path in (TICI_BP_RENDERER, MICI_BP_RENDERER):
+    source, _ = _parse_renderer(renderer_path)
+    assert "ui_state.rainbow_path and not ui_state.dynamic_path_color and" in source
+    assert "not ui_state.custom_model_path_color and not self._experimental_mode" in source
+
+
+def test_tici_bp_renderer_uses_prepared_active_edge_color_for_outline():
   source, _ = _parse_renderer(TICI_BP_RENDERER)
 
-  assert "CUSTOM_MODEL_PATH_EDGE_COLORS" in source
-  assert "ui_state.custom_model_path_color in CUSTOM_MODEL_PATH_EDGE_COLORS" in source
-  assert "edge_color = CUSTOM_MODEL_PATH_EDGE_COLORS[ui_state.custom_model_path_color]" in source
+  assert "self._active_path_edge_color" in source
+  assert "edge_color = self._active_path_edge_color" in source

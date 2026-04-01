@@ -1,8 +1,9 @@
 import numpy as np
+from openpilot.common.params import Params
 from opendbc.can import CANPacker
 from opendbc.car import Bus, make_tester_present_msg, structs
 from opendbc.car.carlog import carlog
-from opendbc.car.lateral import apply_driver_steer_torque_limits, apply_std_steer_angle_limits, common_fault_avoidance
+from opendbc.car.lateral import apply_center_deadzone, apply_driver_steer_torque_limits, apply_std_steer_angle_limits, common_fault_avoidance
 from opendbc.car.interfaces import CarControllerBase
 from opendbc.car.subaru import subarucan
 from opendbc.car.subaru.values import DBC, GLOBAL_ES_ADDR, CanBus, CarControllerParams, SubaruFlags
@@ -18,6 +19,10 @@ MADS_ONLY_MAX_STEER_ANGLE = 120.0  # deg
 LOW_SPEED_SMOOTH_MAX_SPEED = 4.4704  # m/s (10 mph)
 LOW_SPEED_SMOOTH_DEADBAND_MAX = 0.8  # deg at 0 mph
 LOW_SPEED_SMOOTH_ALPHA_MIN = 0.35  # blend factor at 0 mph
+LOW_SPEED_DELTA_DEADZONE_TARGET_MAX = 4.0  # deg, keep the experiment scoped near center
+LOW_SPEED_DELTA_DEADZONE_STEER_MAX = 10.0  # deg, bypass real low-speed turns
+LOW_SPEED_DELTA_DEADZONE_MAX = 2.0  # deg at 0 mph
+LOW_SPEED_DELTA_DEADZONE_MIN = 0.75  # deg at 10 mph
 LOW_SPEED_CENTER_DAMPING_TARGET_MAX = 3.0  # deg, only damp tiny near-center requests
 LOW_SPEED_CENTER_DAMPING_STEER_MAX = 8.0  # deg, avoid muting real turns
 LOW_SPEED_CENTER_DAMPING_DEADBAND_MAX = 0.8  # deg at 0 mph
@@ -48,13 +53,19 @@ class CarController(CarControllerBase, SnGCarController):
 
     self.p = CarControllerParams(CP)
     self.packer = CANPacker(DBC[CP.carFingerprint][Bus.pt])
+    self.params = Params()
+    self.mc_subaru_chatter_fix = False
     self.low_speed_straight_pending_direction = 0
     self.low_speed_straight_pending_frames = 0
+    self._update_params()
 
   def _log_transition(self, key, value, message):
     if self._debug_state.get(key) != value:
       carlog.info(f"subaru[{self.CP.carFingerprint}] {message}")
       self._debug_state[key] = value
+
+  def _update_params(self):
+    self.mc_subaru_chatter_fix = self.params.get_bool("MCSubaruChatterFix")
 
   def _get_low_speed_smoothed_angle_target(self, raw_target, v_ego):
     speed_factor = np.clip(v_ego / LOW_SPEED_SMOOTH_MAX_SPEED, 0.0, 1.0)
@@ -120,6 +131,24 @@ class CarController(CarControllerBase, SnGCarController):
 
     self._reset_low_speed_straight_stability()
     return raw_target
+
+  def _get_low_speed_delta_deadzone_target(self, raw_target: float, CS, lkas_request: bool):
+    experiment_active = self.mc_subaru_chatter_fix and lkas_request and \
+      CS.out.vEgoRaw < LOW_SPEED_SMOOTH_MAX_SPEED and \
+      not CS.out.standstill and not CS.out.steeringPressed and \
+      abs(raw_target) <= LOW_SPEED_DELTA_DEADZONE_TARGET_MAX and \
+      abs(CS.out.steeringAngleDeg) <= LOW_SPEED_DELTA_DEADZONE_STEER_MAX
+    if not experiment_active:
+      return raw_target, False, 0.0
+
+    delta = raw_target - self.apply_angle_last
+    deadzone = float(np.interp(
+      CS.out.vEgoRaw,
+      [0.0, LOW_SPEED_SMOOTH_MAX_SPEED],
+      [LOW_SPEED_DELTA_DEADZONE_MAX, LOW_SPEED_DELTA_DEADZONE_MIN],
+    ))
+    filtered_target = self.apply_angle_last + apply_center_deadzone(delta, deadzone)
+    return filtered_target, True, deadzone
 
   def _get_low_speed_center_damped_angle_target(self, raw_target: float, CS):
     center_damping_active = CS.out.vEgoRaw < LOW_SPEED_SMOOTH_MAX_SPEED and \
@@ -191,15 +220,25 @@ class CarController(CarControllerBase, SnGCarController):
 
     steer_target = CC.actuators.steeringAngleDeg
     if lkas_request and CS.out.vEgoRaw < LOW_SPEED_SMOOTH_MAX_SPEED:
-      # Low-speed damping to reduce left-right command chatter while retaining large steering authority.
+      # Keep the existing MC low-speed stack intact, with an optional upstream-inspired delta deadzone experiment.
       steer_target = self._get_low_speed_smoothed_angle_target(steer_target, CS.out.vEgoRaw)
+      steer_target, delta_deadzone_active, delta_deadzone = self._get_low_speed_delta_deadzone_target(steer_target, CS, lkas_request)
       steer_target = self._get_low_speed_stable_angle_target(steer_target, CS)
       steer_target, center_damping_active, sign_flip_clamped = self._get_low_speed_center_damped_angle_target(steer_target, CS)
     else:
       self._reset_low_speed_straight_stability()
+      delta_deadzone_active = False
+      delta_deadzone = 0.0
       center_damping_active = False
       sign_flip_clamped = False
 
+    self._log_transition(
+      "angle_lkas_delta_deadzone",
+      delta_deadzone_active,
+      f"angle LKAS delta deadzone active={delta_deadzone_active} "
+      f"deadzone={delta_deadzone:.2f} target={steer_target:.2f} last={self.apply_angle_last:.2f} "
+      f"vEgo={CS.out.vEgoRaw:.2f} steeringAngle={CS.out.steeringAngleDeg:.2f}",
+    )
     self._log_transition(
       "angle_lkas_center_damping",
       center_damping_active,
@@ -257,6 +296,9 @@ class CarController(CarControllerBase, SnGCarController):
     return msg
 
   def update(self, CC, CC_SP, CS, now_nanos):
+    if self.frame % 100 == 0:
+      self._update_params()
+
     actuators = CC.actuators
     hud_control = CC.hudControl
     pcm_cancel_cmd = CC.cruiseControl.cancel

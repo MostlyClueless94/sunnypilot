@@ -258,6 +258,10 @@
     "title": "MC Custom: Show Vehicle Brake Status",
     "description": "Display current speed in red whenever the vehicle is braking, including ACC/openpilot braking when available."
   },
+  "MCSubaruChatterFix": {
+    "title": "MC Custom: Subaru Chatter Fix (Test)",
+    "description": "Enable a Lukas-inspired low-speed deadzone experiment for Subaru angle steering. Keeps the current MostlyClueless Subaru logic and only affects low-speed near-center behavior."
+  },
   "CustomAccIncrementsEnabled": {
     "title": "Custom ACC Increments",
     "description": ""

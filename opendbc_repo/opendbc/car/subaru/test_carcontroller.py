@@ -2,6 +2,7 @@ import unittest
 from types import SimpleNamespace
 
 from opendbc.car import structs
+from opendbc.car.subaru.fingerprints import FW_VERSIONS
 from opendbc.car.subaru import subarucan
 from opendbc.car.subaru.carcontroller import (
   CarController,
@@ -10,6 +11,7 @@ from opendbc.car.subaru.carcontroller import (
 )
 from opendbc.car.subaru.interface import CarInterface
 from opendbc.car.subaru.values import CAR
+from opendbc.car.tests.routes import routes
 
 
 class TestSubaruCarController(unittest.TestCase):
@@ -155,6 +157,66 @@ class TestSubaruCarController(unittest.TestCase):
     self.assertFalse(active)
     self.assertFalse(sign_flip_clamped)
     self.assertAlmostEqual(damped_target, 1.6)
+
+  def test_low_speed_delta_deadzone_is_noop_when_toggle_off(self):
+    controller = self._build_controller()
+    controller.apply_angle_last = 0.5
+    cs = self._build_cs(3.0, 0.2)
+
+    filtered_target, active, deadzone = controller._get_low_speed_delta_deadzone_target(1.2, cs, True)
+
+    self.assertFalse(active)
+    self.assertEqual(deadzone, 0.0)
+    self.assertAlmostEqual(filtered_target, 1.2)
+
+  def test_low_speed_delta_deadzone_filters_small_delta_when_enabled(self):
+    controller = self._build_controller()
+    controller.mc_subaru_chatter_fix = True
+    controller.apply_angle_last = 0.5
+    cs = self._build_cs(3.0, 0.2)
+
+    filtered_target, active, deadzone = controller._get_low_speed_delta_deadzone_target(1.0, cs, True)
+
+    self.assertTrue(active)
+    self.assertGreater(deadzone, 0.0)
+    self.assertAlmostEqual(filtered_target, 0.5)
+
+  def test_low_speed_delta_deadzone_bypasses_real_turn_requests(self):
+    controller = self._build_controller()
+    controller.mc_subaru_chatter_fix = True
+    cs = self._build_cs(3.0, 0.5)
+
+    filtered_target, active, deadzone = controller._get_low_speed_delta_deadzone_target(5.0, cs, True)
+
+    self.assertFalse(active)
+    self.assertEqual(deadzone, 0.0)
+    self.assertAlmostEqual(filtered_target, 5.0)
+
+  def test_low_speed_delta_deadzone_bypasses_driver_input(self):
+    controller = self._build_controller()
+    controller.mc_subaru_chatter_fix = True
+    cs = self._build_cs(3.0, 0.2, steering_pressed=True)
+
+    filtered_target, active, deadzone = controller._get_low_speed_delta_deadzone_target(1.2, cs, True)
+
+    self.assertFalse(active)
+    self.assertEqual(deadzone, 0.0)
+    self.assertAlmostEqual(filtered_target, 1.2)
+
+  def test_low_speed_delta_deadzone_bypasses_high_speed_window(self):
+    controller = self._build_controller()
+    controller.mc_subaru_chatter_fix = True
+    cs = self._build_cs(LOW_SPEED_SMOOTH_MAX_SPEED, 0.2)
+
+    filtered_target, active, deadzone = controller._get_low_speed_delta_deadzone_target(1.2, cs, True)
+
+    self.assertFalse(active)
+    self.assertEqual(deadzone, 0.0)
+    self.assertAlmostEqual(filtered_target, 1.2)
+
+  def test_crosstrek_2025_support_metadata_present(self):
+    self.assertIn(CAR.SUBARU_CROSSTREK_2025, FW_VERSIONS)
+    self.assertTrue(any(route.car_model == CAR.SUBARU_CROSSTREK_2025 for route in routes))
 
 
 if __name__ == "__main__":

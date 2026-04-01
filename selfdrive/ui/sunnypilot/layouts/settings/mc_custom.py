@@ -69,6 +69,13 @@ class MCCustomLayout(Widget):
       param="MCShowVehicleBrakeStatus",
       initial_state=self._params.get_bool("MCShowVehicleBrakeStatus"),
     )
+    self._subaru_chatter_fix = toggle_item_sp(
+      title=lambda: tr("Subaru Chatter Fix (Test)"),
+      description=lambda: tr("Enable a Lukas-inspired low-speed deadzone experiment for Subaru angle steering. "
+                             "Keeps the current MostlyClueless Subaru logic and only affects low-speed near-center behavior."),
+      param="MCSubaruChatterFix",
+      initial_state=self._params.get_bool("MCSubaruChatterFix"),
+    )
 
     return [
       SectionHeader(tr("Pathing")),
@@ -77,6 +84,8 @@ class MCCustomLayout(Widget):
       self._custom_model_path_color,
       SectionHeader(tr("Driving Status")),
       self._show_vehicle_brake_status,
+      SectionHeader(tr("Subaru")),
+      self._subaru_chatter_fix,
     ]
 
   def _update_state(self):
@@ -90,6 +99,7 @@ class MCCustomLayout(Widget):
     selected_color = max(0, min(self._get_int_param("CustomModelPathColor"), len(CUSTOM_MODEL_PATH_COLOR_LABELS) - 1))
     self._custom_model_path_color.action_item.set_selected_button(selected_color)
     self._show_vehicle_brake_status.action_item.set_state(self._params.get_bool("MCShowVehicleBrakeStatus"))
+    self._subaru_chatter_fix.action_item.set_state(self._params.get_bool("MCSubaruChatterFix"))
 
   def _render(self, rect):
     self._scroller.render(rect)

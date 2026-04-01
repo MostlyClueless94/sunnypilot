@@ -150,6 +150,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"CompletedSunnylinkConsentVersion", {PERSISTENT, STRING, "0"}},
     {"CustomModelPathColor", {PERSISTENT | BACKUP, INT, "0"}},
     {"MCShowVehicleBrakeStatus", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"MCSubaruChatterFix", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"CustomAccIncrementsEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"CustomAccLongPressIncrement", {PERSISTENT | BACKUP, INT, "5"}},
     {"CustomAccShortPressIncrement", {PERSISTENT | BACKUP, INT, "1"}},

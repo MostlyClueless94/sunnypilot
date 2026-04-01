@@ -1,6 +1,7 @@
-# SubiPilot Staging Hotfix
+# SubiPilot 1.0 Hotfix
+- Stable install: `https://installer.comma.ai/MostlyClueless94/subi-1.0`
 - Broad testing: `https://installer.comma.ai/MostlyClueless94/subi-staging`
-- Adds a `subi-staging` C4/MICI speedometer hotfix.
+- Adds the C4/MICI speedometer hotfix to `subi-1.0`.
 - Reduces and rebalances the comma 4 current-speed display so it no longer dominates the screen.
 - No change to the C3X/TICI layout.
 - True speed, brake-red speed, and Hide Speed options are preserved.

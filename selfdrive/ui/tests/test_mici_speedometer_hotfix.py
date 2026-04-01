@@ -34,7 +34,9 @@ def test_mici_speed_renderer_uses_smaller_mici_layout_and_existing_features():
 
 def test_fork_changelog_top_block_mentions_c4_speedometer_hotfix():
   top_block = _read(FORK_CHANGELOG).split("\n\n", 1)[0]
-  assert "# SubiPilot Staging Hotfix" in top_block
+  assert "# SubiPilot 1.0 Hotfix" in top_block
+  assert "subi-1.0" in top_block
+  assert "subi-staging" in top_block
   assert "C4/MICI speedometer hotfix" in top_block
   assert "comma 4" in top_block
   assert "C3X/TICI" in top_block

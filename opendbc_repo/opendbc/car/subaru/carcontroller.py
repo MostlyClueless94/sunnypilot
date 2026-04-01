@@ -18,6 +18,14 @@ MADS_ONLY_MAX_STEER_ANGLE = 120.0  # deg
 LOW_SPEED_SMOOTH_MAX_SPEED = 4.4704  # m/s (10 mph)
 LOW_SPEED_SMOOTH_DEADBAND_MAX = 0.8  # deg at 0 mph
 LOW_SPEED_SMOOTH_ALPHA_MIN = 0.35  # blend factor at 0 mph
+LOW_SPEED_CENTER_DAMPING_TARGET_MAX = 3.0  # deg, only damp tiny near-center requests
+LOW_SPEED_CENTER_DAMPING_STEER_MAX = 8.0  # deg, avoid muting real turns
+LOW_SPEED_CENTER_DAMPING_DEADBAND_MAX = 0.8  # deg at 0 mph
+LOW_SPEED_CENTER_DAMPING_DEADBAND_MIN = 0.25  # deg at 10 mph
+LOW_SPEED_CENTER_DAMPING_SIGN_FLIP_DELTA_MIN = 0.2  # deg/frame at 0 mph
+LOW_SPEED_CENTER_DAMPING_SIGN_FLIP_DELTA_MAX = 0.75  # deg/frame at 10 mph
+LOW_SPEED_CENTER_DAMPING_ALPHA_MIN = 0.25  # first-order blend factor at 0 mph
+LOW_SPEED_CENTER_DAMPING_ALPHA_MAX = 0.65  # first-order blend factor at 10 mph
 LOW_SPEED_STRAIGHT_STABILITY_TARGET_MAX = 3.5  # deg, keep narrowly scoped to straight-ahead chatter
 LOW_SPEED_STRAIGHT_STABILITY_STEER_MAX = 6.0  # deg, bypass real turning maneuvers
 LOW_SPEED_STRAIGHT_CENTER_HOLD_TARGET_MAX = 1.0  # deg, hold near-center targets steady
@@ -113,6 +121,44 @@ class CarController(CarControllerBase, SnGCarController):
     self._reset_low_speed_straight_stability()
     return raw_target
 
+  def _get_low_speed_center_damped_angle_target(self, raw_target: float, CS):
+    center_damping_active = CS.out.vEgoRaw < LOW_SPEED_SMOOTH_MAX_SPEED and \
+      not CS.out.standstill and not CS.out.steeringPressed and \
+      abs(raw_target) <= LOW_SPEED_CENTER_DAMPING_TARGET_MAX and \
+      abs(CS.out.steeringAngleDeg) <= LOW_SPEED_CENTER_DAMPING_STEER_MAX
+    if not center_damping_active:
+      return raw_target, False, False
+
+    deadband = np.interp(
+      CS.out.vEgoRaw,
+      [0.0, LOW_SPEED_SMOOTH_MAX_SPEED],
+      [LOW_SPEED_CENTER_DAMPING_DEADBAND_MAX, LOW_SPEED_CENTER_DAMPING_DEADBAND_MIN],
+    )
+    if abs(raw_target) <= deadband:
+      return 0.0, True, False
+
+    target_direction = self._angle_direction(raw_target)
+    current_direction = self._angle_direction(self.apply_angle_last)
+    sign_flip_clamped = abs(self.apply_angle_last) <= LOW_SPEED_CENTER_DAMPING_TARGET_MAX and \
+      current_direction != 0 and target_direction != 0 and current_direction != target_direction
+
+    clamped_target = raw_target
+    if sign_flip_clamped:
+      max_delta = np.interp(
+        CS.out.vEgoRaw,
+        [0.0, LOW_SPEED_SMOOTH_MAX_SPEED],
+        [LOW_SPEED_CENTER_DAMPING_SIGN_FLIP_DELTA_MIN, LOW_SPEED_CENTER_DAMPING_SIGN_FLIP_DELTA_MAX],
+      )
+      clamped_target = float(np.clip(raw_target, self.apply_angle_last - max_delta, self.apply_angle_last + max_delta))
+
+    alpha = np.interp(
+      CS.out.vEgoRaw,
+      [0.0, LOW_SPEED_SMOOTH_MAX_SPEED],
+      [LOW_SPEED_CENTER_DAMPING_ALPHA_MIN, LOW_SPEED_CENTER_DAMPING_ALPHA_MAX],
+    )
+    filtered_target = self.apply_angle_last + alpha * (clamped_target - self.apply_angle_last)
+    return filtered_target, True, sign_flip_clamped
+
   def handle_angle_lateral(self, CC, CS):
     # Angle-LKAS can hard fault during low-speed MADS lateral-only maneuvers.
     # Keep MADS behavior above 5 mph, but block sharp parking-lot style steering in lateral-only mode.
@@ -148,8 +194,24 @@ class CarController(CarControllerBase, SnGCarController):
       # Low-speed damping to reduce left-right command chatter while retaining large steering authority.
       steer_target = self._get_low_speed_smoothed_angle_target(steer_target, CS.out.vEgoRaw)
       steer_target = self._get_low_speed_stable_angle_target(steer_target, CS)
+      steer_target, center_damping_active, sign_flip_clamped = self._get_low_speed_center_damped_angle_target(steer_target, CS)
     else:
       self._reset_low_speed_straight_stability()
+      center_damping_active = False
+      sign_flip_clamped = False
+
+    self._log_transition(
+      "angle_lkas_center_damping",
+      center_damping_active,
+      f"angle LKAS low-speed center damping active={center_damping_active} "
+      f"target={steer_target:.2f} vEgo={CS.out.vEgoRaw:.2f} steeringAngle={CS.out.steeringAngleDeg:.2f}",
+    )
+    self._log_transition(
+      "angle_lkas_center_sign_flip_clamp",
+      sign_flip_clamped,
+      f"angle LKAS center sign-flip clamp active={sign_flip_clamped} "
+      f"target={steer_target:.2f} last={self.apply_angle_last:.2f} vEgo={CS.out.vEgoRaw:.2f}",
+    )
 
     apply_steer = apply_std_steer_angle_limits(
       steer_target,

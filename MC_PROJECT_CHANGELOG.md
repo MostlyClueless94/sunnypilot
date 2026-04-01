@@ -10,6 +10,29 @@ When we make meaningful project changes, add a new dated entry near the top with
 - validation performed
 - open follow-ups or blockers
 
+## 2026-03-31
+
+### `subaru/low-speed center damping` reduce sub-10 mph straight-tracking wheel chatter
+
+What changed:
+- Tightened the Subaru angle-control path on `MostlyClueless` only with a narrow low-speed, near-center damping layer.
+- Kept the existing branch-local smoothing, straight-tracking stability logic, and manual-steer yield behavior intact.
+- Added a small center deadband, stricter sign-flip clamping near zero angle, and light smoothing that all blend out by 10 mph.
+- Added focused Subaru controller tests for tiny near-center requests, alternating sign flips, persistent small requests, real low-speed turns, high-speed bypass, and steering-pressed bypass.
+
+Why:
+- The current branch already had low-speed smoothing and straight-tracking stabilization, which means the remaining wheel chatter is most likely tiny near-center reversals still slipping through below 10 mph.
+- This keeps the fix narrowly scoped to the known low-speed chatter zone without reviving broader lateral experiments that previously made the branch too sensitive.
+
+Validation guidance:
+- Recheck on the same repeatable Subaru route with:
+  - straight crawl at 5-8 mph
+  - light curve at 5-8 mph
+  - transition through 8-12 mph
+  - MADS touch/relax check
+- Desired outcome is less visible wheel chatter around center with no sluggishness entering a gentle turn.
+- This entry documents validation intent only and does not claim on-road testing has been completed.
+
 ## Current Topology
 
 - Active repo and install surface: `install-mc/openpilot`

@@ -6,26 +6,20 @@ See the LICENSE.md file in the root directory for more details.
 """
 import pyray as rl
 
-from openpilot.common.params import Params
 from openpilot.selfdrive.ui.mici.onroad.hud_renderer import HudRenderer
-from openpilot.selfdrive.ui.mici.onroad.hud_renderer import COLORS, FONT_SIZES
 from openpilot.selfdrive.ui.sunnypilot.onroad.blind_spot_indicators import BlindSpotIndicators
-from openpilot.selfdrive.ui.sunnypilot.onroad.brake_status import should_highlight_braking_speed
-from openpilot.selfdrive.ui.ui_state import ui_state
-from openpilot.system.ui.lib.multilang import tr
-from openpilot.system.ui.lib.text_measure import measure_text_cached
+from openpilot.selfdrive.ui.sunnypilot.mici.onroad.speed_renderer import SpeedRenderer
 
 
 class HudRendererSP(HudRenderer):
   def __init__(self):
     super().__init__()
-    self._params = Params()
-    self._brakes_on = False
+    self.speed_renderer = SpeedRenderer()
     self.blind_spot_indicators = BlindSpotIndicators()
 
   def _update_state(self) -> None:
     super()._update_state()
-    self._brakes_on = should_highlight_braking_speed(self._params.get_bool("ShowBrakeStatus"))
+    self.speed_renderer.update()
     self.blind_spot_indicators.update()
 
   def _render(self, rect: rl.Rectangle) -> None:
@@ -39,19 +33,7 @@ class HudRendererSP(HudRenderer):
     self.blind_spot_indicators.render(rect)
 
   def _draw_current_speed(self, rect: rl.Rectangle) -> None:
-    if ui_state.hide_v_ego_ui:
-      return
-
-    speed_text = str(round(self.speed))
-    speed_text_size = measure_text_cached(self._font_bold, speed_text, FONT_SIZES.current_speed)
-    speed_pos = rl.Vector2(rect.x + rect.width / 2 - speed_text_size.x / 2, 180 - speed_text_size.y / 2)
-    speed_color = rl.Color(255, 60, 60, 255) if self._brakes_on else COLORS.WHITE
-    rl.draw_text_ex(self._font_bold, speed_text, speed_pos, FONT_SIZES.current_speed, 0, speed_color)
-
-    unit_text = tr("km/h") if ui_state.is_metric else tr("mph")
-    unit_text_size = measure_text_cached(self._font_medium, unit_text, FONT_SIZES.speed_unit)
-    unit_pos = rl.Vector2(rect.x + rect.width / 2 - unit_text_size.x / 2, 290 - unit_text_size.y / 2)
-    rl.draw_text_ex(self._font_medium, unit_text, unit_pos, FONT_SIZES.speed_unit, 0, COLORS.WHITE_TRANSLUCENT)
+    self.speed_renderer.render(rect)
 
   def _has_blind_spot_detected(self) -> bool:
 

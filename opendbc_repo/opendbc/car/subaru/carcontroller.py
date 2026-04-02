@@ -22,12 +22,6 @@ LOW_SPEED_SMOOTH_MAX_SPEED = 4.4704  # m/s (10 mph)
 LOW_SPEED_SMOOTH_DEADBAND_MAX = 0.8  # deg at 0 mph
 LOW_SPEED_SMOOTH_ALPHA_MIN = 0.35  # blend factor at 0 mph
 SUBARU_ANGLE_RATE_LIMIT_DOWN_STOCK = ([0., 5., 35.], [5., 0.8, 0.15])
-SUBARU_UNWIND_RATE_MODE_BOTH = 0
-SUBARU_UNWIND_RATE_MODE_LOW_ONLY = 1
-SUBARU_UNWIND_RATE_MODE_HIGH_ONLY = 2
-SUBARU_ANGLE_RATE_LIMIT_DOWN_TEST_BOTH = ([0., 5., 35.], [5., 1.4, 0.30])
-SUBARU_ANGLE_RATE_LIMIT_DOWN_TEST_LOW_ONLY = ([0., 5., 35.], [5., 1.4, 0.15])
-SUBARU_ANGLE_RATE_LIMIT_DOWN_TEST_HIGH_ONLY = ([0., 5., 35.], [5., 0.8, 0.30])
 LOW_SPEED_DELTA_DEADZONE_TARGET_MAX = 4.0  # deg, keep the experiment scoped near center
 LOW_SPEED_DELTA_DEADZONE_STEER_MAX = 10.0  # deg, bypass real low-speed turns
 LOW_SPEED_DELTA_DEADZONE_MAX = 2.0  # deg at 0 mph
@@ -65,7 +59,7 @@ class CarController(CarControllerBase, SnGCarController):
     self.params = Params()
     self.mc_subaru_chatter_fix = False
     self.mc_subaru_unwind_rate_test = False
-    self.mc_subaru_unwind_rate_mode = SUBARU_UNWIND_RATE_MODE_BOTH
+    self.mc_subaru_unwind_rate_mode = 0
     self.mc_subaru_smoothing_tune = False
     self.mc_subaru_smoothing_strength = 0
     self.mc_subaru_center_damping_strength = 0
@@ -94,17 +88,9 @@ class CarController(CarControllerBase, SnGCarController):
     return float(np.interp(strength, [-3, 0, 3], [low_value, mid_value, high_value]))
 
   def _apply_subaru_unwind_rate_limit_test(self):
-    use_test_down_table = bool(self.CP.flags & SubaruFlags.LKAS_ANGLE) and self.mc_subaru_unwind_rate_test
-    if not use_test_down_table:
-      self.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_DOWN = SUBARU_ANGLE_RATE_LIMIT_DOWN_STOCK
-      return
-
-    selected_down_table = {
-      SUBARU_UNWIND_RATE_MODE_BOTH: SUBARU_ANGLE_RATE_LIMIT_DOWN_TEST_BOTH,
-      SUBARU_UNWIND_RATE_MODE_LOW_ONLY: SUBARU_ANGLE_RATE_LIMIT_DOWN_TEST_LOW_ONLY,
-      SUBARU_UNWIND_RATE_MODE_HIGH_ONLY: SUBARU_ANGLE_RATE_LIMIT_DOWN_TEST_HIGH_ONLY,
-    }.get(self.mc_subaru_unwind_rate_mode, SUBARU_ANGLE_RATE_LIMIT_DOWN_TEST_BOTH)
-    self.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_DOWN = selected_down_table
+    # Historical unwind test params are intentionally kept inert after
+    # in-car LKAS faults were reproduced with the faster unwind tables.
+    self.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_DOWN = SUBARU_ANGLE_RATE_LIMIT_DOWN_STOCK
 
   def _update_params(self):
     self.mc_subaru_chatter_fix = self.params.get_bool("MCSubaruChatterFix")
@@ -326,13 +312,6 @@ class CarController(CarControllerBase, SnGCarController):
     elif mads_only and not mads_only_ok:
       inhibit_reason = "mads_below_min_speed" if CS.out.vEgoRaw <= MADS_ONLY_MIN_SPEED else "mads_angle_limit"
 
-    self._log_transition(
-      "angle_lkas_request",
-      lkas_request,
-      f"angle LKAS request={lkas_request} inhibit={inhibit_reason} latActive={CC.latActive} "
-      f"enabled={CC.enabled} vEgo={CS.out.vEgoRaw:.2f} steeringAngle={CS.out.steeringAngleDeg:.2f} "
-      f"steeringPressed={CS.out.steeringPressed}",
-    )
     self._log_transition("angle_lkas_inhibit", inhibit_reason, f"angle LKAS inhibit={inhibit_reason}")
     self._log_transition(
       "mads_manual_override_hold",
@@ -362,6 +341,16 @@ class CarController(CarControllerBase, SnGCarController):
       steer_target, manual_override_ramp_active = self._apply_mads_manual_override_ramp(steer_target)
     else:
       manual_override_ramp_active = False
+
+    handoff_active = mads_manual_override or ramp_will_start or manual_override_ramp_active
+    self._log_transition(
+      "angle_lkas_request",
+      lkas_request,
+      f"angle LKAS request={lkas_request} inhibit={inhibit_reason} target={steer_target:.2f} "
+      f"lastApplied={self.apply_angle_last:.2f} measuredAngle={CS.out.steeringAngleDeg:.2f} "
+      f"measuredRate={CS.out.steeringRateDeg:.2f} handoffActive={handoff_active} "
+      f"rampActive={manual_override_ramp_active} latActive={CC.latActive} enabled={CC.enabled}",
+    )
 
     self._log_transition(
       "angle_lkas_delta_deadzone",

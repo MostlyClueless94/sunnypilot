@@ -161,9 +161,15 @@ class CarState(CarStateBase, MadsCarState, SnGCarState):
       self._log_transition("cruise_enabled", ret.cruiseState.enabled,
                            f"ACC enabled={ret.cruiseState.enabled} via ES_Status")
       self._log_transition("steer_fault_temporary", ret.steerFaultTemporary,
-                           f"steerFaultTemporary={ret.steerFaultTemporary}")
+                           f"steerFaultTemporary={ret.steerFaultTemporary} angle={ret.steeringAngleDeg:.2f} "
+                           f"rate={ret.steeringRateDeg:.2f} torque={ret.steeringTorque:.2f} "
+                           f"torqueEps={ret.steeringTorqueEps:.2f} cruiseEnabled={ret.cruiseState.enabled} "
+                           f"cruiseAvailable={ret.cruiseState.available}")
       self._log_transition("steer_fault_permanent", ret.steerFaultPermanent,
-                           f"steerFaultPermanent={ret.steerFaultPermanent}")
+                           f"steerFaultPermanent={ret.steerFaultPermanent} angle={ret.steeringAngleDeg:.2f} "
+                           f"rate={ret.steeringRateDeg:.2f} torque={ret.steeringTorque:.2f} "
+                           f"torqueEps={ret.steeringTorqueEps:.2f} cruiseEnabled={ret.cruiseState.enabled} "
+                           f"cruiseAvailable={ret.cruiseState.available}")
 
       dash_status_state = (
         cp_cam.vl["ES_DashStatus"]["Cruise_On"],

@@ -16,8 +16,6 @@ from openpilot.system.ui.widgets import Widget
 from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog
 from openpilot.system.ui.widgets.scroller_tici import Scroller
 
-SUBARU_UNWIND_MODE_LABELS = ("Both", "Low Only", "High Only")
-
 
 class MCCustomLayout(Widget):
   def __init__(self):
@@ -93,23 +91,6 @@ class MCCustomLayout(Widget):
       param="MCSubaruChatterFix",
       initial_state=self._params.get_bool("MCSubaruChatterFix"),
     )
-    self._subaru_unwind_rate_test = toggle_item_sp(
-      title=lambda: tr("Subaru Faster Unwind (Test)"),
-      description=lambda: tr("Test a faster Subaru angle steering unwind table so the wheel can return toward center "
-                             "more decisively after larger turns without changing turn-in behavior."),
-      param="MCSubaruUnwindRateTest",
-      initial_state=self._params.get_bool("MCSubaruUnwindRateTest"),
-    )
-    self._subaru_unwind_rate_mode = multiple_button_item_sp(
-      title=lambda: tr("Subaru Unwind Mode"),
-      description=lambda: tr("Choose which speed range uses the faster Subaru angle steering unwind rate. "
-                             "Both matches the current faster-unwind test, Low Only changes the lower-speed unwind entry only, "
-                             "and High Only changes the higher-speed unwind entry only."),
-      buttons=[lambda label=label: tr(label) for label in SUBARU_UNWIND_MODE_LABELS],
-      param="MCSubaruUnwindRateMode",
-      button_width=140,
-      inline=False
-    )
     self._subaru_actuator_delay_test = toggle_item_sp(
       title=lambda: tr("Subaru Delay Tweak (Test)"),
       description=lambda: self._get_subaru_delay_description(ui_state.is_offroad()),
@@ -157,8 +138,6 @@ class MCCustomLayout(Widget):
       SectionHeader(tr("Driving Status")),
       self._show_vehicle_brake_status,
       SectionHeader(tr("Subaru")),
-      self._subaru_unwind_rate_test,
-      self._subaru_unwind_rate_mode,
       self._subaru_actuator_delay_test,
       self._subaru_smoothing_tune,
       self._subaru_smoothing_strength,
@@ -189,12 +168,6 @@ class MCCustomLayout(Widget):
     selected_color = max(0, min(self._get_int_param("CustomModelPathColor"), len(CUSTOM_MODEL_PATH_COLOR_LABELS) - 1))
     self._custom_model_path_color.action_item.set_selected_button(selected_color)
     self._show_vehicle_brake_status.action_item.set_state(self._params.get_bool("MCShowVehicleBrakeStatus"))
-    subaru_unwind_rate_test_enabled = self._params.get_bool("MCSubaruUnwindRateTest")
-    self._subaru_unwind_rate_test.action_item.set_state(subaru_unwind_rate_test_enabled)
-    self._subaru_unwind_rate_mode.action_item.set_selected_button(
-      max(0, min(self._get_int_param("MCSubaruUnwindRateMode"), len(SUBARU_UNWIND_MODE_LABELS) - 1))
-    )
-    self._subaru_unwind_rate_mode.action_item.set_enabled(subaru_unwind_rate_test_enabled)
     self._subaru_actuator_delay_test.action_item.set_state(self._params.get_bool("MCSubaruActuatorDelayTest"))
     self._subaru_actuator_delay_test.action_item.set_enabled(ui_state.is_offroad())
     self._subaru_actuator_delay_test.set_description(self._get_subaru_delay_description(ui_state.is_offroad()))

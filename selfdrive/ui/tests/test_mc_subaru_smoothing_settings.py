@@ -13,13 +13,13 @@ def _read(path: Path) -> str:
 
 def test_mc_custom_contains_subaru_smoothing_controls():
   source = _read(MC_CUSTOM)
-  assert 'param="MCSubaruUnwindRateTest"' in source
-  assert 'param="MCSubaruUnwindRateMode"' in source
+  assert 'param="MCSubaruUnwindRateTest"' not in source
+  assert 'param="MCSubaruUnwindRateMode"' not in source
   assert 'MCSubaruActuatorDelayTest' in source
-  assert 'Subaru Faster Unwind (Test)' in source
-  assert 'Subaru Unwind Mode' in source
-  assert 'SUBARU_UNWIND_MODE_LABELS' in source
-  assert 'self._subaru_unwind_rate_mode.action_item.set_enabled(subaru_unwind_rate_test_enabled)' in source
+  assert 'Subaru Faster Unwind (Test)' not in source
+  assert 'Subaru Unwind Mode' not in source
+  assert 'SUBARU_UNWIND_MODE_LABELS' not in source
+  assert 'subaru_unwind_rate_test_enabled' not in source
   assert 'Subaru Delay Tweak (Test)' in source
   assert 'ConfirmDialog(tr("System reboot required for changes to take effect. Reboot now?")' in source
   assert 'ui_state.params.put_bool("DoReboot", True)' in source

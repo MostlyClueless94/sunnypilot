@@ -32,14 +32,17 @@ def test_mici_speed_renderer_uses_smaller_mici_layout_and_existing_features():
   assert "\"ShowBrakeStatus\"" in source
 
 
-def test_fork_changelog_top_block_mentions_c4_speedometer_hotfix():
+def test_fork_changelog_top_block_mentions_subaru_steering_port():
   top_block = _read(FORK_CHANGELOG).split("\n\n", 1)[0]
-  assert "# SubiPilot 1.0 Hotfix" in top_block
+  assert "# Major Subaru Angle-Based Steering Improvements (subi-staging)" in top_block
   assert "subi-1.0" in top_block
   assert "subi-staging" in top_block
-  assert "C4/MICI speedometer hotfix" in top_block
-  assert "comma 4" in top_block
-  assert "C3X/TICI" in top_block
-  assert "True speed" in top_block
-  assert "brake-red speed" in top_block
-  assert "Hide Speed" in top_block
+  assert "low-speed angle smoothing pipeline" in top_block
+  assert "center-zone delta deadband" in top_block
+  assert "straight-line stability hold" in top_block
+  assert "center damping" in top_block
+  assert "stale ramp-target bug" in top_block
+  assert "manual-override hold" in top_block
+  assert "smooth re-entry ramp" in top_block
+  assert "MCSubaruMADSHoldFrames" not in top_block
+  assert "MCSubaruMADSRampRate" not in top_block

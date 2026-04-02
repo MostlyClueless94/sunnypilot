@@ -1,10 +1,13 @@
-# SubiPilot 1.0 Hotfix
-- Stable install: `https://installer.comma.ai/MostlyClueless94/subi-1.0`
+# Major Subaru Angle-Based Steering Improvements (subi-staging)
 - Broad testing: `https://installer.comma.ai/MostlyClueless94/subi-staging`
-- Adds the C4/MICI speedometer hotfix to `subi-1.0`.
-- Reduces and rebalances the comma 4 current-speed display so it no longer dominates the screen.
-- No change to the C3X/TICI layout.
-- True speed, brake-red speed, and Hide Speed options are preserved.
+- Stable release: `https://installer.comma.ai/MostlyClueless94/subi-1.0`
+- Improved below-10mph wheel chatter via a multi-stage low-speed angle smoothing pipeline.
+- Added a center-zone delta deadband to suppress near-center oscillation.
+- Added straight-line stability hold to freeze the LKAS target when deviation stays below threshold.
+- Added center damping to actively reduce rapid sign-flip oscillations near zero angle.
+- All low-speed steering corrections blend out by 10mph, with no effect on normal highway driving.
+- Fixed the stale ramp-target bug in MADS manual override handoff.
+- Added a manual-override hold and smooth re-entry ramp to reduce steering twitch when handing control back to LKAS.
 
 # SubiPilot 1.0 Update
 - Stable install: `https://installer.comma.ai/MostlyClueless94/subi-1.0`

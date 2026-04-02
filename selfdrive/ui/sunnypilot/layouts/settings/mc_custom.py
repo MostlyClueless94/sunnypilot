@@ -84,13 +84,6 @@ class MCCustomLayout(Widget):
       param="MCShowVehicleBrakeStatus",
       initial_state=self._params.get_bool("MCShowVehicleBrakeStatus"),
     )
-    self._subaru_chatter_fix = toggle_item_sp(
-      title=lambda: tr("Subaru Chatter Fix (Test)"),
-      description=lambda: tr("Enable a Lukas-inspired low-speed deadzone experiment for Subaru angle steering. "
-                             "Keeps the current MostlyClueless Subaru logic and only affects low-speed near-center behavior."),
-      param="MCSubaruChatterFix",
-      initial_state=self._params.get_bool("MCSubaruChatterFix"),
-    )
     self._subaru_actuator_delay_test = toggle_item_sp(
       title=lambda: tr("Subaru Delay Tweak (Test)"),
       description=lambda: self._get_subaru_delay_description(ui_state.is_offroad()),
@@ -142,7 +135,6 @@ class MCCustomLayout(Widget):
       self._subaru_smoothing_tune,
       self._subaru_smoothing_strength,
       self._subaru_center_damping_strength,
-      self._subaru_chatter_fix,
     ]
 
   def _handle_subaru_actuator_delay_reboot(self, result):
@@ -177,7 +169,6 @@ class MCCustomLayout(Widget):
     self._subaru_center_damping_strength.action_item.current_value = max(-3, min(self._get_int_param("MCSubaruCenterDampingStrength"), 3))
     self._subaru_smoothing_strength.action_item.set_enabled(subaru_smoothing_tune_enabled)
     self._subaru_center_damping_strength.action_item.set_enabled(subaru_smoothing_tune_enabled)
-    self._subaru_chatter_fix.action_item.set_state(self._params.get_bool("MCSubaruChatterFix"))
 
   def _render(self, rect):
     self._scroller.render(rect)

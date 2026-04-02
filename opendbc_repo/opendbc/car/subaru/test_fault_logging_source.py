@@ -29,3 +29,9 @@ def test_carcontroller_request_logs_include_target_and_handoff_context():
   assert 'measuredRate={CS.out.steeringRateDeg:.2f}' in source
   assert 'handoffActive={handoff_active}' in source
   assert 'rampActive={manual_override_ramp_active}' in source
+
+
+def test_carcontroller_no_longer_reads_chatter_toggle_param():
+  source = _read(CARCONTROLLER)
+  assert "MCSubaruChatterFix" not in source
+  assert "mc_subaru_chatter_fix" not in source

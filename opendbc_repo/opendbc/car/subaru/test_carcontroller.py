@@ -380,16 +380,16 @@ class TestSubaruCarController(unittest.TestCase):
     self.assertAlmostEqual(baseline_target, 0.0)
     self.assertGreater(tuned_target, 0.0)
 
-  def test_low_speed_delta_deadzone_is_noop_when_toggle_off(self):
+  def test_low_speed_delta_deadzone_is_enabled_by_default(self):
     controller = self._build_controller()
     controller.apply_angle_last = 0.5
     cs = self._build_cs(3.0, 0.2)
 
     filtered_target, active, deadzone = controller._get_low_speed_delta_deadzone_target(1.2, cs, True)
 
-    self.assertFalse(active)
-    self.assertEqual(deadzone, 0.0)
-    self.assertAlmostEqual(filtered_target, 1.2)
+    self.assertTrue(active)
+    self.assertGreater(deadzone, 0.0)
+    self.assertAlmostEqual(filtered_target, 0.5)
 
   def test_low_speed_delta_deadzone_stays_independent_from_smoothing_tune(self):
     controller = self._build_controller()
@@ -401,13 +401,12 @@ class TestSubaruCarController(unittest.TestCase):
 
     filtered_target, active, deadzone = controller._get_low_speed_delta_deadzone_target(1.2, cs, True)
 
-    self.assertFalse(active)
-    self.assertEqual(deadzone, 0.0)
-    self.assertAlmostEqual(filtered_target, 1.2)
+    self.assertTrue(active)
+    self.assertGreater(deadzone, 0.0)
+    self.assertAlmostEqual(filtered_target, 0.5)
 
-  def test_low_speed_delta_deadzone_filters_small_delta_when_enabled(self):
+  def test_low_speed_delta_deadzone_filters_small_delta_by_default(self):
     controller = self._build_controller()
-    controller.mc_subaru_chatter_fix = True
     controller.apply_angle_last = 0.5
     cs = self._build_cs(3.0, 0.2)
 
@@ -419,7 +418,6 @@ class TestSubaruCarController(unittest.TestCase):
 
   def test_low_speed_delta_deadzone_bypasses_real_turn_requests(self):
     controller = self._build_controller()
-    controller.mc_subaru_chatter_fix = True
     cs = self._build_cs(3.0, 0.5)
 
     filtered_target, active, deadzone = controller._get_low_speed_delta_deadzone_target(5.0, cs, True)
@@ -430,7 +428,6 @@ class TestSubaruCarController(unittest.TestCase):
 
   def test_low_speed_delta_deadzone_bypasses_driver_input(self):
     controller = self._build_controller()
-    controller.mc_subaru_chatter_fix = True
     cs = self._build_cs(3.0, 0.2, steering_pressed=True)
 
     filtered_target, active, deadzone = controller._get_low_speed_delta_deadzone_target(1.2, cs, True)
@@ -441,7 +438,6 @@ class TestSubaruCarController(unittest.TestCase):
 
   def test_low_speed_delta_deadzone_bypasses_high_speed_window(self):
     controller = self._build_controller()
-    controller.mc_subaru_chatter_fix = True
     cs = self._build_cs(LOW_SPEED_SMOOTH_MAX_SPEED, 0.2)
 
     filtered_target, active, deadzone = controller._get_low_speed_delta_deadzone_target(1.2, cs, True)
@@ -452,7 +448,6 @@ class TestSubaruCarController(unittest.TestCase):
 
   def test_low_speed_delta_deadzone_is_noop_when_lkas_not_requested(self):
     controller = self._build_controller()
-    controller.mc_subaru_chatter_fix = True
     controller.apply_angle_last = 0.5
     cs = self._build_cs(3.0, 0.2)
 

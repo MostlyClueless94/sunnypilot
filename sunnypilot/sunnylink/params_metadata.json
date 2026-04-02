@@ -259,8 +259,8 @@
     "description": "Display current speed in red whenever the vehicle is braking, including ACC/openpilot braking when available."
   },
   "MCSubaruChatterFix": {
-    "title": "MC Custom: Subaru Chatter Fix (Test)",
-    "description": "Enable a Lukas-inspired low-speed deadzone experiment for Subaru angle steering. Keeps the current MostlyClueless Subaru logic and only affects low-speed near-center behavior."
+    "title": "MC Custom: Subaru Chatter Fix (Deprecated)",
+    "description": "Legacy compatibility param. The Lukas-inspired Subaru low-speed delta deadzone is now enabled by default in MostlyClueless and is no longer exposed as a toggle."
   },
   "MCSubaruUnwindRateTest": {
     "title": "MC Custom: Subaru Faster Unwind (Test)",

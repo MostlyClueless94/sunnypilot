@@ -57,7 +57,6 @@ class CarController(CarControllerBase, SnGCarController):
     self.p = CarControllerParams(CP)
     self.packer = CANPacker(DBC[CP.carFingerprint][Bus.pt])
     self.params = Params()
-    self.mc_subaru_chatter_fix = False
     self.mc_subaru_unwind_rate_test = False
     self.mc_subaru_unwind_rate_mode = 0
     self.mc_subaru_smoothing_tune = False
@@ -93,7 +92,6 @@ class CarController(CarControllerBase, SnGCarController):
     self.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_DOWN = SUBARU_ANGLE_RATE_LIMIT_DOWN_STOCK
 
   def _update_params(self):
-    self.mc_subaru_chatter_fix = self.params.get_bool("MCSubaruChatterFix")
     self.mc_subaru_unwind_rate_test = self.params.get_bool("MCSubaruUnwindRateTest")
     self.mc_subaru_unwind_rate_mode = int(np.clip(self._get_int_param("MCSubaruUnwindRateMode"), 0, 2))
     self.mc_subaru_smoothing_tune = self.params.get_bool("MCSubaruSmoothingTune")
@@ -221,12 +219,12 @@ class CarController(CarControllerBase, SnGCarController):
     return raw_target
 
   def _get_low_speed_delta_deadzone_target(self, raw_target: float, CS, lkas_request: bool):
-    experiment_active = self.mc_subaru_chatter_fix and lkas_request and \
+    deadzone_active = lkas_request and \
       CS.out.vEgoRaw < LOW_SPEED_SMOOTH_MAX_SPEED and \
       not CS.out.standstill and not CS.out.steeringPressed and \
       abs(raw_target) <= LOW_SPEED_DELTA_DEADZONE_TARGET_MAX and \
       abs(CS.out.steeringAngleDeg) <= LOW_SPEED_DELTA_DEADZONE_STEER_MAX
-    if not experiment_active:
+    if not deadzone_active:
       return raw_target, False, 0.0
 
     delta = raw_target - self.apply_angle_last
@@ -322,7 +320,8 @@ class CarController(CarControllerBase, SnGCarController):
 
     steer_target = CC.actuators.steeringAngleDeg
     if capture_lkas_target and CS.out.vEgoRaw < LOW_SPEED_SMOOTH_MAX_SPEED:
-      # Keep the existing MC low-speed stack intact, with an optional upstream-inspired delta deadzone experiment.
+      # Keep the existing MC low-speed stack intact, with the Lukas-inspired
+      # near-center delta deadzone now enabled by default.
       steer_target = self._get_low_speed_smoothed_angle_target(steer_target, CS.out.vEgoRaw)
       steer_target, delta_deadzone_active, delta_deadzone = self._get_low_speed_delta_deadzone_target(steer_target, CS, capture_lkas_target)
       steer_target = self._get_low_speed_stable_angle_target(steer_target, CS)

@@ -15,9 +15,11 @@ def test_mc_custom_contains_subaru_smoothing_controls():
   source = _read(MC_CUSTOM)
   assert 'param="MCSubaruUnwindRateTest"' not in source
   assert 'param="MCSubaruUnwindRateMode"' not in source
+  assert 'param="MCSubaruChatterFix"' not in source
   assert 'MCSubaruActuatorDelayTest' in source
   assert 'Subaru Faster Unwind (Test)' not in source
   assert 'Subaru Unwind Mode' not in source
+  assert 'Subaru Chatter Fix (Test)' not in source
   assert 'SUBARU_UNWIND_MODE_LABELS' not in source
   assert 'subaru_unwind_rate_test_enabled' not in source
   assert 'Subaru Delay Tweak (Test)' in source
@@ -34,6 +36,7 @@ def test_mc_custom_contains_subaru_smoothing_controls():
 
 def test_params_keys_register_subaru_smoothing_params():
   source = _read(PARAMS_KEYS)
+  assert '{"MCSubaruChatterFix", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
   assert '{"MCSubaruUnwindRateTest", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
   assert '{"MCSubaruUnwindRateMode", {PERSISTENT | BACKUP, INT, "0"}}' in source
   assert '{"MCSubaruActuatorDelayTest", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
@@ -44,6 +47,7 @@ def test_params_keys_register_subaru_smoothing_params():
 
 def test_params_metadata_describes_subaru_smoothing_params():
   source = _read(PARAMS_METADATA)
+  assert '"MCSubaruChatterFix"' in source
   assert '"MCSubaruUnwindRateTest"' in source
   assert '"MCSubaruUnwindRateMode"' in source
   assert '"label": "Both"' in source

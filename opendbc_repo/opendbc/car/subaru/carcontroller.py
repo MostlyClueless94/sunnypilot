@@ -55,6 +55,9 @@ class CarController(CarControllerBase, SnGCarController):
     self.packer = CANPacker(DBC[CP.carFingerprint][Bus.pt])
     self.params = Params()
     self.mc_subaru_chatter_fix = False
+    self.mc_subaru_smoothing_tune = False
+    self.mc_subaru_smoothing_strength = 0
+    self.mc_subaru_center_damping_strength = 0
     self.low_speed_straight_pending_direction = 0
     self.low_speed_straight_pending_frames = 0
     self._update_params()
@@ -64,12 +67,32 @@ class CarController(CarControllerBase, SnGCarController):
       carlog.info(f"subaru[{self.CP.carFingerprint}] {message}")
       self._debug_state[key] = value
 
+  def _get_int_param(self, key: str, default: int = 0) -> int:
+    value = self.params.get(key, return_default=True)
+    try:
+      return int(value)
+    except (TypeError, ValueError):
+      return default
+
+  @staticmethod
+  def _get_strength_scale(strength: int, low_value: float, mid_value: float, high_value: float) -> float:
+    return float(np.interp(strength, [-3, 0, 3], [low_value, mid_value, high_value]))
+
   def _update_params(self):
     self.mc_subaru_chatter_fix = self.params.get_bool("MCSubaruChatterFix")
+    self.mc_subaru_smoothing_tune = self.params.get_bool("MCSubaruSmoothingTune")
+    self.mc_subaru_smoothing_strength = int(np.clip(self._get_int_param("MCSubaruSmoothingStrength"), -3, 3))
+    self.mc_subaru_center_damping_strength = int(np.clip(self._get_int_param("MCSubaruCenterDampingStrength"), -3, 3))
 
   def _get_low_speed_smoothed_angle_target(self, raw_target, v_ego):
     speed_factor = np.clip(v_ego / LOW_SPEED_SMOOTH_MAX_SPEED, 0.0, 1.0)
-    deadband = (1.0 - speed_factor) * LOW_SPEED_SMOOTH_DEADBAND_MAX
+    deadband_scale = 1.0
+    alpha_scale = 1.0
+    if self.mc_subaru_smoothing_tune:
+      deadband_scale = self._get_strength_scale(self.mc_subaru_smoothing_strength, 0.70, 1.00, 1.35)
+      alpha_scale = self._get_strength_scale(self.mc_subaru_smoothing_strength, 1.20, 1.00, 0.80)
+
+    deadband = (1.0 - speed_factor) * LOW_SPEED_SMOOTH_DEADBAND_MAX * deadband_scale
     delta = raw_target - self.apply_angle_last
 
     if abs(delta) <= deadband:
@@ -77,6 +100,7 @@ class CarController(CarControllerBase, SnGCarController):
 
     delta = delta - deadband if delta > 0 else delta + deadband
     alpha = np.interp(v_ego, [0.0, LOW_SPEED_SMOOTH_MAX_SPEED], [LOW_SPEED_SMOOTH_ALPHA_MIN, 1.0])
+    alpha = float(np.clip(alpha * alpha_scale, 0.15, 1.0))
     return self.apply_angle_last + alpha * delta
 
   def _reset_low_speed_straight_stability(self):
@@ -158,11 +182,19 @@ class CarController(CarControllerBase, SnGCarController):
     if not center_damping_active:
       return raw_target, False, False
 
+    deadband_scale = 1.0
+    max_delta_scale = 1.0
+    alpha_scale = 1.0
+    if self.mc_subaru_smoothing_tune:
+      deadband_scale = self._get_strength_scale(self.mc_subaru_center_damping_strength, 0.70, 1.00, 1.45)
+      max_delta_scale = self._get_strength_scale(self.mc_subaru_center_damping_strength, 1.30, 1.00, 0.70)
+      alpha_scale = self._get_strength_scale(self.mc_subaru_center_damping_strength, 1.20, 1.00, 0.75)
+
     deadband = np.interp(
       CS.out.vEgoRaw,
       [0.0, LOW_SPEED_SMOOTH_MAX_SPEED],
       [LOW_SPEED_CENTER_DAMPING_DEADBAND_MAX, LOW_SPEED_CENTER_DAMPING_DEADBAND_MIN],
-    )
+    ) * deadband_scale
     if abs(raw_target) <= deadband:
       return 0.0, True, False
 
@@ -177,7 +209,7 @@ class CarController(CarControllerBase, SnGCarController):
         CS.out.vEgoRaw,
         [0.0, LOW_SPEED_SMOOTH_MAX_SPEED],
         [LOW_SPEED_CENTER_DAMPING_SIGN_FLIP_DELTA_MIN, LOW_SPEED_CENTER_DAMPING_SIGN_FLIP_DELTA_MAX],
-      )
+      ) * max_delta_scale
       clamped_target = float(np.clip(raw_target, self.apply_angle_last - max_delta, self.apply_angle_last + max_delta))
 
     alpha = np.interp(
@@ -185,6 +217,7 @@ class CarController(CarControllerBase, SnGCarController):
       [0.0, LOW_SPEED_SMOOTH_MAX_SPEED],
       [LOW_SPEED_CENTER_DAMPING_ALPHA_MIN, LOW_SPEED_CENTER_DAMPING_ALPHA_MAX],
     )
+    alpha = float(np.clip(alpha * alpha_scale, 0.15, 1.0))
     filtered_target = self.apply_angle_last + alpha * (clamped_target - self.apply_angle_last)
     return filtered_target, True, sign_flip_clamped
 

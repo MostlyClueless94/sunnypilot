@@ -158,8 +158,141 @@ class TestSubaruCarController(unittest.TestCase):
     self.assertFalse(sign_flip_clamped)
     self.assertAlmostEqual(damped_target, 1.6)
 
+  def test_low_speed_smoothing_tune_toggle_off_is_noop(self):
+    baseline = self._build_controller()
+    tuned = self._build_controller()
+    baseline.apply_angle_last = 0.5
+    tuned.apply_angle_last = 0.5
+    tuned.mc_subaru_smoothing_tune = False
+    tuned.mc_subaru_smoothing_strength = 3
+
+    baseline_target = baseline._get_low_speed_smoothed_angle_target(1.8, 0.5)
+    tuned_target = tuned._get_low_speed_smoothed_angle_target(1.8, 0.5)
+
+    self.assertAlmostEqual(tuned_target, baseline_target)
+
+  def test_low_speed_smoothing_tune_zero_strength_matches_baseline(self):
+    baseline = self._build_controller()
+    tuned = self._build_controller()
+    baseline.apply_angle_last = 0.5
+    tuned.apply_angle_last = 0.5
+    tuned.mc_subaru_smoothing_tune = True
+    tuned.mc_subaru_smoothing_strength = 0
+
+    baseline_target = baseline._get_low_speed_smoothed_angle_target(1.8, 0.5)
+    tuned_target = tuned._get_low_speed_smoothed_angle_target(1.8, 0.5)
+
+    self.assertAlmostEqual(tuned_target, baseline_target)
+
+  def test_low_speed_smoothing_strength_positive_adds_more_smoothing(self):
+    baseline = self._build_controller()
+    tuned = self._build_controller()
+    baseline.apply_angle_last = 0.0
+    tuned.apply_angle_last = 0.0
+    tuned.mc_subaru_smoothing_tune = True
+    tuned.mc_subaru_smoothing_strength = 3
+
+    baseline_target = baseline._get_low_speed_smoothed_angle_target(1.8, 0.5)
+    tuned_target = tuned._get_low_speed_smoothed_angle_target(1.8, 0.5)
+
+    self.assertLess(tuned_target, baseline_target)
+
+  def test_low_speed_smoothing_strength_negative_is_more_responsive(self):
+    baseline = self._build_controller()
+    tuned = self._build_controller()
+    baseline.apply_angle_last = 0.0
+    tuned.apply_angle_last = 0.0
+    tuned.mc_subaru_smoothing_tune = True
+    tuned.mc_subaru_smoothing_strength = -3
+
+    baseline_target = baseline._get_low_speed_smoothed_angle_target(1.8, 0.5)
+    tuned_target = tuned._get_low_speed_smoothed_angle_target(1.8, 0.5)
+
+    self.assertGreater(tuned_target, baseline_target)
+
+  def test_center_damping_tune_toggle_off_is_noop(self):
+    baseline = self._build_controller()
+    tuned = self._build_controller()
+    baseline.apply_angle_last = 0.5
+    tuned.apply_angle_last = 0.5
+    tuned.mc_subaru_smoothing_tune = False
+    tuned.mc_subaru_center_damping_strength = 3
+    cs = self._build_cs(3.0, 0.2)
+
+    baseline_target, baseline_active, baseline_clamped = baseline._get_low_speed_center_damped_angle_target(-1.6, cs)
+    tuned_target, tuned_active, tuned_clamped = tuned._get_low_speed_center_damped_angle_target(-1.6, cs)
+
+    self.assertEqual(tuned_active, baseline_active)
+    self.assertEqual(tuned_clamped, baseline_clamped)
+    self.assertAlmostEqual(tuned_target, baseline_target)
+
+  def test_center_damping_tune_zero_strength_matches_baseline(self):
+    baseline = self._build_controller()
+    tuned = self._build_controller()
+    baseline.apply_angle_last = 0.5
+    tuned.apply_angle_last = 0.5
+    tuned.mc_subaru_smoothing_tune = True
+    tuned.mc_subaru_center_damping_strength = 0
+    cs = self._build_cs(3.0, 0.2)
+
+    baseline_target, baseline_active, baseline_clamped = baseline._get_low_speed_center_damped_angle_target(-1.6, cs)
+    tuned_target, tuned_active, tuned_clamped = tuned._get_low_speed_center_damped_angle_target(-1.6, cs)
+
+    self.assertEqual(tuned_active, baseline_active)
+    self.assertEqual(tuned_clamped, baseline_clamped)
+    self.assertAlmostEqual(tuned_target, baseline_target)
+
+  def test_center_damping_strength_positive_adds_more_damping(self):
+    baseline = self._build_controller()
+    tuned = self._build_controller()
+    baseline.apply_angle_last = 0.5
+    tuned.apply_angle_last = 0.5
+    tuned.mc_subaru_smoothing_tune = True
+    tuned.mc_subaru_center_damping_strength = 3
+    cs = self._build_cs(3.0, 0.2)
+
+    baseline_target, baseline_active, baseline_clamped = baseline._get_low_speed_center_damped_angle_target(-1.6, cs)
+    tuned_target, tuned_active, tuned_clamped = tuned._get_low_speed_center_damped_angle_target(-1.6, cs)
+
+    self.assertTrue(baseline_active)
+    self.assertTrue(tuned_active)
+    self.assertTrue(baseline_clamped)
+    self.assertTrue(tuned_clamped)
+    self.assertGreater(tuned_target, baseline_target)
+
+  def test_center_damping_strength_negative_is_more_responsive(self):
+    baseline = self._build_controller()
+    tuned = self._build_controller()
+    baseline.apply_angle_last = 0.0
+    tuned.apply_angle_last = 0.0
+    tuned.mc_subaru_smoothing_tune = True
+    tuned.mc_subaru_center_damping_strength = -3
+    cs = self._build_cs(3.0, 0.2)
+
+    baseline_target, baseline_active, _ = baseline._get_low_speed_center_damped_angle_target(0.4, cs)
+    tuned_target, tuned_active, _ = tuned._get_low_speed_center_damped_angle_target(0.4, cs)
+
+    self.assertTrue(baseline_active)
+    self.assertTrue(tuned_active)
+    self.assertAlmostEqual(baseline_target, 0.0)
+    self.assertGreater(tuned_target, 0.0)
+
   def test_low_speed_delta_deadzone_is_noop_when_toggle_off(self):
     controller = self._build_controller()
+    controller.apply_angle_last = 0.5
+    cs = self._build_cs(3.0, 0.2)
+
+    filtered_target, active, deadzone = controller._get_low_speed_delta_deadzone_target(1.2, cs, True)
+
+    self.assertFalse(active)
+    self.assertEqual(deadzone, 0.0)
+    self.assertAlmostEqual(filtered_target, 1.2)
+
+  def test_low_speed_delta_deadzone_stays_independent_from_smoothing_tune(self):
+    controller = self._build_controller()
+    controller.mc_subaru_smoothing_tune = True
+    controller.mc_subaru_smoothing_strength = 3
+    controller.mc_subaru_center_damping_strength = 3
     controller.apply_angle_last = 0.5
     cs = self._build_cs(3.0, 0.2)
 

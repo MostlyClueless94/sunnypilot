@@ -6,7 +6,6 @@ See the LICENSE.md file in the root directory for more details.
 """
 from openpilot.common.params import Params
 from openpilot.selfdrive.ui.ui_state import ui_state
-from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import CUSTOM_MODEL_PATH_COLOR_LABELS, DYNAMIC_PATH_COLOR_PALETTE_LABELS
 from openpilot.system.ui.lib.multilang import tr, tr_noop
 from openpilot.system.ui.sunnypilot.widgets.list_view import toggle_item_sp, multiple_button_item_sp
 from openpilot.system.ui.widgets.scroller_tici import Scroller
@@ -46,15 +45,6 @@ class VisualsLayout(Widget):
            "It does not affect driving in any way."),
         None,
       ),
-      "DynamicPathColor": (
-        lambda: tr("Dynamic Path Color"),
-        tr("Color the driving path by drive mode. " +
-           "Gray when inactive or overriding, blue for steering-only, and green for full control. " +
-           "This uses the custom dynamic color palette, overrides both Rainbow Mode " +
-           "and Custom Model Path Color, keeps Experimental path coloring unchanged, " +
-           "changes the path fill and path outline, and keeps lane lines and road edges on BP-style rendering."),
-        None,
-      ),
       "StandstillTimer": (
         lambda: tr("Enable Standstill Timer"),
         tr("Show a timer on the HUD when the car is at a standstill."),
@@ -80,21 +70,6 @@ class VisualsLayout(Widget):
         tr("A chime and on-screen alert will play when you are stopped, and the vehicle in front of you start moving." +
            "<br>Note: This chime is only designed as a notification. " +
            "It is the driver's responsibility to observe their environment and make decisions accordingly."),
-        None,
-      ),
-      "TrueVEgoUI": (
-        lambda: tr("Speedometer: Always Display True Speed"),
-        tr("For applicable vehicles, always display the true vehicle current speed from wheel speed sensors."),
-        None,
-      ),
-      "HideVEgoUI": (
-        lambda: tr("Speedometer: Hide from Onroad Screen"),
-        tr("When enabled, the speedometer on the onroad screen is not displayed."),
-        None,
-      ),
-      "ShowBrakeStatus": (
-        lambda: tr("Show Brake Status"),
-        tr("Display current speed in red when vehicle is braking."),
         None,
       ),
       "ShowTurnSignals": (
@@ -127,29 +102,6 @@ class VisualsLayout(Widget):
       param="ChevronInfo",
       inline=False
     )
-    self._custom_model_path_color = multiple_button_item_sp(
-      title=lambda: tr("Custom Model Path Color"),
-      description=lambda: tr("Use preset colors for the driving path overlay. "
-                             "The selected preset changes the path fill and path outline. "
-                             "Lane lines and road edges keep BP-style rendering. "
-                             "Stock keeps the normal path behavior. "
-                             "When a preset is selected, it overrides Rainbow Mode. "
-                             "Dynamic Path Color still takes priority when enabled."),
-      buttons=[lambda label=label: tr(label) for label in CUSTOM_MODEL_PATH_COLOR_LABELS],
-      param="CustomModelPathColor",
-      button_width=160,
-      inline=False
-    )
-    self._dynamic_path_color_palette = multiple_button_item_sp(
-      title=lambda: tr("Dynamic Path Color Palette"),
-      description=lambda: tr("Choose whether Dynamic Path Color uses the custom BP palette "
-                             "or stock-themed fill colors with a vibrant outline. "
-                             "Lane lines and road edges keep BP-style rendering."),
-      buttons=[lambda label=label: tr(label) for label in DYNAMIC_PATH_COLOR_PALETTE_LABELS],
-      param="DynamicPathColorPalette",
-      button_width=160,
-      inline=False
-    )
     self._dev_ui_info = multiple_button_item_sp(
       title=lambda: tr("Developer UI"),
       description=lambda: tr("Display real-time parameters and metrics from various sources."),
@@ -160,11 +112,8 @@ class VisualsLayout(Widget):
     )
 
     items = list(self._toggles.values())
-    dynamic_path_color_index = next(i for i, (param, _) in enumerate(self._toggle_defs.items()) if param == "DynamicPathColor")
-    items.insert(dynamic_path_color_index + 1, self._dynamic_path_color_palette)
     items += [
       self._chevron_info,
-      self._custom_model_path_color,
       self._dev_ui_info,
     ]
     return items
@@ -176,9 +125,6 @@ class VisualsLayout(Widget):
       self._toggles[param].action_item.set_state(self._params.get_bool(param))
 
     self._dev_ui_info.action_item.set_selected_button(ui_state.params.get("DevUIInfo", return_default=True))
-    self._custom_model_path_color.action_item.set_selected_button(ui_state.params.get("CustomModelPathColor", return_default=True))
-    self._dynamic_path_color_palette.action_item.set_selected_button(ui_state.params.get("DynamicPathColorPalette", return_default=True))
-    self._dynamic_path_color_palette.action_item.set_enabled(self._params.get_bool("DynamicPathColor"))
 
     if self._chevron_info_available():
       self._chevron_info.set_description(tr(CHEVRON_INFO_DESCRIPTION["enabled"]))

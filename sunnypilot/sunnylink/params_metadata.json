@@ -1144,6 +1144,56 @@
     "title": "[TIZI/TICI only] Real-time Acceleration Bar",
     "description": "Show an indicator on the left side of the screen to display real-time vehicle acceleration and deceleration. This displays what the car is currently doing, not what the planner is requesting."
   },
+  "MCSubaruSmoothingTune": {
+    "title": "Subaru Steering Smoothing",
+    "description": "Enable Subaru low-speed steering tuning. When enabled, you can adjust smoothing and near-center damping strength below."
+  },
+  "MCSubaruSmoothingStrength": {
+    "title": "Smoothing Strength",
+    "description": "Adjust low-speed Subaru smoothing. Positive values add more smoothing, negative values make it more responsive, and Stock keeps the current validated Subaru behavior.",
+    "options": [
+      { "value": -8, "label": "-8" },
+      { "value": -7, "label": "-7" },
+      { "value": -6, "label": "-6" },
+      { "value": -5, "label": "-5" },
+      { "value": -4, "label": "-4" },
+      { "value": -3, "label": "-3" },
+      { "value": -2, "label": "-2" },
+      { "value": -1, "label": "-1" },
+      { "value": 0, "label": "Stock" },
+      { "value": 1, "label": "+1" },
+      { "value": 2, "label": "+2" },
+      { "value": 3, "label": "+3" },
+      { "value": 4, "label": "+4" },
+      { "value": 5, "label": "+5" },
+      { "value": 6, "label": "+6" },
+      { "value": 7, "label": "+7" },
+      { "value": 8, "label": "+8" }
+    ]
+  },
+  "MCSubaruCenterDampingStrength": {
+    "title": "Center Damping",
+    "description": "Adjust Subaru near-center damping and sign-flip control at low speed. Positive values add more damping, negative values make it more responsive, and Stock keeps the current validated Subaru behavior.",
+    "options": [
+      { "value": -8, "label": "-8" },
+      { "value": -7, "label": "-7" },
+      { "value": -6, "label": "-6" },
+      { "value": -5, "label": "-5" },
+      { "value": -4, "label": "-4" },
+      { "value": -3, "label": "-3" },
+      { "value": -2, "label": "-2" },
+      { "value": -1, "label": "-1" },
+      { "value": 0, "label": "Stock" },
+      { "value": 1, "label": "+1" },
+      { "value": 2, "label": "+2" },
+      { "value": 3, "label": "+3" },
+      { "value": 4, "label": "+4" },
+      { "value": 5, "label": "+5" },
+      { "value": 6, "label": "+6" },
+      { "value": 7, "label": "+7" },
+      { "value": 8, "label": "+8" }
+    ]
+  },
   "ShowBrakeStatus": {
     "title": "Show Brake Status",
     "description": "Display current speed in red when vehicle is braking."

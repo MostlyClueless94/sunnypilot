@@ -8,6 +8,7 @@ from openpilot.selfdrive.ui.mici.layouts.settings import settings as OP
 from openpilot.selfdrive.ui.mici.widgets.button import BigButton
 from openpilot.selfdrive.ui.sunnypilot.mici.layouts.sunnylink import SunnylinkLayoutMici
 from openpilot.selfdrive.ui.sunnypilot.mici.layouts.models import ModelsLayoutMici
+from openpilot.selfdrive.ui.sunnypilot.mici.layouts.subaru import SubaruLayoutMici
 from openpilot.system.ui.lib.application import gui_app
 
 ICON_SIZE = 70
@@ -25,10 +26,15 @@ class SettingsLayoutSP(OP.SettingsLayout):
     models_btn = BigButton("models", "", gui_app.texture("../../sunnypilot/selfdrive/assets/offroad/icon_models.png", ICON_SIZE, ICON_SIZE))
     models_btn.set_click_callback(lambda: gui_app.push_widget(models_panel))
 
+    subaru_panel = SubaruLayoutMici(back_callback=gui_app.pop_widget)
+    subaru_btn = BigButton("subaru", "", gui_app.texture("../../sunnypilot/selfdrive/assets/offroad/icon_vehicle.png", ICON_SIZE, ICON_SIZE))
+    subaru_btn.set_click_callback(lambda: gui_app.push_widget(subaru_panel))
+
     items = self._scroller._items.copy()
 
     items.insert(1, sunnylink_btn)
     items.insert(2, models_btn)
+    items.insert(3, subaru_btn)
     self._scroller._items.clear()
     for item in items:
       self._scroller.add_widget(item)

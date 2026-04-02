@@ -104,8 +104,8 @@ class MCCustomLayout(Widget):
                              "Positive values add more smoothing, negative values make it more responsive, "
                              "and Stock keeps the current MostlyClueless behavior."),
       param="MCSubaruSmoothingStrength",
-      min_value=-3,
-      max_value=3,
+      min_value=-8,
+      max_value=8,
       value_change_step=1,
       label_callback=self._format_subaru_strength_label,
       inline=True,
@@ -116,8 +116,8 @@ class MCCustomLayout(Widget):
                              "Positive values add more damping, negative values make it more responsive, "
                              "and Stock keeps the current MostlyClueless behavior."),
       param="MCSubaruCenterDampingStrength",
-      min_value=-3,
-      max_value=3,
+      min_value=-8,
+      max_value=8,
       value_change_step=1,
       label_callback=self._format_subaru_strength_label,
       inline=True,
@@ -165,8 +165,8 @@ class MCCustomLayout(Widget):
     self._subaru_actuator_delay_test.set_description(self._get_subaru_delay_description(ui_state.is_offroad()))
     subaru_smoothing_tune_enabled = self._params.get_bool("MCSubaruSmoothingTune")
     self._subaru_smoothing_tune.action_item.set_state(subaru_smoothing_tune_enabled)
-    self._subaru_smoothing_strength.action_item.current_value = max(-3, min(self._get_int_param("MCSubaruSmoothingStrength"), 3))
-    self._subaru_center_damping_strength.action_item.current_value = max(-3, min(self._get_int_param("MCSubaruCenterDampingStrength"), 3))
+    self._subaru_smoothing_strength.action_item.current_value = max(-8, min(self._get_int_param("MCSubaruSmoothingStrength"), 8))
+    self._subaru_center_damping_strength.action_item.current_value = max(-8, min(self._get_int_param("MCSubaruCenterDampingStrength"), 8))
     self._subaru_smoothing_strength.action_item.set_enabled(subaru_smoothing_tune_enabled)
     self._subaru_center_damping_strength.action_item.set_enabled(subaru_smoothing_tune_enabled)
 

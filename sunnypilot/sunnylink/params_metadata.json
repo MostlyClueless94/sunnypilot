@@ -297,6 +297,26 @@
     "description": "Adjust low-speed Subaru smoothing. Positive values add more smoothing, negative values make it more responsive, and Stock keeps the current MostlyClueless behavior.",
     "options": [
       {
+        "value": -8,
+        "label": "-8"
+      },
+      {
+        "value": -7,
+        "label": "-7"
+      },
+      {
+        "value": -6,
+        "label": "-6"
+      },
+      {
+        "value": -5,
+        "label": "-5"
+      },
+      {
+        "value": -4,
+        "label": "-4"
+      },
+      {
         "value": -3,
         "label": "-3"
       },
@@ -323,10 +343,30 @@
       {
         "value": 3,
         "label": "+3"
+      },
+      {
+        "value": 4,
+        "label": "+4"
+      },
+      {
+        "value": 5,
+        "label": "+5"
+      },
+      {
+        "value": 6,
+        "label": "+6"
+      },
+      {
+        "value": 7,
+        "label": "+7"
+      },
+      {
+        "value": 8,
+        "label": "+8"
       }
     ],
-    "min": -3,
-    "max": 3,
+    "min": -8,
+    "max": 8,
     "step": 1
   },
   "MCSubaruCenterDampingStrength": {
@@ -334,6 +374,26 @@
     "description": "Adjust Subaru near-center damping and sign-flip control at low speed. Positive values add more damping, negative values make it more responsive, and Stock keeps the current MostlyClueless behavior.",
     "options": [
       {
+        "value": -8,
+        "label": "-8"
+      },
+      {
+        "value": -7,
+        "label": "-7"
+      },
+      {
+        "value": -6,
+        "label": "-6"
+      },
+      {
+        "value": -5,
+        "label": "-5"
+      },
+      {
+        "value": -4,
+        "label": "-4"
+      },
+      {
         "value": -3,
         "label": "-3"
       },
@@ -360,10 +420,30 @@
       {
         "value": 3,
         "label": "+3"
+      },
+      {
+        "value": 4,
+        "label": "+4"
+      },
+      {
+        "value": 5,
+        "label": "+5"
+      },
+      {
+        "value": 6,
+        "label": "+6"
+      },
+      {
+        "value": 7,
+        "label": "+7"
+      },
+      {
+        "value": 8,
+        "label": "+8"
       }
     ],
-    "min": -3,
-    "max": 3,
+    "min": -8,
+    "max": 8,
     "step": 1
   },
   "CustomAccIncrementsEnabled": {

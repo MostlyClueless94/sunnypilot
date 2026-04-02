@@ -10,7 +10,12 @@ from opendbc.car.subaru.carcontroller import (
   LOW_SPEED_STRAIGHT_SIGN_RELEASE_FRAMES,
   MADS_MANUAL_OVERRIDE_HOLD_FRAMES,
   MADS_MANUAL_OVERRIDE_RAMP_FRAMES,
+  SUBARU_CENTER_DAMPING_ALPHA_SCALES,
+  SUBARU_CENTER_DAMPING_DEADBAND_SCALES,
+  SUBARU_CENTER_DAMPING_SIGN_FLIP_SCALES,
   SUBARU_ANGLE_RATE_LIMIT_DOWN_STOCK,
+  SUBARU_SMOOTHING_ALPHA_SCALES,
+  SUBARU_SMOOTHING_DEADBAND_SCALES,
 )
 from opendbc.car.subaru.interface import CarInterface
 from opendbc.car.subaru.values import CAR
@@ -287,6 +292,22 @@ class TestSubaruCarController(unittest.TestCase):
 
     self.assertAlmostEqual(tuned_target, baseline_target)
 
+  def test_subaru_strength_scale_preserves_legacy_anchor_values(self):
+    controller = self._build_controller()
+
+    self.assertAlmostEqual(controller._get_strength_scale(-3, SUBARU_SMOOTHING_DEADBAND_SCALES), 0.70)
+    self.assertAlmostEqual(controller._get_strength_scale(0, SUBARU_SMOOTHING_DEADBAND_SCALES), 1.00)
+    self.assertAlmostEqual(controller._get_strength_scale(3, SUBARU_SMOOTHING_DEADBAND_SCALES), 1.35)
+    self.assertAlmostEqual(controller._get_strength_scale(-3, SUBARU_SMOOTHING_ALPHA_SCALES), 1.20)
+    self.assertAlmostEqual(controller._get_strength_scale(0, SUBARU_SMOOTHING_ALPHA_SCALES), 1.00)
+    self.assertAlmostEqual(controller._get_strength_scale(3, SUBARU_SMOOTHING_ALPHA_SCALES), 0.80)
+    self.assertAlmostEqual(controller._get_strength_scale(-3, SUBARU_CENTER_DAMPING_DEADBAND_SCALES), 0.70)
+    self.assertAlmostEqual(controller._get_strength_scale(3, SUBARU_CENTER_DAMPING_DEADBAND_SCALES), 1.45)
+    self.assertAlmostEqual(controller._get_strength_scale(-3, SUBARU_CENTER_DAMPING_SIGN_FLIP_SCALES), 1.30)
+    self.assertAlmostEqual(controller._get_strength_scale(3, SUBARU_CENTER_DAMPING_SIGN_FLIP_SCALES), 0.70)
+    self.assertAlmostEqual(controller._get_strength_scale(-3, SUBARU_CENTER_DAMPING_ALPHA_SCALES), 1.20)
+    self.assertAlmostEqual(controller._get_strength_scale(3, SUBARU_CENTER_DAMPING_ALPHA_SCALES), 0.75)
+
   def test_low_speed_smoothing_strength_positive_adds_more_smoothing(self):
     baseline = self._build_controller()
     tuned = self._build_controller()
@@ -300,6 +321,21 @@ class TestSubaruCarController(unittest.TestCase):
 
     self.assertLess(tuned_target, baseline_target)
 
+  def test_low_speed_smoothing_strength_plus_eight_adds_more_smoothing_than_plus_three(self):
+    plus_three = self._build_controller()
+    plus_eight = self._build_controller()
+    plus_three.apply_angle_last = 0.0
+    plus_eight.apply_angle_last = 0.0
+    plus_three.mc_subaru_smoothing_tune = True
+    plus_eight.mc_subaru_smoothing_tune = True
+    plus_three.mc_subaru_smoothing_strength = 3
+    plus_eight.mc_subaru_smoothing_strength = 8
+
+    plus_three_target = plus_three._get_low_speed_smoothed_angle_target(1.8, 0.5)
+    plus_eight_target = plus_eight._get_low_speed_smoothed_angle_target(1.8, 0.5)
+
+    self.assertLess(plus_eight_target, plus_three_target)
+
   def test_low_speed_smoothing_strength_negative_is_more_responsive(self):
     baseline = self._build_controller()
     tuned = self._build_controller()
@@ -312,6 +348,21 @@ class TestSubaruCarController(unittest.TestCase):
     tuned_target = tuned._get_low_speed_smoothed_angle_target(1.8, 0.5)
 
     self.assertGreater(tuned_target, baseline_target)
+
+  def test_low_speed_smoothing_strength_minus_eight_is_more_responsive_than_minus_three(self):
+    minus_three = self._build_controller()
+    minus_eight = self._build_controller()
+    minus_three.apply_angle_last = 0.0
+    minus_eight.apply_angle_last = 0.0
+    minus_three.mc_subaru_smoothing_tune = True
+    minus_eight.mc_subaru_smoothing_tune = True
+    minus_three.mc_subaru_smoothing_strength = -3
+    minus_eight.mc_subaru_smoothing_strength = -8
+
+    minus_three_target = minus_three._get_low_speed_smoothed_angle_target(1.8, 0.5)
+    minus_eight_target = minus_eight._get_low_speed_smoothed_angle_target(1.8, 0.5)
+
+    self.assertGreater(minus_eight_target, minus_three_target)
 
   def test_center_damping_tune_toggle_off_is_noop(self):
     baseline = self._build_controller()
@@ -363,6 +414,22 @@ class TestSubaruCarController(unittest.TestCase):
     self.assertTrue(tuned_clamped)
     self.assertGreater(tuned_target, baseline_target)
 
+  def test_center_damping_strength_plus_eight_adds_more_damping_than_plus_three(self):
+    plus_three = self._build_controller()
+    plus_eight = self._build_controller()
+    plus_three.apply_angle_last = 0.5
+    plus_eight.apply_angle_last = 0.5
+    plus_three.mc_subaru_smoothing_tune = True
+    plus_eight.mc_subaru_smoothing_tune = True
+    plus_three.mc_subaru_center_damping_strength = 3
+    plus_eight.mc_subaru_center_damping_strength = 8
+    cs = self._build_cs(3.0, 0.2)
+
+    plus_three_target, _, _ = plus_three._get_low_speed_center_damped_angle_target(-1.6, cs)
+    plus_eight_target, _, _ = plus_eight._get_low_speed_center_damped_angle_target(-1.6, cs)
+
+    self.assertGreater(plus_eight_target, plus_three_target)
+
   def test_center_damping_strength_negative_is_more_responsive(self):
     baseline = self._build_controller()
     tuned = self._build_controller()
@@ -379,6 +446,24 @@ class TestSubaruCarController(unittest.TestCase):
     self.assertTrue(tuned_active)
     self.assertAlmostEqual(baseline_target, 0.0)
     self.assertGreater(tuned_target, 0.0)
+
+  def test_center_damping_strength_minus_eight_is_more_responsive_than_minus_three(self):
+    minus_three = self._build_controller()
+    minus_eight = self._build_controller()
+    minus_three.apply_angle_last = 0.0
+    minus_eight.apply_angle_last = 0.0
+    minus_three.mc_subaru_smoothing_tune = True
+    minus_eight.mc_subaru_smoothing_tune = True
+    minus_three.mc_subaru_center_damping_strength = -3
+    minus_eight.mc_subaru_center_damping_strength = -8
+    cs = self._build_cs(3.0, 0.2)
+
+    minus_three_target, minus_three_active, _ = minus_three._get_low_speed_center_damped_angle_target(0.4, cs)
+    minus_eight_target, minus_eight_active, _ = minus_eight._get_low_speed_center_damped_angle_target(0.4, cs)
+
+    self.assertTrue(minus_three_active)
+    self.assertTrue(minus_eight_active)
+    self.assertGreater(minus_eight_target, minus_three_target)
 
   def test_low_speed_delta_deadzone_is_enabled_by_default(self):
     controller = self._build_controller()

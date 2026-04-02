@@ -22,6 +22,14 @@ LOW_SPEED_SMOOTH_MAX_SPEED = 4.4704  # m/s (10 mph)
 LOW_SPEED_SMOOTH_DEADBAND_MAX = 0.8  # deg at 0 mph
 LOW_SPEED_SMOOTH_ALPHA_MIN = 0.35  # blend factor at 0 mph
 SUBARU_ANGLE_RATE_LIMIT_DOWN_STOCK = ([0., 5., 35.], [5., 0.8, 0.15])
+SUBARU_TUNING_STRENGTH_MIN = -8
+SUBARU_TUNING_STRENGTH_MAX = 8
+SUBARU_TUNING_SCALE_POINTS = [SUBARU_TUNING_STRENGTH_MIN, -3, 0, 3, SUBARU_TUNING_STRENGTH_MAX]
+SUBARU_SMOOTHING_DEADBAND_SCALES = [0.20, 0.70, 1.00, 1.35, 1.93]
+SUBARU_SMOOTHING_ALPHA_SCALES = [1.53, 1.20, 1.00, 0.80, 0.47]
+SUBARU_CENTER_DAMPING_DEADBAND_SCALES = [0.20, 0.70, 1.00, 1.45, 2.20]
+SUBARU_CENTER_DAMPING_SIGN_FLIP_SCALES = [1.80, 1.30, 1.00, 0.70, 0.20]
+SUBARU_CENTER_DAMPING_ALPHA_SCALES = [1.53, 1.20, 1.00, 0.75, 0.33]
 LOW_SPEED_DELTA_DEADZONE_TARGET_MAX = 4.0  # deg, keep the experiment scoped near center
 LOW_SPEED_DELTA_DEADZONE_STEER_MAX = 10.0  # deg, bypass real low-speed turns
 LOW_SPEED_DELTA_DEADZONE_MAX = 2.0  # deg at 0 mph
@@ -83,8 +91,8 @@ class CarController(CarControllerBase, SnGCarController):
       return default
 
   @staticmethod
-  def _get_strength_scale(strength: int, low_value: float, mid_value: float, high_value: float) -> float:
-    return float(np.interp(strength, [-3, 0, 3], [low_value, mid_value, high_value]))
+  def _get_strength_scale(strength: int, values: list[float]) -> float:
+    return float(np.interp(strength, SUBARU_TUNING_SCALE_POINTS, values))
 
   def _apply_subaru_unwind_rate_limit_test(self):
     # Historical unwind test params are intentionally kept inert after
@@ -95,8 +103,16 @@ class CarController(CarControllerBase, SnGCarController):
     self.mc_subaru_unwind_rate_test = self.params.get_bool("MCSubaruUnwindRateTest")
     self.mc_subaru_unwind_rate_mode = int(np.clip(self._get_int_param("MCSubaruUnwindRateMode"), 0, 2))
     self.mc_subaru_smoothing_tune = self.params.get_bool("MCSubaruSmoothingTune")
-    self.mc_subaru_smoothing_strength = int(np.clip(self._get_int_param("MCSubaruSmoothingStrength"), -3, 3))
-    self.mc_subaru_center_damping_strength = int(np.clip(self._get_int_param("MCSubaruCenterDampingStrength"), -3, 3))
+    self.mc_subaru_smoothing_strength = int(np.clip(
+      self._get_int_param("MCSubaruSmoothingStrength"),
+      SUBARU_TUNING_STRENGTH_MIN,
+      SUBARU_TUNING_STRENGTH_MAX,
+    ))
+    self.mc_subaru_center_damping_strength = int(np.clip(
+      self._get_int_param("MCSubaruCenterDampingStrength"),
+      SUBARU_TUNING_STRENGTH_MIN,
+      SUBARU_TUNING_STRENGTH_MAX,
+    ))
     self._apply_subaru_unwind_rate_limit_test()
 
   def _reset_mads_manual_override_ramp(self):
@@ -151,8 +167,8 @@ class CarController(CarControllerBase, SnGCarController):
     deadband_scale = 1.0
     alpha_scale = 1.0
     if self.mc_subaru_smoothing_tune:
-      deadband_scale = self._get_strength_scale(self.mc_subaru_smoothing_strength, 0.70, 1.00, 1.35)
-      alpha_scale = self._get_strength_scale(self.mc_subaru_smoothing_strength, 1.20, 1.00, 0.80)
+      deadband_scale = self._get_strength_scale(self.mc_subaru_smoothing_strength, SUBARU_SMOOTHING_DEADBAND_SCALES)
+      alpha_scale = self._get_strength_scale(self.mc_subaru_smoothing_strength, SUBARU_SMOOTHING_ALPHA_SCALES)
 
     deadband = (1.0 - speed_factor) * LOW_SPEED_SMOOTH_DEADBAND_MAX * deadband_scale
     delta = raw_target - self.apply_angle_last
@@ -248,9 +264,9 @@ class CarController(CarControllerBase, SnGCarController):
     max_delta_scale = 1.0
     alpha_scale = 1.0
     if self.mc_subaru_smoothing_tune:
-      deadband_scale = self._get_strength_scale(self.mc_subaru_center_damping_strength, 0.70, 1.00, 1.45)
-      max_delta_scale = self._get_strength_scale(self.mc_subaru_center_damping_strength, 1.30, 1.00, 0.70)
-      alpha_scale = self._get_strength_scale(self.mc_subaru_center_damping_strength, 1.20, 1.00, 0.75)
+      deadband_scale = self._get_strength_scale(self.mc_subaru_center_damping_strength, SUBARU_CENTER_DAMPING_DEADBAND_SCALES)
+      max_delta_scale = self._get_strength_scale(self.mc_subaru_center_damping_strength, SUBARU_CENTER_DAMPING_SIGN_FLIP_SCALES)
+      alpha_scale = self._get_strength_scale(self.mc_subaru_center_damping_strength, SUBARU_CENTER_DAMPING_ALPHA_SCALES)
 
     deadband = np.interp(
       CS.out.vEgoRaw,

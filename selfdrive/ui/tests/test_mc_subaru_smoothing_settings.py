@@ -29,6 +29,8 @@ def test_mc_custom_contains_subaru_smoothing_controls():
   assert 'param="MCSubaruSmoothingTune"' in source
   assert 'param="MCSubaruSmoothingStrength"' in source
   assert 'param="MCSubaruCenterDampingStrength"' in source
+  assert 'min_value=-8' in source
+  assert 'max_value=8' in source
   assert 'self._subaru_smoothing_strength.action_item.set_enabled(subaru_smoothing_tune_enabled)' in source
   assert 'self._subaru_center_damping_strength.action_item.set_enabled(subaru_smoothing_tune_enabled)' in source
   assert 'return tr("Stock") if value == 0 else f"{value:+d}"' in source
@@ -57,4 +59,8 @@ def test_params_metadata_describes_subaru_smoothing_params():
   assert '"MCSubaruSmoothingTune"' in source
   assert '"MCSubaruSmoothingStrength"' in source
   assert '"MCSubaruCenterDampingStrength"' in source
+  assert '"label": "-8"' in source
+  assert '"label": "+8"' in source
+  assert '"min": -8' in source
+  assert '"max": 8' in source
   assert '"label": "Stock"' in source

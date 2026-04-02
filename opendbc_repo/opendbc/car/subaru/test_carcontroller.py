@@ -99,6 +99,34 @@ class TestSubaruCarController(unittest.TestCase):
     self.assertGreater(ramped_angles[-1], cs_released.out.steeringAngleDeg)
     self.assertLessEqual(ramped_angles[-1], cc.actuators.steeringAngleDeg)
 
+  def test_mads_manual_override_ramp_target_is_captured_at_hold_exit(self):
+    controller = self._build_controller()
+    cc_release = self._build_cc(True, False, 14.0)
+    cs_released = self._prime_mads_manual_override_ramp(controller, cc_release)
+
+    self.assertAlmostEqual(controller.mads_manual_override_ramp_target_angle, 14.0)
+
+    cc_changed = self._build_cc(True, False, 18.0)
+    controller.handle_angle_lateral(cc_changed, cs_released)
+
+    self.assertAlmostEqual(controller.mads_manual_override_ramp_target_angle, 14.0)
+    self.assertLess(controller.apply_angle_last, 14.0)
+
+  def test_mads_manual_override_ramp_heads_toward_frozen_hold_exit_target(self):
+    controller = self._build_controller()
+    cc_release = self._build_cc(True, False, 14.0)
+    cs_released = self._prime_mads_manual_override_ramp(controller, cc_release)
+    cc_changed = self._build_cc(True, False, 18.0)
+
+    ramped_angles = []
+    for _ in range(4):
+      controller.handle_angle_lateral(cc_changed, cs_released)
+      ramped_angles.append(controller.apply_angle_last)
+
+    self.assertTrue(all(left <= right for left, right in zip(ramped_angles, ramped_angles[1:])))
+    self.assertLessEqual(ramped_angles[-1], 14.0)
+    self.assertLess(ramped_angles[-1], cc_changed.actuators.steeringAngleDeg)
+
   def test_mads_manual_override_ramp_cancels_when_driver_input_returns(self):
     controller = self._build_controller()
     cc = self._build_cc(True, False, 14.0)
@@ -418,6 +446,18 @@ class TestSubaruCarController(unittest.TestCase):
     cs = self._build_cs(LOW_SPEED_SMOOTH_MAX_SPEED, 0.2)
 
     filtered_target, active, deadzone = controller._get_low_speed_delta_deadzone_target(1.2, cs, True)
+
+    self.assertFalse(active)
+    self.assertEqual(deadzone, 0.0)
+    self.assertAlmostEqual(filtered_target, 1.2)
+
+  def test_low_speed_delta_deadzone_is_noop_when_lkas_not_requested(self):
+    controller = self._build_controller()
+    controller.mc_subaru_chatter_fix = True
+    controller.apply_angle_last = 0.5
+    cs = self._build_cs(3.0, 0.2)
+
+    filtered_target, active, deadzone = controller._get_low_speed_delta_deadzone_target(1.2, cs, False)
 
     self.assertFalse(active)
     self.assertEqual(deadzone, 0.0)

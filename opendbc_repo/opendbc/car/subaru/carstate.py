@@ -93,7 +93,7 @@ class CarState(CarStateBase, MadsCarState, SnGCarState):
     ret.steeringTorqueEps = cp.vl["Steering_Torque"]["Steer_Torque_Output"]
 
     steer_threshold = 75 if self.CP.flags & SubaruFlags.PREGLOBAL else 80
-    ret.steeringPressed = abs(ret.steeringTorque) > steer_threshold
+    ret.steeringPressed = self.update_steering_pressed(abs(ret.steeringTorque) > steer_threshold, 5)
 
     cp_cruise = cp_alt if self.CP.flags & SubaruFlags.GLOBAL_GEN2 else cp
     cp_es_brake = cp_alt if self.CP.flags & SubaruFlags.GLOBAL_GEN2 else cp_cam

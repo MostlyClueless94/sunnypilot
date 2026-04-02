@@ -10,6 +10,8 @@ from opendbc.car.subaru.carcontroller import (
   LOW_SPEED_STRAIGHT_SIGN_RELEASE_FRAMES,
   MADS_MANUAL_OVERRIDE_HOLD_FRAMES,
   MADS_MANUAL_OVERRIDE_RAMP_FRAMES,
+  SUBARU_ANGLE_RATE_LIMIT_DOWN_STOCK,
+  SUBARU_ANGLE_RATE_LIMIT_DOWN_TEST,
 )
 from opendbc.car.subaru.interface import CarInterface
 from opendbc.car.subaru.values import CAR
@@ -420,6 +422,24 @@ class TestSubaruCarController(unittest.TestCase):
     self.assertFalse(active)
     self.assertEqual(deadzone, 0.0)
     self.assertAlmostEqual(filtered_target, 1.2)
+
+  def test_subaru_unwind_rate_toggle_off_keeps_stock_down_table(self):
+    controller = self._build_controller()
+
+    controller.mc_subaru_unwind_rate_test = False
+    controller._apply_subaru_unwind_rate_limit_test()
+
+    self.assertEqual(controller.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_UP, ([0., 5., 35.], [5., .8, .15]))
+    self.assertEqual(controller.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_DOWN, SUBARU_ANGLE_RATE_LIMIT_DOWN_STOCK)
+
+  def test_subaru_unwind_rate_toggle_on_only_changes_down_table(self):
+    controller = self._build_controller()
+
+    controller.mc_subaru_unwind_rate_test = True
+    controller._apply_subaru_unwind_rate_limit_test()
+
+    self.assertEqual(controller.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_UP, ([0., 5., 35.], [5., .8, .15]))
+    self.assertEqual(controller.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_DOWN, SUBARU_ANGLE_RATE_LIMIT_DOWN_TEST)
 
   def test_crosstrek_2025_support_metadata_present(self):
     self.assertIn(CAR.SUBARU_CROSSTREK_2025, FW_VERSIONS)

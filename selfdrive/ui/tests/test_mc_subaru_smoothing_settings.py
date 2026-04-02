@@ -13,6 +13,13 @@ def _read(path: Path) -> str:
 
 def test_mc_custom_contains_subaru_smoothing_controls():
   source = _read(MC_CUSTOM)
+  assert 'param="MCSubaruUnwindRateTest"' in source
+  assert 'MCSubaruActuatorDelayTest' in source
+  assert 'Subaru Faster Unwind (Test)' in source
+  assert 'Subaru Delay Tweak (Test)' in source
+  assert 'ConfirmDialog(tr("System reboot required for changes to take effect. Reboot now?")' in source
+  assert 'ui_state.params.put_bool("DoReboot", True)' in source
+  assert 'self._subaru_actuator_delay_test.action_item.set_enabled(ui_state.is_offroad())' in source
   assert 'param="MCSubaruSmoothingTune"' in source
   assert 'param="MCSubaruSmoothingStrength"' in source
   assert 'param="MCSubaruCenterDampingStrength"' in source
@@ -23,6 +30,8 @@ def test_mc_custom_contains_subaru_smoothing_controls():
 
 def test_params_keys_register_subaru_smoothing_params():
   source = _read(PARAMS_KEYS)
+  assert '{"MCSubaruUnwindRateTest", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
+  assert '{"MCSubaruActuatorDelayTest", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
   assert '{"MCSubaruSmoothingTune", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
   assert '{"MCSubaruSmoothingStrength", {PERSISTENT | BACKUP, INT, "0"}}' in source
   assert '{"MCSubaruCenterDampingStrength", {PERSISTENT | BACKUP, INT, "0"}}' in source
@@ -30,6 +39,8 @@ def test_params_keys_register_subaru_smoothing_params():
 
 def test_params_metadata_describes_subaru_smoothing_params():
   source = _read(PARAMS_METADATA)
+  assert '"MCSubaruUnwindRateTest"' in source
+  assert '"MCSubaruActuatorDelayTest"' in source
   assert '"MCSubaruSmoothingTune"' in source
   assert '"MCSubaruSmoothingStrength"' in source
   assert '"MCSubaruCenterDampingStrength"' in source

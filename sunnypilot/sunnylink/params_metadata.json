@@ -262,6 +262,14 @@
     "title": "MC Custom: Subaru Chatter Fix (Test)",
     "description": "Enable a Lukas-inspired low-speed deadzone experiment for Subaru angle steering. Keeps the current MostlyClueless Subaru logic and only affects low-speed near-center behavior."
   },
+  "MCSubaruUnwindRateTest": {
+    "title": "MC Custom: Subaru Faster Unwind (Test)",
+    "description": "Test a faster Subaru angle steering unwind table so the wheel can return toward center more decisively after larger turns without changing turn-in behavior."
+  },
+  "MCSubaruActuatorDelayTest": {
+    "title": "MC Custom: Subaru Delay Tweak (Test)",
+    "description": "Test a lower Subaru angle steering actuator delay from 0.10s to 0.08s. This requires a reboot and is intended to help unwind timing after larger turns."
+  },
   "MCSubaruSmoothingTune": {
     "title": "MC Custom: Subaru Steering Smoothing",
     "description": "Enable MC-owned Subaru low-speed steering tuning. When enabled, you can adjust overall low-speed smoothing and near-center damping strength below."

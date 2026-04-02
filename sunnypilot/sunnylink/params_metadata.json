@@ -266,6 +266,24 @@
     "title": "MC Custom: Subaru Faster Unwind (Test)",
     "description": "Test a faster Subaru angle steering unwind table so the wheel can return toward center more decisively after larger turns without changing turn-in behavior."
   },
+  "MCSubaruUnwindRateMode": {
+    "title": "MC Custom: Subaru Unwind Mode",
+    "description": "Choose which speed range uses the faster Subaru angle steering unwind rate. Both matches the current faster-unwind test, Low Only changes the lower-speed unwind entry only, and High Only changes the higher-speed unwind entry only.",
+    "options": [
+      {
+        "value": 0,
+        "label": "Both"
+      },
+      {
+        "value": 1,
+        "label": "Low Only"
+      },
+      {
+        "value": 2,
+        "label": "High Only"
+      }
+    ]
+  },
   "MCSubaruActuatorDelayTest": {
     "title": "MC Custom: Subaru Delay Tweak (Test)",
     "description": "Test a lower Subaru angle steering actuator delay from 0.10s to 0.08s. This requires a reboot and is intended to help unwind timing after larger turns."

@@ -22,7 +22,12 @@ LOW_SPEED_SMOOTH_MAX_SPEED = 4.4704  # m/s (10 mph)
 LOW_SPEED_SMOOTH_DEADBAND_MAX = 0.8  # deg at 0 mph
 LOW_SPEED_SMOOTH_ALPHA_MIN = 0.35  # blend factor at 0 mph
 SUBARU_ANGLE_RATE_LIMIT_DOWN_STOCK = ([0., 5., 35.], [5., 0.8, 0.15])
-SUBARU_ANGLE_RATE_LIMIT_DOWN_TEST = ([0., 5., 35.], [5., 1.4, 0.30])
+SUBARU_UNWIND_RATE_MODE_BOTH = 0
+SUBARU_UNWIND_RATE_MODE_LOW_ONLY = 1
+SUBARU_UNWIND_RATE_MODE_HIGH_ONLY = 2
+SUBARU_ANGLE_RATE_LIMIT_DOWN_TEST_BOTH = ([0., 5., 35.], [5., 1.4, 0.30])
+SUBARU_ANGLE_RATE_LIMIT_DOWN_TEST_LOW_ONLY = ([0., 5., 35.], [5., 1.4, 0.15])
+SUBARU_ANGLE_RATE_LIMIT_DOWN_TEST_HIGH_ONLY = ([0., 5., 35.], [5., 0.8, 0.30])
 LOW_SPEED_DELTA_DEADZONE_TARGET_MAX = 4.0  # deg, keep the experiment scoped near center
 LOW_SPEED_DELTA_DEADZONE_STEER_MAX = 10.0  # deg, bypass real low-speed turns
 LOW_SPEED_DELTA_DEADZONE_MAX = 2.0  # deg at 0 mph
@@ -60,6 +65,7 @@ class CarController(CarControllerBase, SnGCarController):
     self.params = Params()
     self.mc_subaru_chatter_fix = False
     self.mc_subaru_unwind_rate_test = False
+    self.mc_subaru_unwind_rate_mode = SUBARU_UNWIND_RATE_MODE_BOTH
     self.mc_subaru_smoothing_tune = False
     self.mc_subaru_smoothing_strength = 0
     self.mc_subaru_center_damping_strength = 0
@@ -89,11 +95,21 @@ class CarController(CarControllerBase, SnGCarController):
 
   def _apply_subaru_unwind_rate_limit_test(self):
     use_test_down_table = bool(self.CP.flags & SubaruFlags.LKAS_ANGLE) and self.mc_subaru_unwind_rate_test
-    self.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_DOWN = SUBARU_ANGLE_RATE_LIMIT_DOWN_TEST if use_test_down_table else SUBARU_ANGLE_RATE_LIMIT_DOWN_STOCK
+    if not use_test_down_table:
+      self.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_DOWN = SUBARU_ANGLE_RATE_LIMIT_DOWN_STOCK
+      return
+
+    selected_down_table = {
+      SUBARU_UNWIND_RATE_MODE_BOTH: SUBARU_ANGLE_RATE_LIMIT_DOWN_TEST_BOTH,
+      SUBARU_UNWIND_RATE_MODE_LOW_ONLY: SUBARU_ANGLE_RATE_LIMIT_DOWN_TEST_LOW_ONLY,
+      SUBARU_UNWIND_RATE_MODE_HIGH_ONLY: SUBARU_ANGLE_RATE_LIMIT_DOWN_TEST_HIGH_ONLY,
+    }.get(self.mc_subaru_unwind_rate_mode, SUBARU_ANGLE_RATE_LIMIT_DOWN_TEST_BOTH)
+    self.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_DOWN = selected_down_table
 
   def _update_params(self):
     self.mc_subaru_chatter_fix = self.params.get_bool("MCSubaruChatterFix")
     self.mc_subaru_unwind_rate_test = self.params.get_bool("MCSubaruUnwindRateTest")
+    self.mc_subaru_unwind_rate_mode = int(np.clip(self._get_int_param("MCSubaruUnwindRateMode"), 0, 2))
     self.mc_subaru_smoothing_tune = self.params.get_bool("MCSubaruSmoothingTune")
     self.mc_subaru_smoothing_strength = int(np.clip(self._get_int_param("MCSubaruSmoothingStrength"), -3, 3))
     self.mc_subaru_center_damping_strength = int(np.clip(self._get_int_param("MCSubaruCenterDampingStrength"), -3, 3))

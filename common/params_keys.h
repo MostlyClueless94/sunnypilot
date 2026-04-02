@@ -152,6 +152,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"MCShowVehicleBrakeStatus", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"MCSubaruChatterFix", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"MCSubaruUnwindRateTest", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"MCSubaruUnwindRateMode", {PERSISTENT | BACKUP, INT, "0"}},
     {"MCSubaruActuatorDelayTest", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"MCSubaruSmoothingTune", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"MCSubaruSmoothingStrength", {PERSISTENT | BACKUP, INT, "0"}},

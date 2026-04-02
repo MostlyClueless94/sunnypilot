@@ -11,7 +11,12 @@ from opendbc.car.subaru.carcontroller import (
   MADS_MANUAL_OVERRIDE_HOLD_FRAMES,
   MADS_MANUAL_OVERRIDE_RAMP_FRAMES,
   SUBARU_ANGLE_RATE_LIMIT_DOWN_STOCK,
-  SUBARU_ANGLE_RATE_LIMIT_DOWN_TEST,
+  SUBARU_ANGLE_RATE_LIMIT_DOWN_TEST_BOTH,
+  SUBARU_ANGLE_RATE_LIMIT_DOWN_TEST_LOW_ONLY,
+  SUBARU_ANGLE_RATE_LIMIT_DOWN_TEST_HIGH_ONLY,
+  SUBARU_UNWIND_RATE_MODE_BOTH,
+  SUBARU_UNWIND_RATE_MODE_LOW_ONLY,
+  SUBARU_UNWIND_RATE_MODE_HIGH_ONLY,
 )
 from opendbc.car.subaru.interface import CarInterface
 from opendbc.car.subaru.values import CAR
@@ -467,19 +472,41 @@ class TestSubaruCarController(unittest.TestCase):
     controller = self._build_controller()
 
     controller.mc_subaru_unwind_rate_test = False
+    controller.mc_subaru_unwind_rate_mode = SUBARU_UNWIND_RATE_MODE_HIGH_ONLY
     controller._apply_subaru_unwind_rate_limit_test()
 
     self.assertEqual(controller.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_UP, ([0., 5., 35.], [5., .8, .15]))
     self.assertEqual(controller.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_DOWN, SUBARU_ANGLE_RATE_LIMIT_DOWN_STOCK)
 
-  def test_subaru_unwind_rate_toggle_on_only_changes_down_table(self):
+  def test_subaru_unwind_rate_mode_both_selects_combined_test_table(self):
     controller = self._build_controller()
 
     controller.mc_subaru_unwind_rate_test = True
+    controller.mc_subaru_unwind_rate_mode = SUBARU_UNWIND_RATE_MODE_BOTH
     controller._apply_subaru_unwind_rate_limit_test()
 
     self.assertEqual(controller.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_UP, ([0., 5., 35.], [5., .8, .15]))
-    self.assertEqual(controller.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_DOWN, SUBARU_ANGLE_RATE_LIMIT_DOWN_TEST)
+    self.assertEqual(controller.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_DOWN, SUBARU_ANGLE_RATE_LIMIT_DOWN_TEST_BOTH)
+
+  def test_subaru_unwind_rate_mode_low_only_changes_only_low_speed_entry(self):
+    controller = self._build_controller()
+
+    controller.mc_subaru_unwind_rate_test = True
+    controller.mc_subaru_unwind_rate_mode = SUBARU_UNWIND_RATE_MODE_LOW_ONLY
+    controller._apply_subaru_unwind_rate_limit_test()
+
+    self.assertEqual(controller.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_UP, ([0., 5., 35.], [5., .8, .15]))
+    self.assertEqual(controller.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_DOWN, SUBARU_ANGLE_RATE_LIMIT_DOWN_TEST_LOW_ONLY)
+
+  def test_subaru_unwind_rate_mode_high_only_changes_only_high_speed_entry(self):
+    controller = self._build_controller()
+
+    controller.mc_subaru_unwind_rate_test = True
+    controller.mc_subaru_unwind_rate_mode = SUBARU_UNWIND_RATE_MODE_HIGH_ONLY
+    controller._apply_subaru_unwind_rate_limit_test()
+
+    self.assertEqual(controller.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_UP, ([0., 5., 35.], [5., .8, .15]))
+    self.assertEqual(controller.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_DOWN, SUBARU_ANGLE_RATE_LIMIT_DOWN_TEST_HIGH_ONLY)
 
   def test_crosstrek_2025_support_metadata_present(self):
     self.assertIn(CAR.SUBARU_CROSSTREK_2025, FW_VERSIONS)

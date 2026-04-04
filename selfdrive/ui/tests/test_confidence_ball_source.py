@@ -18,6 +18,17 @@ def test_shared_staging_confidence_ball_module_is_software_only():
   assert "class ConfidenceBallTiciSP" in source
   assert "draw_mads_beam" in source
   assert "draw_shader_circle_gradient" not in source
+  assert "get_dynamic_solid_color" in source
+  assert "STOCK_ENGAGED_COLOR" in source
+
+
+def test_shared_confidence_ball_supports_engaged_green_background():
+  source = _read(SHARED_CONFIDENCE_BALL)
+  assert "def get_beam_color():" in source
+  assert "if ui_state.status == UIStatus.ENGAGED:" in source
+  assert "return get_dynamic_solid_color(UIStatus.ENGAGED, ui_state.dynamic_path_color_palette)" in source
+  assert "return STOCK_ENGAGED_COLOR" in source
+  assert "if ui_state.status in (UIStatus.LAT_ONLY, UIStatus.LONG_ONLY, UIStatus.ENGAGED):" in source
 
 
 def test_tici_onroad_wires_confidence_ball_toggle_and_left_strip():

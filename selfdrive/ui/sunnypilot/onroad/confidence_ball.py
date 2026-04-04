@@ -3,6 +3,7 @@ import math
 import pyray as rl
 
 from openpilot.common.filter_simple import FirstOrderFilter
+from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import STOCK_ENGAGED_COLOR, get_dynamic_solid_color
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.widgets import Widget
@@ -42,6 +43,18 @@ class ConfidenceBallBase(Widget):
   @staticmethod
   def get_lat_long_dot_color():
     return LAT_ONLY_COLOR if ui_state.status == UIStatus.LAT_ONLY else LONG_ONLY_COLOR
+
+  @staticmethod
+  def get_beam_color():
+    if ui_state.status == UIStatus.LAT_ONLY:
+      return LAT_ONLY_COLOR
+    if ui_state.status == UIStatus.LONG_ONLY:
+      return LONG_ONLY_COLOR
+    if ui_state.status == UIStatus.ENGAGED:
+      if ui_state.dynamic_path_color:
+        return get_dynamic_solid_color(UIStatus.ENGAGED, ui_state.dynamic_path_color_palette)
+      return STOCK_ENGAGED_COLOR
+    return None
 
   def update_filter(self, value: float):
     self._confidence_filter.update(value)
@@ -106,8 +119,10 @@ class ConfidenceBallBase(Widget):
     else:
       ball_center_x = content_rect.x + content_rect.width - self._status_dot_radius
 
-    if ui_state.status in (UIStatus.LAT_ONLY, UIStatus.LONG_ONLY):
-      color = self.get_lat_long_dot_color()
+    if ui_state.status in (UIStatus.LAT_ONLY, UIStatus.LONG_ONLY, UIStatus.ENGAGED):
+      color = self.get_beam_color()
+      if color is None:
+        return
       color = rl.Color(color.r, color.g, color.b, 150)
       self.draw_mads_beam(int(content_rect.x), int(content_rect.y), int(content_rect.width), int(content_rect.height), color)
 

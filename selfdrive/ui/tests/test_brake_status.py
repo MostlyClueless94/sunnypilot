@@ -95,3 +95,12 @@ def test_speed_renderers_still_call_brake_status_helper():
   assert "should_highlight_braking_speed" in tici_source
   assert "from openpilot.selfdrive.ui.sunnypilot.onroad.brake_status import should_highlight_braking_speed" in mici_source
   assert "should_highlight_braking_speed" in mici_source
+
+
+def test_speed_renderers_still_switch_between_cluster_and_true_speed():
+  tici_source = _read(TICI_SPEED_RENDERER)
+  mici_source = _read(MICI_SPEED_RENDERER)
+  expected_logic = "v_ego = v_ego_cluster if self.v_ego_cluster_seen and not ui_state.true_v_ego_ui else car_state.vEgo"
+
+  assert expected_logic in tici_source
+  assert expected_logic in mici_source

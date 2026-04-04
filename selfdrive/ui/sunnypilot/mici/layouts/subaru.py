@@ -67,7 +67,7 @@ class SubaruLayoutMici(NavScroller):
       )
     )
 
-    self._true_v_ego_ui = BigParamControl("always use\ntrue speed", "TrueVEgoUI")
+    self._true_v_ego_ui = BigParamControl("always use\ntrue speed", "TrueVEgoUI", desc="off: dash speed, on: true speed")
     self._hide_v_ego_ui = BigParamControl("hide\nspeedometer", "HideVEgoUI")
 
     self.main_items = [

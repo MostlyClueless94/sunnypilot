@@ -39,6 +39,7 @@ def test_tici_subaru_page_contains_lateral_tuning_and_visuals_controls():
   assert 'param="TrueVEgoUI"' in source
   assert 'param="HideVEgoUI"' in source
   assert 'Display current speed in red when brake lights are on.' in source
+  assert 'When off, comma uses dash or cluster speed when supported. Enable to force true wheel-speed-based speed.' in source
 
 
 def test_tici_visuals_page_no_longer_duplicates_subaru_visual_controls():
@@ -71,7 +72,7 @@ def test_mici_subaru_page_uses_device_native_controls():
   assert 'BigParamControl("dynamic path\\ncolor", "DynamicPathColor")' in source
   assert 'BigButton("dynamic path\\npalette")' in source
   assert 'BigButton("custom model\\npath color")' in source
-  assert 'BigParamControl("always use\\ntrue speed", "TrueVEgoUI")' in source
+  assert 'BigParamControl("always use\\ntrue speed", "TrueVEgoUI", desc="off: dash speed, on: true speed")' in source
   assert 'BigParamControl("hide\\nspeedometer", "HideVEgoUI")' in source
 
 
@@ -92,3 +93,5 @@ def test_subaru_smoothing_params_are_declared_for_staging():
   assert '{ "value": -4, "label": "-4" }' not in metadata_source
   assert '"ShowBrakeStatus"' in metadata_source
   assert 'Display current speed in red when brake lights are on.' in metadata_source
+  assert '"TrueVEgoUI"' in metadata_source
+  assert 'When off, comma uses dash or cluster speed when supported. Enable to force true wheel-speed-based speed.' in metadata_source

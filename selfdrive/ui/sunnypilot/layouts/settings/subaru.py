@@ -112,7 +112,7 @@ class SubaruLayout(Widget):
     )
     self._true_v_ego_ui = toggle_item_sp(
       title=lambda: tr("Always Display True Speed"),
-      description=lambda: tr("For applicable vehicles, always display the true vehicle current speed from wheel speed sensors."),
+      description=lambda: tr("When off, comma uses dash or cluster speed when supported. Enable to force true wheel-speed-based speed."),
       param="TrueVEgoUI",
       initial_state=self._params.get_bool("TrueVEgoUI"),
     )

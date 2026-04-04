@@ -1388,7 +1388,7 @@
   },
   "TrueVEgoUI": {
     "title": "[TIZI/TICI only] Speedometer: Always Display True Speed",
-    "description": "For applicable vehicles, always display the true vehicle current speed from wheel speed sensors."
+    "description": "When off, comma uses dash or cluster speed when supported. Enable to force true wheel-speed-based speed."
   },
   "UbloxAvailable": {
     "title": "Ublox Available",

@@ -29,7 +29,7 @@ class SubaruLayoutMici(NavScroller):
       lambda: self._show_value_selector(
         self._subaru_smoothing_strength_btn,
         "MCSubaruSmoothingStrength",
-        list(range(-8, 9)),
+        list(range(-3, 5)),
         self._format_strength_label,
       )
     )
@@ -39,12 +39,12 @@ class SubaruLayoutMici(NavScroller):
       lambda: self._show_value_selector(
         self._subaru_center_damping_btn,
         "MCSubaruCenterDampingStrength",
-        list(range(-8, 9)),
+        list(range(-3, 5)),
         self._format_strength_label,
       )
     )
 
-    self._show_brake_status = BigParamControl("show brake\nstatus", "ShowBrakeStatus")
+    self._show_brake_status = BigParamControl("show brake\nstatus", "ShowBrakeStatus", desc="red when brake lights are on")
     self._dynamic_path_color = BigParamControl("dynamic path\ncolor", "DynamicPathColor")
 
     self._dynamic_path_palette_btn = BigButton("dynamic path\npalette")
@@ -156,8 +156,8 @@ class SubaruLayoutMici(NavScroller):
     smoothing_enabled = ui_state.params.get_bool("MCSubaruSmoothingTune")
     self._subaru_smoothing_strength_btn.set_enabled(smoothing_enabled)
     self._subaru_center_damping_btn.set_enabled(smoothing_enabled)
-    self._subaru_smoothing_strength_btn.set_value(self._format_strength_label(max(-8, min(self._get_int_param("MCSubaruSmoothingStrength"), 8))))
-    self._subaru_center_damping_btn.set_value(self._format_strength_label(max(-8, min(self._get_int_param("MCSubaruCenterDampingStrength"), 8))))
+    self._subaru_smoothing_strength_btn.set_value(self._format_strength_label(max(-3, min(self._get_int_param("MCSubaruSmoothingStrength"), 4))))
+    self._subaru_center_damping_btn.set_value(self._format_strength_label(max(-3, min(self._get_int_param("MCSubaruCenterDampingStrength"), 4))))
 
     dynamic_path_enabled = ui_state.params.get_bool("DynamicPathColor")
     self._dynamic_path_palette_btn.set_enabled(dynamic_path_enabled)

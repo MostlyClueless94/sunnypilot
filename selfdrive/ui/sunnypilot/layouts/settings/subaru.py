@@ -66,8 +66,8 @@ class SubaruLayout(Widget):
       title=lambda: tr("Smoothing Strength"),
       description=lambda: tr("Adjust low-speed Subaru smoothing. Positive values add more smoothing, negative values make it more responsive, and Stock keeps the current validated Subaru behavior."),
       param="MCSubaruSmoothingStrength",
-      min_value=-8,
-      max_value=8,
+      min_value=-3,
+      max_value=4,
       value_change_step=1,
       label_callback=self._format_subaru_strength_label,
       inline=False,
@@ -76,15 +76,15 @@ class SubaruLayout(Widget):
       title=lambda: tr("Center Damping"),
       description=lambda: tr("Adjust Subaru near-center damping and sign-flip control at low speed. Positive values add more damping, negative values make it more responsive, and Stock keeps the current validated Subaru behavior."),
       param="MCSubaruCenterDampingStrength",
-      min_value=-8,
-      max_value=8,
+      min_value=-3,
+      max_value=4,
       value_change_step=1,
       label_callback=self._format_subaru_strength_label,
       inline=False,
     )
     self._show_brake_status = toggle_item_sp(
       title=lambda: tr("Show Vehicle Brake Status"),
-      description=lambda: tr("Display current speed in red when the vehicle is braking."),
+      description=lambda: tr("Display current speed in red when brake lights are on."),
       param="ShowBrakeStatus",
       initial_state=self._params.get_bool("ShowBrakeStatus"),
     )
@@ -142,8 +142,8 @@ class SubaruLayout(Widget):
 
     smoothing_enabled = self._params.get_bool("MCSubaruSmoothingTune")
     self._subaru_smoothing_tune.action_item.set_state(smoothing_enabled)
-    self._subaru_smoothing_strength.action_item.current_value = max(-8, min(self._get_int_param("MCSubaruSmoothingStrength"), 8))
-    self._subaru_center_damping_strength.action_item.current_value = max(-8, min(self._get_int_param("MCSubaruCenterDampingStrength"), 8))
+    self._subaru_smoothing_strength.action_item.current_value = max(-3, min(self._get_int_param("MCSubaruSmoothingStrength"), 4))
+    self._subaru_center_damping_strength.action_item.current_value = max(-3, min(self._get_int_param("MCSubaruCenterDampingStrength"), 4))
     self._subaru_smoothing_strength.action_item.set_enabled(smoothing_enabled)
     self._subaru_center_damping_strength.action_item.set_enabled(smoothing_enabled)
 

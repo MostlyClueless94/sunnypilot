@@ -30,12 +30,15 @@ def test_tici_subaru_page_contains_lateral_tuning_and_visuals_controls():
   assert 'param="MCSubaruSmoothingTune"' in source
   assert 'param="MCSubaruSmoothingStrength"' in source
   assert 'param="MCSubaruCenterDampingStrength"' in source
+  assert 'min_value=-3' in source
+  assert 'max_value=4' in source
   assert 'param="ShowBrakeStatus"' in source
   assert 'param="DynamicPathColor"' in source
   assert 'param="DynamicPathColorPalette"' in source
   assert 'param="CustomModelPathColor"' in source
   assert 'param="TrueVEgoUI"' in source
   assert 'param="HideVEgoUI"' in source
+  assert 'Display current speed in red when brake lights are on.' in source
 
 
 def test_tici_visuals_page_no_longer_duplicates_subaru_visual_controls():
@@ -63,7 +66,8 @@ def test_mici_subaru_page_uses_device_native_controls():
   assert 'BigParamControl("subaru steering\\nsmoothing", "MCSubaruSmoothingTune")' in source
   assert 'BigButton("smoothing\\nstrength")' in source
   assert 'BigButton("center\\ndamping")' in source
-  assert 'BigParamControl("show brake\\nstatus", "ShowBrakeStatus")' in source
+  assert 'list(range(-3, 5))' in source
+  assert 'BigParamControl("show brake\\nstatus", "ShowBrakeStatus", desc="red when brake lights are on")' in source
   assert 'BigParamControl("dynamic path\\ncolor", "DynamicPathColor")' in source
   assert 'BigButton("dynamic path\\npalette")' in source
   assert 'BigButton("custom model\\npath color")' in source
@@ -82,3 +86,9 @@ def test_subaru_smoothing_params_are_declared_for_staging():
   for key in ("MCSubaruSmoothingTune", "MCSubaruSmoothingStrength", "MCSubaruCenterDampingStrength"):
     assert key in params_source
     assert f'"{key}"' in metadata_source
+  assert '{ "value": -3, "label": "-3" }' in metadata_source
+  assert '{ "value": 4, "label": "+4" }' in metadata_source
+  assert '{ "value": 5, "label": "+5" }' not in metadata_source
+  assert '{ "value": -4, "label": "-4" }' not in metadata_source
+  assert '"ShowBrakeStatus"' in metadata_source
+  assert 'Display current speed in red when brake lights are on.' in metadata_source

@@ -391,8 +391,8 @@ class BigMultiParamToggle(BigMultiToggle):
 
 
 class BigParamControl(BigToggle):
-  def __init__(self, text: str, param: str, toggle_callback: Callable | None = None):
-    super().__init__(text, "", toggle_callback=toggle_callback)
+  def __init__(self, text: str, param: str, desc: str = "", toggle_callback: Callable | None = None):
+    super().__init__(text, desc, toggle_callback=toggle_callback)
     self.param = param
     self.params = Params()
     self.set_checked(self.params.get_bool(self.param, False))

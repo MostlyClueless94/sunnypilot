@@ -12,6 +12,7 @@ from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import (
   CUSTOM_MODEL_PATH_EDGE_COLORS,
   CUSTOM_MODEL_PATH_COLOR_PRESETS,
   PATH_GRADIENT_STOPS,
+  STOCK_LAT_ONLY_COLOR,
   get_default_path_edge_color,
   get_dynamic_edge_color,
   get_dynamic_path_colors,
@@ -358,7 +359,10 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     if not is_current_lane:
       return OUTER_LANE_LINE_COLOR_BP
 
-    base = LANE_LINE_COLORS_BP.get(ui_state.status, LANE_LINE_COLORS_BP[UIStatus.DISENGAGED])
+    if ui_state.status == UIStatus.LAT_ONLY:
+      base = get_dynamic_edge_color(ui_state.status, ui_state.dynamic_path_color_palette) if ui_state.dynamic_path_color else STOCK_LAT_ONLY_COLOR
+    else:
+      base = LANE_LINE_COLORS_BP.get(ui_state.status, LANE_LINE_COLORS_BP[UIStatus.DISENGAGED])
     brightness = np.interp(prob, [0.0, 0.5, 1.0], [0.4, 0.7, 1.0])
     return rl.Color(int(base.r * brightness), int(base.g * brightness), int(base.b * brightness), 255)
 

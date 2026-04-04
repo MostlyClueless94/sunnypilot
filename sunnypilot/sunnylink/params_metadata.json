@@ -747,10 +747,6 @@
     "title": "Model Manager Models Cache",
     "description": ""
   },
-  "ModelManager_UseBuiltinStock": {
-    "title": "Model Manager Use Builtin Stock",
-    "description": ""
-  },
   "ModelRunnerTypeCache": {
     "title": "Model Runner Type Cache",
     "description": ""

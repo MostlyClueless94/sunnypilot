@@ -13,29 +13,25 @@ def _read(path: Path) -> str:
   return path.read_text(encoding="utf-8")
 
 
-def test_model_selector_exposes_staging_default_and_builtin_stock_options():
+def test_model_selector_uses_single_default_model_behavior():
   tici_source = _read(TICI_MODELS)
   mici_source = _read(MICI_MODELS)
 
-  assert 'DEFAULT_MODEL_OPTION_LABEL' in tici_source
-  assert 'BUILTIN_STOCK_OPTION_REF' in tici_source
-  assert 'ModelManager_UseBuiltinStock' in tici_source
-  assert 'North Nevada Model V2 is the default on subi-staging.' in tici_source
+  assert 'TreeNode("Default", {\'display_name\': tr("Default Model"), \'short_name\': "Default"})' in tici_source
+  assert 'DEFAULT_MODEL_OPTION_LABEL' not in tici_source
+  assert 'BUILTIN_STOCK_OPTION_REF' not in tici_source
+  assert 'ModelManager_UseBuiltinStock' not in tici_source
+  assert 'North Nevada Model V2 is the default on subi-staging.' not in tici_source
 
-  assert 'BigButton("north nevada\\nmodel v2", "default")' in mici_source
-  assert 'BigButton("built-in\\nstock"' in mici_source
-  assert 'GreyBigButton("north nevada v2\\ndefault"' in mici_source
-  assert 'ModelManager_UseBuiltinStock' in mici_source
-
-
-def test_tree_dialog_can_disable_favorites_for_special_model_entries():
-  source = _read(TREE_DIALOG)
-  assert 'favoriteable = node.data.get("favoriteable", node.ref != "Default")' in source
+  assert 'BigButton(tr("default model"))' in mici_source
+  assert 'BigButton("north nevada\\nmodel v2", "default")' not in mici_source
+  assert 'BigButton("built-in\\nstock"' not in mici_source
+  assert 'ModelManager_UseBuiltinStock' not in mici_source
 
 
-def test_builtin_stock_param_is_declared_in_params_files():
+def test_builtin_stock_param_is_removed_from_params_files():
   params_source = _read(PARAMS_KEYS)
   metadata_source = _read(PARAMS_METADATA)
 
-  assert 'ModelManager_UseBuiltinStock' in params_source
-  assert '"ModelManager_UseBuiltinStock"' in metadata_source
+  assert 'ModelManager_UseBuiltinStock' not in params_source
+  assert '"ModelManager_UseBuiltinStock"' not in metadata_source

@@ -25,15 +25,6 @@ from openpilot.system.ui.sunnypilot.lib.utils import NoElideButtonAction
 from openpilot.system.ui.sunnypilot.widgets.list_view import ListItemSP, toggle_item_sp, option_item_sp
 from openpilot.system.ui.sunnypilot.widgets.progress_bar import progress_item
 from openpilot.system.ui.sunnypilot.widgets.tree_dialog import TreeOptionDialog, TreeNode, TreeFolder
-from openpilot.sunnypilot.models.helpers import (
-  BUILTIN_STOCK_OPTION_REF,
-  DEFAULT_MODEL_OPTION_LABEL,
-  DEFAULT_MODEL_OPTION_REF,
-  MODEL_MANAGER_USE_BUILTIN_STOCK_PARAM,
-  get_builtin_stock_option_label,
-  get_default_bundle,
-  is_default_bundle,
-)
 
 if gui_app.sunnypilot_ui():
   from openpilot.system.ui.sunnypilot.widgets.list_view import button_item_sp as button_item
@@ -47,7 +38,6 @@ class ModelsLayout(Widget):
     self.prev_download_status = None
     self.model_dialog = None
     self.last_cache_calc_time = 0
-    self.default_model_note = tr("North Nevada Model V2 is the default on subi-staging. Built-in stock runs until it finishes downloading, or when you choose stock manually.")
 
     self._initialize_items()
 
@@ -190,59 +180,14 @@ class ModelsLayout(Widget):
     dialog = ConfirmDialog(msg, tr("Reset Calibration"), callback=_callback)
     gui_app.push_widget(dialog)
 
-  @staticmethod
-  def _clear_active_model_state():
-    ui_state.params.remove("ModelManager_ActiveBundle")
-    ui_state.params.remove("ModelManager_DownloadIndex")
-
-  def _using_builtin_stock(self) -> bool:
-    return ui_state.params.get_bool(MODEL_MANAGER_USE_BUILTIN_STOCK_PARAM)
-
-  def _get_current_model_value(self) -> str:
-    if self.model_manager and self.model_manager.activeBundle and self.model_manager.activeBundle.ref:
-      return self.model_manager.activeBundle.internalName
-    return get_builtin_stock_option_label()
-
-  def _get_current_selection_ref(self) -> str:
-    if self._using_builtin_stock():
-      return BUILTIN_STOCK_OPTION_REF
-    if self.model_manager and self.model_manager.activeBundle:
-      if is_default_bundle(self.model_manager.activeBundle):
-        return DEFAULT_MODEL_OPTION_REF
-      if self.model_manager.activeBundle.ref:
-        return self.model_manager.activeBundle.ref
-    return DEFAULT_MODEL_OPTION_REF
-
-  def _select_builtin_stock(self):
-    should_reset = bool(self.model_manager and self.model_manager.activeBundle)
-    ui_state.params.put_bool(MODEL_MANAGER_USE_BUILTIN_STOCK_PARAM, True)
-    self._clear_active_model_state()
-    if should_reset:
-      self._show_reset_params_dialog()
-
-  def _select_default_bundle(self):
-    current_active_bundle = self.model_manager.activeBundle if self.model_manager else None
-    ui_state.params.put_bool(MODEL_MANAGER_USE_BUILTIN_STOCK_PARAM, False)
-    self._clear_active_model_state()
-    ui_state.params.put("ModelManager_LastSyncTime", 0)
-
-    if default_bundle := get_default_bundle(self.model_manager.availableBundles if self.model_manager else []):
-      ui_state.params.put("ModelManager_DownloadIndex", default_bundle.index)
-      if current_active_bundle and default_bundle.generation != current_active_bundle.generation:
-        self._show_reset_params_dialog()
-    elif current_active_bundle:
-      self._show_reset_params_dialog()
-
   def _on_model_selected(self, result):
     if result != DialogResult.CONFIRM:
       return
     selected_ref = self.model_dialog.selection_ref
-    if selected_ref == DEFAULT_MODEL_OPTION_REF:
-      self._select_default_bundle()
-    elif selected_ref == BUILTIN_STOCK_OPTION_REF:
-      self._select_builtin_stock()
+    if selected_ref == "Default":
+      ui_state.params.remove("ModelManager_ActiveBundle")
+      self._show_reset_params_dialog()
     elif selected_bundle := next((bundle for bundle in self.model_manager.availableBundles if bundle.ref == selected_ref), None):
-      ui_state.params.put_bool(MODEL_MANAGER_USE_BUILTIN_STOCK_PARAM, False)
       ui_state.params.put("ModelManager_DownloadIndex", selected_bundle.index)
       if self.model_manager.activeBundle and selected_bundle.generation != self.model_manager.activeBundle.generation:
         self._show_reset_params_dialog()
@@ -258,10 +203,7 @@ class ModelsLayout(Widget):
     for bundle in bundles:
       folders.setdefault(next((ov_ride.value for ov_ride in bundle.overrides if ov_ride.key == "folder"), ""), []).append(bundle)
 
-    folders_list = [TreeFolder("", [
-      TreeNode(DEFAULT_MODEL_OPTION_REF, {'display_name': DEFAULT_MODEL_OPTION_LABEL, 'short_name': "NNMV2", 'favoriteable': False}),
-      TreeNode(BUILTIN_STOCK_OPTION_REF, {'display_name': get_builtin_stock_option_label(), 'short_name': get_builtin_stock_option_label(), 'favoriteable': False}),
-    ])]
+    folders_list = [TreeFolder("", [TreeNode("Default", {'display_name': tr("Default Model"), 'short_name': "Default"})])]
     for folder, folder_bundles in sorted(folders.items(), key=lambda x: max((bundle.index for bundle in x[1]), default=-1), reverse=True):
       folder_bundles.sort(key=lambda bundle: bundle.index, reverse=True)
       name = folder + (f" - (Updated: {m.group(1)})" if folder_bundles and (m := re.search(r'\(([^)]*)\)[^(]*$', folder_bundles[0].displayName)) else "")
@@ -276,7 +218,7 @@ class ModelsLayout(Widget):
     favorites = set(favs.split(';')) if favs else set()
     folders_list = self._get_folders(favorites)
 
-    active_ref = self._get_current_selection_ref()
+    active_ref = self.model_manager.activeBundle.ref if self.model_manager.activeBundle else "Default"
     self.model_dialog = TreeOptionDialog(tr("Select a Model"), folders_list, active_ref, "ModelManager_Favs",
                                          get_folders_fn=self._get_folders, on_exit=self._on_model_selected)
     gui_app.push_widget(self.model_dialog)
@@ -297,14 +239,15 @@ class ModelsLayout(Widget):
     self._update_lagd_description(live_delay)
     self.model_manager = ui_state.sm["modelManagerSP"]
     self._handle_bundle_download_progress()
-    self.current_model_item.action_item.set_value(self._get_current_model_value())
+    active_name = self.model_manager.activeBundle.internalName if self.model_manager and self.model_manager.activeBundle.ref else tr("Default Model")
+    self.current_model_item.action_item.set_value(active_name)
 
     if not ui_state.is_offroad():
       self.current_model_item.action_item.set_enabled(False)
       self.current_model_item.set_description(tr("Only available when vehicle is off, or always offroad mode is on"))
     else:
       self.current_model_item.action_item.set_enabled(True)
-      self.current_model_item.set_description(self.default_model_note)
+      self.current_model_item.set_description("")
 
   def _render(self, rect):
     self._scroller.render(rect)

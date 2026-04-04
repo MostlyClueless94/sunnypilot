@@ -45,6 +45,8 @@ class SubaruLayoutMici(NavScroller):
     )
 
     self._show_brake_status = BigParamControl("show brake\nstatus", "ShowBrakeStatus", desc="red when brake lights are on")
+    self._show_confidence_ball = BigParamControl("show confidence\nball", "BPShowConfidenceBall", desc="display onroad confidence ball")
+    self._show_confidence_ball.set_checked(self._get_bool_param("BPShowConfidenceBall", True))
     self._dynamic_path_color = BigParamControl("dynamic path\ncolor", "DynamicPathColor")
 
     self._dynamic_path_palette_btn = BigButton("dynamic path\npalette")
@@ -77,6 +79,7 @@ class SubaruLayoutMici(NavScroller):
       self._subaru_center_damping_btn,
       self._visuals_header,
       self._show_brake_status,
+      self._show_confidence_ball,
       self._dynamic_path_color,
       self._dynamic_path_palette_btn,
       self._custom_model_path_color_btn,
@@ -88,6 +91,7 @@ class SubaruLayoutMici(NavScroller):
     self._refresh_toggles = (
       ("MCSubaruSmoothingTune", self._subaru_smoothing_toggle),
       ("ShowBrakeStatus", self._show_brake_status),
+      ("BPShowConfidenceBall", self._show_confidence_ball),
       ("DynamicPathColor", self._dynamic_path_color),
       ("TrueVEgoUI", self._true_v_ego_ui),
       ("HideVEgoUI", self._hide_v_ego_ui),
@@ -104,6 +108,11 @@ class SubaruLayoutMici(NavScroller):
       return int(value)
     except (TypeError, ValueError):
       return default
+
+  @staticmethod
+  def _get_bool_param(key: str, default: bool = False) -> bool:
+    value = ui_state.params.get(key, return_default=True)
+    return default if value is None else bool(value)
 
   def _show_selection_view(self, items, back_callback: Callable):
     self._scroller._items = items
@@ -151,7 +160,7 @@ class SubaruLayoutMici(NavScroller):
     super()._update_state()
 
     for key, item in self._refresh_toggles:
-      item.set_checked(ui_state.params.get_bool(key))
+      item.set_checked(self._get_bool_param(key, default=(key == "BPShowConfidenceBall")))
 
     smoothing_enabled = ui_state.params.get_bool("MCSubaruSmoothingTune")
     self._subaru_smoothing_strength_btn.set_enabled(smoothing_enabled)

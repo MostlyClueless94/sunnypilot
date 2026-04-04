@@ -181,6 +181,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"QuietMode", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"RainbowMode", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"RocketFuel", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"BPShowConfidenceBall", {PERSISTENT | BACKUP, BOOL, "1"}},
     {"MCSubaruSmoothingTune", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"MCSubaruSmoothingStrength", {PERSISTENT | BACKUP, INT, "0"}},
     {"MCSubaruCenterDampingStrength", {PERSISTENT | BACKUP, INT, "0"}},

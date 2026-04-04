@@ -51,6 +51,10 @@ class SubaruLayout(Widget):
     except (TypeError, ValueError):
       return default
 
+  def _get_bool_param(self, key: str, default: bool = False) -> bool:
+    value = self._params.get(key, return_default=True)
+    return default if value is None else bool(value)
+
   @staticmethod
   def _format_subaru_strength_label(value: int) -> str:
     return tr("Stock") if value == 0 else f"{value:+d}"
@@ -86,13 +90,19 @@ class SubaruLayout(Widget):
       title=lambda: tr("Show Vehicle Brake Status"),
       description=lambda: tr("Display current speed in red when brake lights are on."),
       param="ShowBrakeStatus",
-      initial_state=self._params.get_bool("ShowBrakeStatus"),
+      initial_state=self._get_bool_param("ShowBrakeStatus"),
+    )
+    self._show_confidence_ball = toggle_item_sp(
+      title=lambda: tr("Show Confidence Ball"),
+      description=lambda: tr("Display the confidence ball on the driving view."),
+      param="BPShowConfidenceBall",
+      initial_state=self._get_bool_param("BPShowConfidenceBall", True),
     )
     self._dynamic_path_color = toggle_item_sp(
       title=lambda: tr("Dynamic Path Color"),
       description=lambda: tr("Color the driving path by drive mode. Gray when inactive or overriding, blue for steering-only, and green for full control."),
       param="DynamicPathColor",
-      initial_state=self._params.get_bool("DynamicPathColor"),
+      initial_state=self._get_bool_param("DynamicPathColor"),
     )
     self._dynamic_path_color_palette = multiple_button_item_sp(
       title=lambda: tr("Dynamic Path Color Palette"),
@@ -114,13 +124,13 @@ class SubaruLayout(Widget):
       title=lambda: tr("Always Display True Speed"),
       description=lambda: tr("When off, comma uses dash or cluster speed when supported. Enable to force true wheel-speed-based speed."),
       param="TrueVEgoUI",
-      initial_state=self._params.get_bool("TrueVEgoUI"),
+      initial_state=self._get_bool_param("TrueVEgoUI"),
     )
     self._hide_v_ego_ui = toggle_item_sp(
       title=lambda: tr("Hide Speedometer"),
       description=lambda: tr("When enabled, the onroad speedometer is not displayed."),
       param="HideVEgoUI",
-      initial_state=self._params.get_bool("HideVEgoUI"),
+      initial_state=self._get_bool_param("HideVEgoUI"),
     )
 
     return [
@@ -130,6 +140,7 @@ class SubaruLayout(Widget):
       self._subaru_center_damping_strength,
       SubaruSectionHeader(lambda: tr("Visuals")),
       self._show_brake_status,
+      self._show_confidence_ball,
       self._dynamic_path_color,
       self._dynamic_path_color_palette,
       self._custom_model_path_color,
@@ -147,17 +158,18 @@ class SubaruLayout(Widget):
     self._subaru_smoothing_strength.action_item.set_enabled(smoothing_enabled)
     self._subaru_center_damping_strength.action_item.set_enabled(smoothing_enabled)
 
-    self._show_brake_status.action_item.set_state(self._params.get_bool("ShowBrakeStatus"))
-    self._dynamic_path_color.action_item.set_state(self._params.get_bool("DynamicPathColor"))
+    self._show_brake_status.action_item.set_state(self._get_bool_param("ShowBrakeStatus"))
+    self._show_confidence_ball.action_item.set_state(self._get_bool_param("BPShowConfidenceBall", True))
+    self._dynamic_path_color.action_item.set_state(self._get_bool_param("DynamicPathColor"))
     self._dynamic_path_color_palette.action_item.set_selected_button(
       max(0, min(self._get_int_param("DynamicPathColorPalette"), len(DYNAMIC_PATH_COLOR_PALETTE_LABELS) - 1))
     )
-    self._dynamic_path_color_palette.action_item.set_enabled(self._params.get_bool("DynamicPathColor"))
+    self._dynamic_path_color_palette.action_item.set_enabled(self._get_bool_param("DynamicPathColor"))
     self._custom_model_path_color.action_item.set_selected_button(
       max(0, min(self._get_int_param("CustomModelPathColor"), len(CUSTOM_MODEL_PATH_COLOR_LABELS) - 1))
     )
-    self._true_v_ego_ui.action_item.set_state(self._params.get_bool("TrueVEgoUI"))
-    self._hide_v_ego_ui.action_item.set_state(self._params.get_bool("HideVEgoUI"))
+    self._true_v_ego_ui.action_item.set_state(self._get_bool_param("TrueVEgoUI"))
+    self._hide_v_ego_ui.action_item.set_state(self._get_bool_param("HideVEgoUI"))
 
   def _render(self, rect):
     self._scroller.render(rect)

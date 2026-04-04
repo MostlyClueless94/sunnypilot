@@ -2,6 +2,7 @@ import time
 import numpy as np
 import pyray as rl
 from cereal import messaging, car, log
+from openpilot.common.params import Params
 from msgq.visionipc import VisionStreamType
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.selfdrive.ui.mici.onroad import SIDE_PANEL_WIDTH
@@ -9,8 +10,8 @@ from openpilot.selfdrive.ui.mici.onroad.alert_renderer import AlertRenderer
 from openpilot.selfdrive.ui.mici.onroad.driver_state import DriverStateRenderer
 from openpilot.selfdrive.ui.mici.onroad.hud_renderer import HudRenderer
 from openpilot.selfdrive.ui.mici.onroad.model_renderer import ModelRenderer
-from openpilot.selfdrive.ui.mici.onroad.confidence_ball import ConfidenceBall
 from openpilot.selfdrive.ui.mici.onroad.cameraview import CameraView
+from openpilot.selfdrive.ui.sunnypilot.onroad.confidence_ball import ConfidenceBallMiciSP
 from openpilot.system.ui.lib.application import FontWeight, gui_app, MousePos, MouseEvent
 from openpilot.system.ui.widgets.label import UnifiedLabel
 from openpilot.system.ui.widgets import Widget
@@ -28,6 +29,11 @@ CALIBRATED = log.LiveCalibrationData.Status.calibrated
 ROAD_CAM = VisionStreamType.VISION_STREAM_ROAD
 WIDE_CAM = VisionStreamType.VISION_STREAM_WIDE_ROAD
 DEFAULT_DEVICE_CAMERA = DEVICE_CAMERAS["tici", "ar0231"]
+
+
+def _get_bool_param(params: Params, key: str, default: bool = False) -> bool:
+  value = params.get(key, return_default=True)
+  return default if value is None else bool(value)
 
 
 class BookmarkState(IntEnum):
@@ -157,7 +163,10 @@ class AugmentedRoadView(CameraView):
     self._hud_renderer = HudRenderer()
     self._alert_renderer = AlertRenderer()
     self._driver_state_renderer = DriverStateRenderer()
-    self._confidence_ball = ConfidenceBall()
+    self._confidence_ball = ConfidenceBallMiciSP()
+    self._params = Params()
+    self._show_confidence_ball = _get_bool_param(self._params, "BPShowConfidenceBall", True)
+    self._param_counter = 0
     self._offroad_label = UnifiedLabel("start the car to\nuse sunnypilot", 54, FontWeight.DISPLAY,
                                        text_color=rl.Color(255, 255, 255, int(255 * 0.9)),
                                        alignment=rl.GuiTextAlignment.TEXT_ALIGN_CENTER,
@@ -188,6 +197,11 @@ class AugmentedRoadView(CameraView):
 
   def _render(self, _):
     start_draw = time.monotonic()
+    self._param_counter += 1
+    if self._param_counter >= 60:
+      self._param_counter = 0
+      self._show_confidence_ball = _get_bool_param(self._params, "BPShowConfidenceBall", True)
+
     self._switch_stream_if_needed(ui_state.sm)
 
     # Update calibration before rendering
@@ -244,7 +258,14 @@ class AugmentedRoadView(CameraView):
 
     # Custom UI extension point - add custom overlays here
     # Use self._content_rect for positioning within camera bounds
-    self._confidence_ball.render(self.rect)
+    if self._show_confidence_ball:
+      ball_rect = rl.Rectangle(
+        self.rect.x + self.rect.width - SIDE_PANEL_WIDTH,
+        self._content_rect.y,
+        SIDE_PANEL_WIDTH,
+        self._content_rect.height,
+      )
+      self._confidence_ball.render(ball_rect)
 
     self._bookmark_icon.render(self.rect)
 

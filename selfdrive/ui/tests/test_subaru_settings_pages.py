@@ -33,13 +33,16 @@ def test_tici_subaru_page_contains_lateral_tuning_and_visuals_controls():
   assert 'min_value=-3' in source
   assert 'max_value=4' in source
   assert 'param="ShowBrakeStatus"' in source
+  assert 'param="BPShowConfidenceBall"' in source
   assert 'param="DynamicPathColor"' in source
   assert 'param="DynamicPathColorPalette"' in source
   assert 'param="CustomModelPathColor"' in source
   assert 'param="TrueVEgoUI"' in source
   assert 'param="HideVEgoUI"' in source
   assert 'Display current speed in red when brake lights are on.' in source
+  assert 'Display the confidence ball on the driving view.' in source
   assert 'When off, comma uses dash or cluster speed when supported. Enable to force true wheel-speed-based speed.' in source
+  assert source.index('param="ShowBrakeStatus"') < source.index('param="BPShowConfidenceBall"') < source.index('param="DynamicPathColor"')
 
 
 def test_tici_visuals_page_no_longer_duplicates_subaru_visual_controls():
@@ -69,11 +72,13 @@ def test_mici_subaru_page_uses_device_native_controls():
   assert 'BigButton("center\\ndamping")' in source
   assert 'list(range(-3, 5))' in source
   assert 'BigParamControl("show brake\\nstatus", "ShowBrakeStatus", desc="red when brake lights are on")' in source
+  assert 'BigParamControl("show confidence\\nball", "BPShowConfidenceBall", desc="display onroad confidence ball")' in source
   assert 'BigParamControl("dynamic path\\ncolor", "DynamicPathColor")' in source
   assert 'BigButton("dynamic path\\npalette")' in source
   assert 'BigButton("custom model\\npath color")' in source
   assert 'BigParamControl("always use\\ntrue speed", "TrueVEgoUI", desc="off: dash speed, on: true speed")' in source
   assert 'BigParamControl("hide\\nspeedometer", "HideVEgoUI")' in source
+  assert source.index('"ShowBrakeStatus"') < source.index('"BPShowConfidenceBall"') < source.index('"DynamicPathColor"')
 
 
 def test_mici_general_toggles_no_longer_duplicate_brake_status():
@@ -91,6 +96,10 @@ def test_subaru_smoothing_params_are_declared_for_staging():
   assert '{ "value": 4, "label": "+4" }' in metadata_source
   assert '{ "value": 5, "label": "+5" }' not in metadata_source
   assert '{ "value": -4, "label": "-4" }' not in metadata_source
+  assert '"BPShowConfidenceBall"' in params_source
+  assert '"BPShowConfidenceBall"' in metadata_source
+  assert 'Show Confidence Ball' in metadata_source
+  assert 'Display the confidence ball on the driving view.' in metadata_source
   assert '"ShowBrakeStatus"' in metadata_source
   assert 'Display current speed in red when brake lights are on.' in metadata_source
   assert '"TrueVEgoUI"' in metadata_source

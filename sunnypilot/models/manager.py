@@ -17,7 +17,13 @@ from openpilot.system.hardware.hw import Paths
 
 from cereal import messaging, custom
 from openpilot.sunnypilot.models.fetcher import ModelFetcher
-from openpilot.sunnypilot.models.helpers import verify_file, get_active_bundle
+from openpilot.sunnypilot.models.helpers import (
+  MODEL_MANAGER_USE_BUILTIN_STOCK_PARAM,
+  get_active_bundle,
+  get_default_bundle,
+  should_auto_queue_default_bundle,
+  verify_file,
+)
 
 
 class ModelManagerSP:
@@ -32,6 +38,22 @@ class ModelManagerSP:
     self.active_bundle: custom.ModelManagerSP.ModelBundle = get_active_bundle(self.params)
     self._chunk_size = 128 * 1000  # 128 KB chunks
     self._download_start_times: dict[str, float] = {}  # Track start time per model
+
+  def _using_builtin_stock(self) -> bool:
+    return self.params.get_bool(MODEL_MANAGER_USE_BUILTIN_STOCK_PARAM)
+
+  def _queue_default_bundle_if_needed(self) -> None:
+    default_bundle = get_default_bundle(self.available_models)
+    should_queue = should_auto_queue_default_bundle(
+      is_offroad=self.params.get_bool("IsOffroad"),
+      has_active_bundle=self.active_bundle is not None,
+      use_builtin_stock=self._using_builtin_stock(),
+      download_index=self.params.get("ModelManager_DownloadIndex"),
+      default_bundle_available=default_bundle is not None,
+    )
+
+    if should_queue and default_bundle is not None:
+      self.params.put("ModelManager_DownloadIndex", default_bundle.index)
 
   def _calculate_eta(self, filename: str, progress: float) -> int:
     """Calculate ETA based on elapsed time and current progress"""
@@ -148,6 +170,7 @@ class ModelManagerSP:
       await asyncio.gather(*tasks)
       self.active_bundle = self.selected_bundle
       self.active_bundle.status = custom.ModelManagerSP.DownloadStatus.downloaded
+      self.params.put_bool(MODEL_MANAGER_USE_BUILTIN_STOCK_PARAM, False)
       self.params.put("ModelManager_ActiveBundle", self.active_bundle.to_dict())
       self.selected_bundle = None
 
@@ -170,6 +193,7 @@ class ModelManagerSP:
       try:
         self.available_models = self.model_fetcher.get_available_bundles()
         self.active_bundle = get_active_bundle(self.params)
+        self._queue_default_bundle_if_needed()
 
         if (index_to_download := self.params.get("ModelManager_DownloadIndex")) is not None:
           if model_to_download := next((model for model in self.available_models if model.index == index_to_download), None):

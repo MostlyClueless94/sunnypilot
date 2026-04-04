@@ -167,12 +167,18 @@ class TreeOptionDialog(MultiOptionDialog):
   def _build_visible_items(self, reset_scroll=True):
     self.visible_items = []
 
+    def _favorite_callback_for(node):
+      favoriteable = node.data.get("favoriteable", node.ref != "Default")
+      if self.fav_param and favoriteable:
+        return lambda node_ref=node: self._toggle_favorite(node_ref)
+      return None
+
     # Pinned selected item at the very top (if any)
     if getattr(self, "selection_node", None) is not None:
       node = self.selection_node
       display = self.display_func(node)
       self.selection = self.current = display
-      favorite_cb = (lambda node_ref=node: self._toggle_favorite(node_ref)) if self.fav_param and node.ref != "Default" else None
+      favorite_cb = _favorite_callback_for(node)
       self.visible_items.append(TreeItemWidget(self.display_func(node), node.ref, False, 0,
                                                lambda node_ref=node: self._select_node(node_ref),
                                                favorite_cb, node.ref in self.favorites, is_expanded=True))
@@ -191,7 +197,7 @@ class TreeOptionDialog(MultiOptionDialog):
           if self.selection_node is not None and node.ref == self.selection_node.ref and not folder.folder:
             continue
 
-          favorite_cb = (lambda node_ref=node: self._toggle_favorite(node_ref)) if self.fav_param and node.ref != "Default" else None
+          favorite_cb = _favorite_callback_for(node)
           self.visible_items.append(TreeItemWidget(self.display_func(node), node.ref, False, 1 if folder.folder else 0,
                                                    lambda node_ref=node: self._select_node(node_ref),
                                                    favorite_cb, node.ref in self.favorites, is_expanded=expanded))

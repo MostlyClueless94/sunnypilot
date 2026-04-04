@@ -8,17 +8,27 @@ See the LICENSE.md file in the root directory for more details.
 import hashlib
 import os
 import pickle
+import re
+from functools import lru_cache
+from pathlib import Path
+
 import numpy as np
 
 from openpilot.common.params import Params
+from openpilot.common.basedir import BASEDIR
 from cereal import custom
 from openpilot.sunnypilot.models.constants import Meta, MetaTombRaider, MetaSimPose
 from openpilot.system.hardware.hw import Paths
-from pathlib import Path
 
 # see the README.md for more details on the model selector versioning
 CURRENT_SELECTOR_VERSION = 15
 REQUIRED_MIN_SELECTOR_VERSION = 14
+
+DEFAULT_MODEL_BUNDLE_SHORT_NAME = "NNMV2"
+DEFAULT_MODEL_OPTION_LABEL = "North Nevada Model V2 (Default)"
+DEFAULT_MODEL_OPTION_REF = "DefaultNNMV2"
+BUILTIN_STOCK_OPTION_REF = "BuiltinStock"
+MODEL_MANAGER_USE_BUILTIN_STOCK_PARAM = "ModelManager_UseBuiltinStock"
 
 
 CUSTOM_MODEL_PATH = Paths.model_root()
@@ -73,6 +83,41 @@ def get_active_bundle(params: Params = None) -> custom.ModelManagerSP.ModelBundl
     pass
 
   return None
+
+
+@lru_cache()
+def get_builtin_stock_model_name() -> str:
+  model_header = Path(BASEDIR) / "common" / "model.h"
+  try:
+    match = re.search(r'#define DEFAULT_MODEL "(.+?)"', model_header.read_text(encoding="utf-8"))
+    if match is not None:
+      return match.group(1).removesuffix(" (Default)")
+  except Exception:
+    pass
+  return "Stock"
+
+
+def get_builtin_stock_option_label() -> str:
+  return f"Built-in Stock ({get_builtin_stock_model_name()})"
+
+
+def get_default_bundle(bundles) -> custom.ModelManagerSP.ModelBundle | None:
+  return next((bundle for bundle in bundles if bundle.internalName == DEFAULT_MODEL_BUNDLE_SHORT_NAME), None)
+
+
+def is_default_bundle(bundle) -> bool:
+  return bool(bundle is not None and bundle.internalName == DEFAULT_MODEL_BUNDLE_SHORT_NAME)
+
+
+def should_auto_queue_default_bundle(*, is_offroad: bool, has_active_bundle: bool,
+                                     use_builtin_stock: bool, download_index, default_bundle_available: bool) -> bool:
+  return bool(
+    is_offroad and
+    not has_active_bundle and
+    not use_builtin_stock and
+    download_index is None and
+    default_bundle_available
+  )
 
 
 def get_active_model_runner(params: Params = None, force_check=False) -> custom.ModelManagerSP.Runner:

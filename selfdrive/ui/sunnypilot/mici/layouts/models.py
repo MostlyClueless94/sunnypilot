@@ -7,10 +7,15 @@ See the LICENSE.md file in the root directory for more details.
 from collections.abc import Callable
 
 from cereal import custom
-from openpilot.selfdrive.ui.mici.widgets.button import BigButton
+from openpilot.selfdrive.ui.mici.widgets.button import BigButton, GreyBigButton
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.widgets.scroller import NavScroller
+from openpilot.sunnypilot.models.helpers import (
+  MODEL_MANAGER_USE_BUILTIN_STOCK_PARAM,
+  get_builtin_stock_option_label,
+  get_default_bundle,
+)
 
 
 class ModelsLayoutMici(NavScroller):
@@ -26,7 +31,9 @@ class ModelsLayoutMici(NavScroller):
     self.cancel_download_btn = BigButton(tr("cancel download"))
     self.cancel_download_btn.set_click_callback(lambda: ui_state.params.remove("ModelManager_DownloadIndex"))
 
-    self.main_items = [self.current_model_btn, self.cancel_download_btn]
+    self.default_model_note = GreyBigButton("north nevada v2\ndefault", "built-in stock runs until\ndownload finishes")
+
+    self.main_items = [self.current_model_btn, self.cancel_download_btn, self.default_model_note]
     self._scroller.add_widgets(self.main_items)
 
   @property
@@ -52,9 +59,12 @@ class ModelsLayoutMici(NavScroller):
     self.focused_widget = self.current_model_btn
     folders = self._get_grouped_bundles()
     folder_buttons = []
-    default_btn = BigButton(tr("default model"))
+    default_btn = BigButton("north nevada\nmodel v2", "default")
     default_btn.set_click_callback(self._select_default)
     folder_buttons.append(default_btn)
+    builtin_stock_btn = BigButton("built-in\nstock", get_builtin_stock_option_label().replace("Built-in Stock (", "").replace(")", "").lower())
+    builtin_stock_btn.set_click_callback(self._select_builtin_stock)
+    folder_buttons.append(builtin_stock_btn)
 
     for folder in sorted(folders.keys(), key=lambda f: max((bundle.index for bundle in folders[f]), default=-1), reverse=True):
       if folder.lower() in ["release models", "master models"]:
@@ -64,11 +74,23 @@ class ModelsLayoutMici(NavScroller):
     self._show_selection_view(folder_buttons, self._reset_main_view)
 
   def _select_model(self, bundle):
+    ui_state.params.put_bool(MODEL_MANAGER_USE_BUILTIN_STOCK_PARAM, False)
     ui_state.params.put("ModelManager_DownloadIndex", bundle.index)
     self._reset_main_view()
 
   def _select_default(self):
+    ui_state.params.put_bool(MODEL_MANAGER_USE_BUILTIN_STOCK_PARAM, False)
     ui_state.params.remove("ModelManager_ActiveBundle")
+    ui_state.params.remove("ModelManager_DownloadIndex")
+    ui_state.params.put("ModelManager_LastSyncTime", 0)
+    if default_bundle := get_default_bundle(self.model_manager.availableBundles):
+      ui_state.params.put("ModelManager_DownloadIndex", default_bundle.index)
+    self._reset_main_view()
+
+  def _select_builtin_stock(self):
+    ui_state.params.put_bool(MODEL_MANAGER_USE_BUILTIN_STOCK_PARAM, True)
+    ui_state.params.remove("ModelManager_ActiveBundle")
+    ui_state.params.remove("ModelManager_DownloadIndex")
     self._reset_main_view()
 
   def _select_folder(self, folder_name):
@@ -108,7 +130,7 @@ class ModelsLayoutMici(NavScroller):
       self.current_model_btn.set_value("downloading...")
       self.cancel_download_btn.set_visible(True)
     else:
-      self.current_model_btn.set_value(manager.activeBundle.internalName.lower() if manager.activeBundle else tr("default model"))
+      self.current_model_btn.set_value(manager.activeBundle.internalName.lower() if manager.activeBundle else get_builtin_stock_option_label().lower())
       self.cancel_download_btn.set_visible(False)
     self.current_model_btn.set_enabled(ui_state.is_offroad())
     self.current_model_btn.set_text(tr("current model"))

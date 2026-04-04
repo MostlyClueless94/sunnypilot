@@ -27,8 +27,14 @@ MICI_MODEL_RENDERER = REPO_ROOT / "selfdrive/ui/mici/onroad/model_renderer.py"
 
 def test_vibrant_edge_color_from_gradient():
   blue_edge = vibrant_edge_color_from_gradient(CUSTOM_MODEL_PATH_COLOR_PRESETS[1])
-  assert _color_tuple(blue_edge) == (51, 153, 255, 255)
-  assert _color_tuple(CUSTOM_MODEL_PATH_EDGE_COLORS[1]) == (51, 153, 255, 255)
+  assert _color_tuple(CUSTOM_MODEL_PATH_COLOR_PRESETS[1][0]) == (0, 153, 255, 102)
+  assert _color_tuple(blue_edge) == (51, 204, 255, 255)
+  assert _color_tuple(CUSTOM_MODEL_PATH_EDGE_COLORS[1]) == (51, 204, 255, 255)
+
+
+def test_custom_palette_uses_more_vibrant_blue_and_green_bases():
+  assert _color_tuple(CUSTOM_MODEL_PATH_COLOR_PRESETS[1][0]) == (0, 153, 255, 102)
+  assert _color_tuple(CUSTOM_MODEL_PATH_COLOR_PRESETS[2][0]) == (0, 235, 125, 102)
 
 
 def test_path_gradient_stops_stay_compatible():
@@ -38,6 +44,13 @@ def test_path_gradient_stops_stay_compatible():
 def test_dynamic_custom_edge_colors_follow_custom_status_palette():
   color = get_dynamic_edge_color(UIStatus.LAT_ONLY, DYNAMIC_PATH_COLOR_PALETTE_CUSTOM)
   assert _color_tuple(color) == _color_tuple(CUSTOM_DYNAMIC_BORDER_COLORS[UIStatus.LAT_ONLY])
+  assert _color_tuple(color) == (51, 204, 255, 255)
+
+
+def test_dynamic_custom_engaged_edge_color_is_more_vibrant():
+  color = get_dynamic_edge_color(UIStatus.ENGAGED, DYNAMIC_PATH_COLOR_PALETTE_CUSTOM)
+  assert _color_tuple(color) == _color_tuple(CUSTOM_DYNAMIC_BORDER_COLORS[UIStatus.ENGAGED])
+  assert _color_tuple(color) == (51, 255, 176, 255)
 
 
 def test_dynamic_stock_edge_colors_use_brightened_stock_outline():

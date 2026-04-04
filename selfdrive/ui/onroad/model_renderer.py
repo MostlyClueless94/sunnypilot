@@ -11,6 +11,7 @@ from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import (
   CUSTOM_MODEL_PATH_EDGE_COLORS,
   CUSTOM_MODEL_PATH_COLOR_PRESETS,
+  DEFAULT_GREEN_PATH_COLORS,
   PATH_GRADIENT_STOPS,
   STOCK_LAT_ONLY_COLOR,
   get_default_path_edge_color,
@@ -27,12 +28,6 @@ from openpilot.selfdrive.ui.sunnypilot.onroad.model_renderer import ChevronMetri
 CLIP_MARGIN = 500
 MIN_DRAW_DISTANCE = 10.0
 MAX_DRAW_DISTANCE = 100.0
-
-THROTTLE_COLORS = [
-  rl.Color(0, 255, 80, 140),
-  rl.Color(0, 255, 100, 110),
-  rl.Color(0, 255, 100, 0),
-]
 
 NO_THROTTLE_COLORS = [
   rl.Color(242, 242, 242, 102), # HSLF(148/360, 0.0, 0.95, 0.4)
@@ -312,7 +307,7 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
     allow_throttle = sm['longitudinalPlan'].allowThrottle or not self._longitudinal_control
     self._blend_filter.update(int(allow_throttle))
     blend_factor = round(self._blend_filter.x * 100) / 100
-    blended_colors = self._blend_colors(NO_THROTTLE_COLORS, THROTTLE_COLORS, blend_factor)
+    blended_colors = self._blend_colors(NO_THROTTLE_COLORS, DEFAULT_GREEN_PATH_COLORS, blend_factor)
     self._active_path_gradient = Gradient(
       start=(0.0, 1.0),
       end=(0.0, 0.0),

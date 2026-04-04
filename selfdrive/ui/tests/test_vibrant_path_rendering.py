@@ -22,10 +22,13 @@ def test_renderers_use_custom_and_dynamic_edge_color_sources():
   for renderer_path in (TICI_RENDERER, MICI_RENDERER):
     source = _read(renderer_path)
     assert "CUSTOM_MODEL_PATH_EDGE_COLORS" in source
+    assert "DEFAULT_GREEN_PATH_COLORS" in source
     assert "get_dynamic_edge_color" in source
     assert "self._active_path_edge_color = CUSTOM_MODEL_PATH_EDGE_COLORS[ui_state.custom_model_path_color]" in source
     assert "self._active_path_edge_color = vibrant_edge_color_from_gradient(" in source
     assert "blended_colors," in source
+    assert "self._blend_colors(NO_THROTTLE_COLORS, DEFAULT_GREEN_PATH_COLORS, blend_factor)" in source
+    assert "\nTHROTTLE_COLORS = [" not in source
 
 
 def test_renderers_keep_lane_and_road_colors_decoupled_from_active_path_fill():

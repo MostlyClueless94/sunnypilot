@@ -92,12 +92,6 @@ class SubaruLayout(Widget):
       param="ShowBrakeStatus",
       initial_state=self._get_bool_param("ShowBrakeStatus"),
     )
-    self._show_confidence_ball = toggle_item_sp(
-      title=lambda: tr("Show Confidence Ball"),
-      description=lambda: tr("Display the confidence ball on the driving view."),
-      param="BPShowConfidenceBall",
-      initial_state=self._get_bool_param("BPShowConfidenceBall", True),
-    )
     self._dynamic_path_color = toggle_item_sp(
       title=lambda: tr("Dynamic Path Color"),
       description=lambda: tr("Color the driving path by drive mode. Gray when inactive or overriding, blue for steering-only, and green for full control."),
@@ -140,7 +134,6 @@ class SubaruLayout(Widget):
       self._subaru_center_damping_strength,
       SubaruSectionHeader(lambda: tr("Visuals")),
       self._show_brake_status,
-      self._show_confidence_ball,
       self._dynamic_path_color,
       self._dynamic_path_color_palette,
       self._custom_model_path_color,
@@ -159,7 +152,6 @@ class SubaruLayout(Widget):
     self._subaru_center_damping_strength.action_item.set_enabled(smoothing_enabled)
 
     self._show_brake_status.action_item.set_state(self._get_bool_param("ShowBrakeStatus"))
-    self._show_confidence_ball.action_item.set_state(self._get_bool_param("BPShowConfidenceBall", True))
     self._dynamic_path_color.action_item.set_state(self._get_bool_param("DynamicPathColor"))
     self._dynamic_path_color_palette.action_item.set_selected_button(
       max(0, min(self._get_int_param("DynamicPathColorPalette"), len(DYNAMIC_PATH_COLOR_PALETTE_LABELS) - 1))

@@ -295,14 +295,14 @@ class ModelRenderer(Widget, ModelRendererSP):
       return
 
     if ui_state.dynamic_path_color:
-      dynamic_colors = get_dynamic_path_colors(ui_state.status, ui_state.dynamic_path_color_palette)
+      dynamic_colors = get_dynamic_path_colors(ui_state.status)
       self._active_path_gradient = Gradient(
         start=(0.0, 1.0),
         end=(0.0, 0.0),
         colors=dynamic_colors,
         stops=PATH_GRADIENT_STOPS,
       )
-      self._active_path_edge_color = get_dynamic_edge_color(ui_state.status, ui_state.dynamic_path_color_palette)
+      self._active_path_edge_color = get_dynamic_edge_color(ui_state.status)
       return
 
     if ui_state.custom_model_path_color:
@@ -370,7 +370,7 @@ class ModelRenderer(Widget, ModelRendererSP):
       return OUTER_LANE_LINE_COLOR_BP
 
     if ui_state.status == UIStatus.LAT_ONLY:
-      base = get_dynamic_edge_color(ui_state.status, ui_state.dynamic_path_color_palette) if ui_state.dynamic_path_color else STOCK_LAT_ONLY_COLOR
+      base = get_dynamic_edge_color(ui_state.status) if ui_state.dynamic_path_color else STOCK_LAT_ONLY_COLOR
     else:
       base = LANE_LINE_COLORS_BP.get(ui_state.status, LANE_LINE_COLORS_BP[UIStatus.DISENGAGED])
     brightness = np.interp(prob, [0.0, 0.5, 1.0], [0.4, 0.7, 1.0])

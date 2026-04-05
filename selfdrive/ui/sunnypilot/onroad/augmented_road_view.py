@@ -18,7 +18,7 @@ BORDER_COLORS_SP = {
 
 def resolve_border_color(status: UIStatus, fallback_colors: dict[UIStatus, rl.Color]) -> rl.Color:
   if ui_state.dynamic_path_color:
-    return get_dynamic_solid_color(status, ui_state.dynamic_path_color_palette)
+    return get_dynamic_solid_color(status)
 
   return fallback_colors.get(status, fallback_colors[UIStatus.DISENGAGED])
 

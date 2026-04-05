@@ -27,7 +27,7 @@ def test_mici_speed_renderer_uses_smaller_mici_layout_and_existing_features():
   assert "SPEED_UNIT_FONT_SIZE = 36" in source
   assert "CURRENT_SPEED_CENTER_Y = 92" in source
   assert "SPEED_UNIT_CENTER_Y = 146" in source
-  assert "ui_state.true_v_ego_ui" in source
+  assert "ui_state.match_vehicle_speedometer" in source
   assert "ui_state.hide_v_ego_ui" in source
   assert "\"ShowBrakeStatus\"" in source
 

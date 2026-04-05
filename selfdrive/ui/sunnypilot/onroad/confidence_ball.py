@@ -52,7 +52,7 @@ class ConfidenceBallBase(Widget):
       return LONG_ONLY_COLOR
     if ui_state.status == UIStatus.ENGAGED:
       if ui_state.dynamic_path_color:
-        return get_dynamic_solid_color(UIStatus.ENGAGED, ui_state.dynamic_path_color_palette)
+        return get_dynamic_solid_color(UIStatus.ENGAGED)
       return STOCK_ENGAGED_COLOR
     return None
 

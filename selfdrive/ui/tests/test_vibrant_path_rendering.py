@@ -24,6 +24,9 @@ def test_renderers_use_custom_and_dynamic_edge_color_sources():
     assert "CUSTOM_MODEL_PATH_EDGE_COLORS" in source
     assert "DEFAULT_GREEN_PATH_COLORS" in source
     assert "get_dynamic_edge_color" in source
+    assert "get_dynamic_path_colors(ui_state.status)" in source
+    assert "get_dynamic_edge_color(ui_state.status)" in source
+    assert "dynamic_path_color_palette" not in source
     assert "self._active_path_edge_color = CUSTOM_MODEL_PATH_EDGE_COLORS[ui_state.custom_model_path_color]" in source
     assert "self._active_path_edge_color = vibrant_edge_color_from_gradient(" in source
     assert "blended_colors," in source

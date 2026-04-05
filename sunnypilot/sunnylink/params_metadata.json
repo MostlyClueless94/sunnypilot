@@ -1382,7 +1382,7 @@
     "title": "Training Version",
     "description": ""
   },
-  "TrueVEgoUI": {
+  "MatchVehicleSpeedometer": {
     "title": "Speedometer: Match Vehicle Speedometer",
     "description": "When enabled, comma matches the vehicle's dash or cluster speed when supported. Disable to display true wheel-speed-based speed."
   },

@@ -6,24 +6,11 @@ See the LICENSE.md file in the root directory for more details.
 """
 from collections.abc import Callable
 
-from openpilot.selfdrive.ui.mici.widgets.button import BigButton, BigParamControl, BigToggle, GreyBigButton
+from openpilot.selfdrive.ui.mici.widgets.button import BigButton, BigParamControl, GreyBigButton
 from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import CUSTOM_MODEL_PATH_COLOR_LABELS
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.widgets.scroller import NavScroller
-
-
-class InvertedBoolParamControl(BigParamControl):
-  def __init__(self, text: str, param: str, desc: str = "", toggle_callback: Callable | None = None):
-    super().__init__(text, param, desc=desc, toggle_callback=toggle_callback)
-    self.set_checked(not self.params.get_bool(self.param, False))
-
-  def _handle_mouse_release(self, mouse_pos):
-    BigToggle._handle_mouse_release(self, mouse_pos)
-    self.params.put_bool(self.param, not self._checked)
-
-  def refresh(self):
-    self.set_checked(not self.params.get_bool(self.param, False))
 
 
 class SubaruLayoutMici(NavScroller):
@@ -72,9 +59,9 @@ class SubaruLayoutMici(NavScroller):
       )
     )
 
-    self._match_vehicle_speed = InvertedBoolParamControl(
+    self._match_vehicle_speed = BigParamControl(
       "match vehicle\nspeedometer",
-      "TrueVEgoUI",
+      "MatchVehicleSpeedometer",
       desc="on: dash speed, off: true speed",
     )
     self._hide_v_ego_ui = BigParamControl("hide\nspeedometer", "HideVEgoUI")
@@ -99,6 +86,7 @@ class SubaruLayoutMici(NavScroller):
       ("ShowBrakeStatus", self._show_brake_status),
       ("BPShowConfidenceBall", self._show_confidence_ball),
       ("DynamicPathColor", self._dynamic_path_color),
+      ("MatchVehicleSpeedometer", self._match_vehicle_speed),
       ("HideVEgoUI", self._hide_v_ego_ui),
     )
 
@@ -165,8 +153,7 @@ class SubaruLayoutMici(NavScroller):
     super()._update_state()
 
     for key, item in self._refresh_toggles:
-      item.set_checked(self._get_bool_param(key))
-    self._match_vehicle_speed.set_checked(not self._get_bool_param("TrueVEgoUI"))
+      item.set_checked(self._get_bool_param(key, True) if key == "MatchVehicleSpeedometer" else self._get_bool_param(key))
 
     smoothing_enabled = ui_state.params.get_bool("MCSubaruSmoothingTune")
     self._subaru_smoothing_strength_btn.set_enabled(smoothing_enabled)

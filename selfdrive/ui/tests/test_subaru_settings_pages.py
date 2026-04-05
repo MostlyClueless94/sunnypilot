@@ -36,11 +36,12 @@ def test_tici_subaru_page_contains_lateral_tuning_and_visuals_controls():
   assert 'param="BPShowConfidenceBall"' in source
   assert 'param="DynamicPathColor"' in source
   assert 'param="CustomModelPathColor"' in source
+  assert 'param="MatchVehicleSpeedometer"' in source
   assert 'param="HideVEgoUI"' in source
   assert 'Display current speed in red when brake lights are on.' in source
   assert 'Display the confidence ball on the driving view.' in source
   assert 'Match Vehicle Speedometer' in source
-  assert "self._params.put_bool(\"TrueVEgoUI\", not enabled)" in source
+  assert '"TrueVEgoUI"' not in source
   assert "When enabled, comma matches the vehicle's dash or cluster speed when supported. Disable to display true wheel-speed-based speed." in source
   assert 'Dynamic Path Color Palette' not in source
   assert source.index('param="ShowBrakeStatus"') < source.index('param="BPShowConfidenceBall"') < source.index('param="DynamicPathColor"')
@@ -76,8 +77,10 @@ def test_mici_subaru_page_uses_device_native_controls():
   assert 'BigParamControl("show confidence\\nball", "BPShowConfidenceBall", desc="display onroad confidence ball")' in source
   assert 'BigParamControl("dynamic path\\ncolor", "DynamicPathColor",' in source
   assert 'BigButton("custom model\\npath color")' in source
-  assert 'InvertedBoolParamControl(' in source
+  assert 'BigParamControl(' in source
   assert '"match vehicle\\nspeedometer"' in source
+  assert '"MatchVehicleSpeedometer"' in source
+  assert '"TrueVEgoUI"' not in source
   assert 'desc="on: dash speed, off: true speed"' in source
   assert 'BigParamControl("hide\\nspeedometer", "HideVEgoUI")' in source
   assert source.index('"ShowBrakeStatus"') < source.index('"BPShowConfidenceBall"') < source.index('"DynamicPathColor"')
@@ -105,7 +108,10 @@ def test_subaru_smoothing_params_are_declared_for_staging():
   assert 'Display the confidence ball on the driving view.' in metadata_source
   assert '"ShowBrakeStatus"' in metadata_source
   assert 'Display current speed in red when brake lights are on.' in metadata_source
-  assert '"TrueVEgoUI"' in metadata_source
+  assert '"MatchVehicleSpeedometer"' in params_source
+  assert '"MatchVehicleSpeedometerMigrated"' in params_source
+  assert '"MatchVehicleSpeedometer"' in metadata_source
+  assert '"TrueVEgoUI"' not in metadata_source
   assert 'Match Vehicle Speedometer' in metadata_source
   assert "When enabled, comma matches the vehicle's dash or cluster speed when supported. Disable to display true wheel-speed-based speed." in metadata_source
   assert '"DynamicPathColorPalette"' not in metadata_source

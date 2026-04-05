@@ -26,7 +26,8 @@ def test_shared_confidence_ball_supports_engaged_green_background():
   source = _read(SHARED_CONFIDENCE_BALL)
   assert "def get_beam_color():" in source
   assert "if ui_state.status == UIStatus.ENGAGED:" in source
-  assert "return get_dynamic_solid_color(UIStatus.ENGAGED, ui_state.dynamic_path_color_palette)" in source
+  assert "return get_dynamic_solid_color(UIStatus.ENGAGED)" in source
+  assert "dynamic_path_color_palette" not in source
   assert "return STOCK_ENGAGED_COLOR" in source
   assert "if ui_state.status in (UIStatus.LAT_ONLY, UIStatus.LONG_ONLY, UIStatus.ENGAGED):" in source
 

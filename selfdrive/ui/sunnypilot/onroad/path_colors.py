@@ -6,9 +6,6 @@ from openpilot.selfdrive.ui.ui_state import UIStatus
 
 PATH_GRADIENT_STOPS = [0.0, 0.5, 1.0]
 
-DYNAMIC_PATH_COLOR_PALETTE_CUSTOM = 0
-DYNAMIC_PATH_COLOR_PALETTE_STOCK = 1
-
 CUSTOM_MODEL_PATH_COLOR_LABELS = [
   "Stock",
   "Blue",
@@ -18,11 +15,6 @@ CUSTOM_MODEL_PATH_COLOR_LABELS = [
   "Red",
   "Cyan",
   "Yellow",
-]
-
-DYNAMIC_PATH_COLOR_PALETTE_LABELS = [
-  "Custom",
-  "Stock",
 ]
 
 BLUEPILOT_GRAY_BASE_COLOR = rl.Color(248, 248, 248, 255)
@@ -149,16 +141,6 @@ STOCK_DYNAMIC_EDGE_COLORS = {
   UIStatus.ENGAGED: DEFAULT_GREEN_BORDER_COLOR,
 }
 
-DYNAMIC_PATH_COLORS_BY_PALETTE = {
-  DYNAMIC_PATH_COLOR_PALETTE_CUSTOM: CUSTOM_DYNAMIC_PATH_COLORS,
-  DYNAMIC_PATH_COLOR_PALETTE_STOCK: STOCK_DYNAMIC_PATH_COLORS,
-}
-
-DYNAMIC_BORDER_COLORS_BY_PALETTE = {
-  DYNAMIC_PATH_COLOR_PALETTE_CUSTOM: CUSTOM_DYNAMIC_BORDER_COLORS,
-  DYNAMIC_PATH_COLOR_PALETTE_STOCK: STOCK_DYNAMIC_EDGE_COLORS,
-}
-
 DEFAULT_PATH_EDGE_COLORS = {
   UIStatus.DISENGAGED: CUSTOM_DYNAMIC_BORDER_COLORS[UIStatus.DISENGAGED],
   UIStatus.OVERRIDE: CUSTOM_DYNAMIC_BORDER_COLORS[UIStatus.OVERRIDE],
@@ -167,23 +149,17 @@ DEFAULT_PATH_EDGE_COLORS = {
   UIStatus.ENGAGED: DEFAULT_GREEN_BORDER_COLOR,
 }
 
-# Backward-compatible aliases for the original custom dynamic palette.
-DYNAMIC_PATH_COLORS = CUSTOM_DYNAMIC_PATH_COLORS
-DYNAMIC_BORDER_COLORS = CUSTOM_DYNAMIC_BORDER_COLORS
-
-
-def get_dynamic_path_colors(status: UIStatus, palette: int):
-  del palette
+# Dynamic path coloring on staging always uses the stock/default status palette.
+def get_dynamic_path_colors(status: UIStatus):
   return STOCK_DYNAMIC_PATH_COLORS.get(status, STOCK_DYNAMIC_PATH_COLORS[UIStatus.DISENGAGED])
 
 
-def get_dynamic_edge_color(status: UIStatus, palette: int):
-  del palette
+def get_dynamic_edge_color(status: UIStatus):
   return STOCK_DYNAMIC_EDGE_COLORS.get(status, STOCK_DYNAMIC_EDGE_COLORS[UIStatus.DISENGAGED])
 
 
-def get_dynamic_solid_color(status: UIStatus, palette: int):
-  return get_dynamic_edge_color(status, palette)
+def get_dynamic_solid_color(status: UIStatus):
+  return get_dynamic_edge_color(status)
 
 
 def get_default_path_edge_color(status: UIStatus):

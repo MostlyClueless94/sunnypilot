@@ -155,7 +155,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"DeviceBootMode", {PERSISTENT | BACKUP, INT, "0"}},
     {"DevUIInfo", {PERSISTENT | BACKUP, INT, "0"}},
     {"DynamicPathColor", {PERSISTENT | BACKUP, BOOL, "0"}},
-    {"DynamicPathColorPalette", {PERSISTENT | BACKUP, INT, "0"}},
+    {"DynamicPathColorPalette", {PERSISTENT | BACKUP, INT, "0"}},  // Legacy compatibility key; staging always uses the stock dynamic palette.
     {"EnableCopyparty", {PERSISTENT | BACKUP, BOOL}},
     {"EnableGithubRunner", {PERSISTENT | BACKUP, BOOL}},
     {"GreenLightAlert", {PERSISTENT | BACKUP, BOOL, "0"}},
@@ -169,6 +169,8 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"LastGPSPositionLLK", {PERSISTENT, STRING}},
     {"LeadDepartAlert", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"MaxTimeOffroad", {PERSISTENT | BACKUP, INT, "1800"}},
+    {"MatchVehicleSpeedometer", {PERSISTENT | BACKUP, BOOL, "1"}},
+    {"MatchVehicleSpeedometerMigrated", {PERSISTENT | BACKUP, STRING, "0.0"}},
     {"ModelRunnerTypeCache", {CLEAR_ON_ONROAD_TRANSITION, INT}},
     {"OffroadMode", {CLEAR_ON_MANAGER_START, BOOL}},
     {"Offroad_TiciSupport", {CLEAR_ON_MANAGER_START, JSON}},
@@ -189,7 +191,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"ShowAdvancedControls", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"ShowTurnSignals", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"StandstillTimer", {PERSISTENT | BACKUP, BOOL, "0"}},
-    {"TrueVEgoUI", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"TrueVEgoUI", {PERSISTENT | BACKUP, BOOL, "0"}},  // Legacy compatibility key migrated to MatchVehicleSpeedometer.
 
     // MADS params
     {"Mads", {PERSISTENT | BACKUP, BOOL, "1"}},

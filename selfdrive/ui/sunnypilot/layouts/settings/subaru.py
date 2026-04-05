@@ -59,9 +59,6 @@ class SubaruLayout(Widget):
   def _format_subaru_strength_label(value: int) -> str:
     return tr("Stock") if value == 0 else f"{value:+d}"
 
-  def _set_match_vehicle_speed(self, enabled: bool) -> None:
-    self._params.put_bool("TrueVEgoUI", not enabled)
-
   def _initialize_items(self):
     self._subaru_smoothing_tune = toggle_item_sp(
       title=lambda: tr("Subaru Steering Smoothing"),
@@ -118,9 +115,9 @@ class SubaruLayout(Widget):
     self._match_vehicle_speed = toggle_item_sp(
       title=lambda: tr("Match Vehicle Speedometer"),
       description=lambda: tr("When enabled, comma matches the vehicle's dash or cluster speed when supported. Disable to display true wheel-speed-based speed."),
-      initial_state=not self._get_bool_param("TrueVEgoUI"),
+      param="MatchVehicleSpeedometer",
+      initial_state=self._get_bool_param("MatchVehicleSpeedometer", True),
     )
-    self._match_vehicle_speed.action_item.toggle._callback = self._set_match_vehicle_speed
     self._hide_v_ego_ui = toggle_item_sp(
       title=lambda: tr("Hide Speedometer"),
       description=lambda: tr("When enabled, the onroad speedometer is not displayed."),
@@ -158,7 +155,7 @@ class SubaruLayout(Widget):
     self._custom_model_path_color.action_item.set_selected_button(
       max(0, min(self._get_int_param("CustomModelPathColor"), len(CUSTOM_MODEL_PATH_COLOR_LABELS) - 1))
     )
-    self._match_vehicle_speed.action_item.set_state(not self._get_bool_param("TrueVEgoUI"))
+    self._match_vehicle_speed.action_item.set_state(self._get_bool_param("MatchVehicleSpeedometer", True))
     self._hide_v_ego_ui.action_item.set_state(self._get_bool_param("HideVEgoUI"))
 
   def _render(self, rect):

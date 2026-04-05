@@ -1,0 +1,30 @@
+name: shipping-branch-guard
+
+on:
+  push:
+    branches:
+      - subi-staging
+      - subi-1.0
+      - subi-0.9
+      - MostlyClueless
+  workflow_dispatch:
+
+concurrency:
+  group: shipping-branch-guard-${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: shipping branch verification
+    runs-on: ubuntu-24.04
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: true
+      - run: ./tools/op.sh setup
+      - run: python3 scripts/check_shipping_branch.py --ci

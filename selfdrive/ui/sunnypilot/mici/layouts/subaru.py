@@ -12,6 +12,9 @@ from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.widgets.scroller import NavScroller
 
+RESUME_SPEED_LABELS = ["Quick", "Medium", "Slow", "Slower", "Slowest"]
+RESUME_SOFTNESS_LABELS = ["Standard", "Soft", "Softer", "Very Soft", "Softest"]
+
 
 class SubaruLayoutMici(NavScroller):
   def __init__(self, back_callback: Callable):
@@ -43,6 +46,24 @@ class SubaruLayoutMici(NavScroller):
         self._format_strength_label,
       )
     )
+    self._manual_yield_resume_speed_btn = BigButton("manual yield\nresume speed")
+    self._manual_yield_resume_speed_btn.set_click_callback(
+      lambda: self._show_value_selector(
+        self._manual_yield_resume_speed_btn,
+        "MCSubaruManualYieldResumeSpeed",
+        list(range(5)),
+        self._format_resume_speed_label,
+      )
+    )
+    self._manual_yield_resume_softness_btn = BigButton("manual yield\nresume softness")
+    self._manual_yield_resume_softness_btn.set_click_callback(
+      lambda: self._show_value_selector(
+        self._manual_yield_resume_softness_btn,
+        "MCSubaruManualYieldResumeSoftness",
+        list(range(5)),
+        self._format_resume_softness_label,
+      )
+    )
 
     self._show_brake_status = BigParamControl("show brake\nstatus", "ShowBrakeStatus", desc="red when brake lights are on")
     self._show_confidence_ball = BigParamControl("show confidence\nball", "BPShowConfidenceBall", desc="display onroad confidence ball")
@@ -71,6 +92,8 @@ class SubaruLayoutMici(NavScroller):
       self._subaru_smoothing_toggle,
       self._subaru_smoothing_strength_btn,
       self._subaru_center_damping_btn,
+      self._manual_yield_resume_speed_btn,
+      self._manual_yield_resume_softness_btn,
       self._visuals_header,
       self._show_brake_status,
       self._show_confidence_ball,
@@ -93,6 +116,14 @@ class SubaruLayoutMici(NavScroller):
   @staticmethod
   def _format_strength_label(value: int) -> str:
     return "stock" if value == 0 else f"{value:+d}"
+
+  @staticmethod
+  def _format_resume_speed_label(value: int) -> str:
+    return RESUME_SPEED_LABELS[max(0, min(value, len(RESUME_SPEED_LABELS) - 1))]
+
+  @staticmethod
+  def _format_resume_softness_label(value: int) -> str:
+    return RESUME_SOFTNESS_LABELS[max(0, min(value, len(RESUME_SOFTNESS_LABELS) - 1))]
 
   @staticmethod
   def _get_int_param(key: str, default: int = 0) -> int:
@@ -160,6 +191,8 @@ class SubaruLayoutMici(NavScroller):
     self._subaru_center_damping_btn.set_enabled(smoothing_enabled)
     self._subaru_smoothing_strength_btn.set_value(self._format_strength_label(max(-3, min(self._get_int_param("MCSubaruSmoothingStrength"), 4))))
     self._subaru_center_damping_btn.set_value(self._format_strength_label(max(-3, min(self._get_int_param("MCSubaruCenterDampingStrength"), 4))))
+    self._manual_yield_resume_speed_btn.set_value(self._format_resume_speed_label(max(0, min(self._get_int_param("MCSubaruManualYieldResumeSpeed", 1), 4))))
+    self._manual_yield_resume_softness_btn.set_value(self._format_resume_softness_label(max(0, min(self._get_int_param("MCSubaruManualYieldResumeSoftness"), 4))))
 
     model_color_index = max(0, min(self._get_int_param("CustomModelPathColor"), len(CUSTOM_MODEL_PATH_COLOR_LABELS) - 1))
     self._custom_model_path_color_btn.set_value(CUSTOM_MODEL_PATH_COLOR_LABELS[model_color_index].lower())

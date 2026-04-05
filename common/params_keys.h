@@ -187,6 +187,8 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"MCSubaruSmoothingTune", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"MCSubaruSmoothingStrength", {PERSISTENT | BACKUP, INT, "0"}},
     {"MCSubaruCenterDampingStrength", {PERSISTENT | BACKUP, INT, "0"}},
+    {"MCSubaruManualYieldResumeSpeed", {PERSISTENT | BACKUP, INT, "1"}},
+    {"MCSubaruManualYieldResumeSoftness", {PERSISTENT | BACKUP, INT, "0"}},
     {"ShowBrakeStatus", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"ShowAdvancedControls", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"ShowTurnSignals", {PERSISTENT | BACKUP, BOOL, "0"}},

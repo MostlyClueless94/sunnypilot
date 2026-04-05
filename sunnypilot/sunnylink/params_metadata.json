@@ -1172,6 +1172,28 @@
       { "value": 4, "label": "+4" }
     ]
   },
+  "MCSubaruManualYieldResumeSpeed": {
+    "title": "Manual Yield Resume Speed",
+    "description": "Adjust how quickly steering re-engages after you release the wheel during a confirmed manual override.",
+    "options": [
+      { "value": 0, "label": "Quick" },
+      { "value": 1, "label": "Medium" },
+      { "value": 2, "label": "Slow" },
+      { "value": 3, "label": "Slower" },
+      { "value": 4, "label": "Slowest" }
+    ]
+  },
+  "MCSubaruManualYieldResumeSoftness": {
+    "title": "Manual Yield Resume Softness",
+    "description": "Adjust how gently steering re-engages after manual override. Higher levels reduce the initial reclaim bite.",
+    "options": [
+      { "value": 0, "label": "Standard" },
+      { "value": 1, "label": "Soft" },
+      { "value": 2, "label": "Softer" },
+      { "value": 3, "label": "Very Soft" },
+      { "value": 4, "label": "Softest" }
+    ]
+  },
   "ShowBrakeStatus": {
     "title": "Show Brake Status",
     "description": "Display current speed in red when brake lights are on."

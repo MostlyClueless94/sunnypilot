@@ -18,6 +18,9 @@ from openpilot.system.ui.sunnypilot.widgets.list_view import multiple_button_ite
 from openpilot.system.ui.widgets import Widget
 from openpilot.system.ui.widgets.scroller_tici import Scroller
 
+RESUME_SPEED_LABELS = ["Quick", "Medium", "Slow", "Slower", "Slowest"]
+RESUME_SOFTNESS_LABELS = ["Standard", "Soft", "Softer", "Very Soft", "Softest"]
+
 
 class SubaruSectionHeader(Widget):
   def __init__(self, title: str | Callable[[], str]):
@@ -59,6 +62,14 @@ class SubaruLayout(Widget):
   def _format_subaru_strength_label(value: int) -> str:
     return tr("Stock") if value == 0 else f"{value:+d}"
 
+  @staticmethod
+  def _format_resume_speed_label(value: int) -> str:
+    return tr(RESUME_SPEED_LABELS[max(0, min(value, len(RESUME_SPEED_LABELS) - 1))])
+
+  @staticmethod
+  def _format_resume_softness_label(value: int) -> str:
+    return tr(RESUME_SOFTNESS_LABELS[max(0, min(value, len(RESUME_SOFTNESS_LABELS) - 1))])
+
   def _initialize_items(self):
     self._subaru_smoothing_tune = toggle_item_sp(
       title=lambda: tr("Subaru Steering Smoothing"),
@@ -84,6 +95,26 @@ class SubaruLayout(Widget):
       max_value=4,
       value_change_step=1,
       label_callback=self._format_subaru_strength_label,
+      inline=False,
+    )
+    self._manual_yield_resume_speed = option_item_sp(
+      title=lambda: tr("Manual Yield Resume Speed"),
+      description=lambda: tr("Adjust how quickly steering re-engages after you release the wheel during a confirmed manual override."),
+      param="MCSubaruManualYieldResumeSpeed",
+      min_value=0,
+      max_value=4,
+      value_change_step=1,
+      label_callback=self._format_resume_speed_label,
+      inline=False,
+    )
+    self._manual_yield_resume_softness = option_item_sp(
+      title=lambda: tr("Manual Yield Resume Softness"),
+      description=lambda: tr("Adjust how gently steering re-engages after manual override. Higher levels reduce the initial reclaim bite."),
+      param="MCSubaruManualYieldResumeSoftness",
+      min_value=0,
+      max_value=4,
+      value_change_step=1,
+      label_callback=self._format_resume_softness_label,
       inline=False,
     )
     self._show_brake_status = toggle_item_sp(
@@ -130,6 +161,8 @@ class SubaruLayout(Widget):
       self._subaru_smoothing_tune,
       self._subaru_smoothing_strength,
       self._subaru_center_damping_strength,
+      self._manual_yield_resume_speed,
+      self._manual_yield_resume_softness,
       SubaruSectionHeader(lambda: tr("Visuals")),
       self._show_brake_status,
       self._show_confidence_ball,
@@ -146,6 +179,8 @@ class SubaruLayout(Widget):
     self._subaru_smoothing_tune.action_item.set_state(smoothing_enabled)
     self._subaru_smoothing_strength.action_item.current_value = max(-3, min(self._get_int_param("MCSubaruSmoothingStrength"), 4))
     self._subaru_center_damping_strength.action_item.current_value = max(-3, min(self._get_int_param("MCSubaruCenterDampingStrength"), 4))
+    self._manual_yield_resume_speed.action_item.current_value = max(0, min(self._get_int_param("MCSubaruManualYieldResumeSpeed", 1), 4))
+    self._manual_yield_resume_softness.action_item.current_value = max(0, min(self._get_int_param("MCSubaruManualYieldResumeSoftness"), 4))
     self._subaru_smoothing_strength.action_item.set_enabled(smoothing_enabled)
     self._subaru_center_damping_strength.action_item.set_enabled(smoothing_enabled)
 

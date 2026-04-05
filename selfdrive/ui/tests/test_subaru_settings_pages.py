@@ -30,8 +30,16 @@ def test_tici_subaru_page_contains_lateral_tuning_and_visuals_controls():
   assert 'param="MCSubaruSmoothingTune"' in source
   assert 'param="MCSubaruSmoothingStrength"' in source
   assert 'param="MCSubaruCenterDampingStrength"' in source
+  assert 'param="MCSubaruManualYieldResumeSpeed"' in source
+  assert 'param="MCSubaruManualYieldResumeSoftness"' in source
   assert 'min_value=-3' in source
   assert 'max_value=4' in source
+  assert 'title=lambda: tr("Manual Yield Resume Speed")' in source
+  assert 'title=lambda: tr("Manual Yield Resume Softness")' in source
+  assert 'Quick' in source
+  assert 'Slowest' in source
+  assert 'Standard' in source
+  assert 'Softest' in source
   assert 'param="ShowBrakeStatus"' in source
   assert 'param="BPShowConfidenceBall"' in source
   assert 'param="DynamicPathColor"' in source
@@ -43,7 +51,10 @@ def test_tici_subaru_page_contains_lateral_tuning_and_visuals_controls():
   assert 'Match Vehicle Speedometer' in source
   assert '"TrueVEgoUI"' not in source
   assert "When enabled, comma matches the vehicle's dash or cluster speed when supported. Disable to display true wheel-speed-based speed." in source
+  assert 'Adjust how quickly steering re-engages after you release the wheel during a confirmed manual override.' in source
+  assert 'Adjust how gently steering re-engages after manual override. Higher levels reduce the initial reclaim bite.' in source
   assert 'Dynamic Path Color Palette' not in source
+  assert source.index('param="MCSubaruCenterDampingStrength"') < source.index('param="MCSubaruManualYieldResumeSpeed"') < source.index('param="MCSubaruManualYieldResumeSoftness"') < source.index('param="ShowBrakeStatus"')
   assert source.index('param="ShowBrakeStatus"') < source.index('param="BPShowConfidenceBall"') < source.index('param="DynamicPathColor"')
 
 
@@ -72,7 +83,13 @@ def test_mici_subaru_page_uses_device_native_controls():
   assert 'BigParamControl("subaru steering\\nsmoothing", "MCSubaruSmoothingTune")' in source
   assert 'BigButton("smoothing\\nstrength")' in source
   assert 'BigButton("center\\ndamping")' in source
+  assert 'BigButton("manual yield\\nresume speed")' in source
+  assert 'BigButton("manual yield\\nresume softness")' in source
   assert 'list(range(-3, 5))' in source
+  assert 'MCSubaruManualYieldResumeSpeed' in source
+  assert 'MCSubaruManualYieldResumeSoftness' in source
+  assert 'Quick' in source
+  assert 'Softest' in source
   assert 'BigParamControl("show brake\\nstatus", "ShowBrakeStatus", desc="red when brake lights are on")' in source
   assert 'BigParamControl("show confidence\\nball", "BPShowConfidenceBall", desc="display onroad confidence ball")' in source
   assert 'BigParamControl("dynamic path\\ncolor", "DynamicPathColor",' in source
@@ -83,6 +100,7 @@ def test_mici_subaru_page_uses_device_native_controls():
   assert '"TrueVEgoUI"' not in source
   assert 'desc="on: dash speed, off: true speed"' in source
   assert 'BigParamControl("hide\\nspeedometer", "HideVEgoUI")' in source
+  assert source.index('"MCSubaruCenterDampingStrength"') < source.index('"MCSubaruManualYieldResumeSpeed"') < source.index('"MCSubaruManualYieldResumeSoftness"') < source.index('"ShowBrakeStatus"')
   assert source.index('"ShowBrakeStatus"') < source.index('"BPShowConfidenceBall"') < source.index('"DynamicPathColor"')
 
 
@@ -97,10 +115,17 @@ def test_subaru_smoothing_params_are_declared_for_staging():
   for key in ("MCSubaruSmoothingTune", "MCSubaruSmoothingStrength", "MCSubaruCenterDampingStrength"):
     assert key in params_source
     assert f'"{key}"' in metadata_source
+  for key in ("MCSubaruManualYieldResumeSpeed", "MCSubaruManualYieldResumeSoftness"):
+    assert key in params_source
+    assert f'"{key}"' in metadata_source
   assert '{ "value": -3, "label": "-3" }' in metadata_source
   assert '{ "value": 4, "label": "+4" }' in metadata_source
   assert '{ "value": 5, "label": "+5" }' not in metadata_source
   assert '{ "value": -4, "label": "-4" }' not in metadata_source
+  assert '{ "value": 0, "label": "Quick" }' in metadata_source
+  assert '{ "value": 4, "label": "Slowest" }' in metadata_source
+  assert '{ "value": 0, "label": "Standard" }' in metadata_source
+  assert '{ "value": 4, "label": "Softest" }' in metadata_source
   assert '"BPShowConfidenceBall"' in params_source
   assert '{"BPShowConfidenceBall", {PERSISTENT | BACKUP, BOOL, "0"}}' in params_source
   assert '"BPShowConfidenceBall"' in metadata_source
@@ -114,4 +139,8 @@ def test_subaru_smoothing_params_are_declared_for_staging():
   assert '"TrueVEgoUI"' not in metadata_source
   assert 'Match Vehicle Speedometer' in metadata_source
   assert "When enabled, comma matches the vehicle's dash or cluster speed when supported. Disable to display true wheel-speed-based speed." in metadata_source
+  assert 'Manual Yield Resume Speed' in metadata_source
+  assert 'Adjust how quickly steering re-engages after you release the wheel during a confirmed manual override.' in metadata_source
+  assert 'Manual Yield Resume Softness' in metadata_source
+  assert 'Adjust how gently steering re-engages after manual override. Higher levels reduce the initial reclaim bite.' in metadata_source
   assert '"DynamicPathColorPalette"' not in metadata_source

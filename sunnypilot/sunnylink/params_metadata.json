@@ -244,15 +244,7 @@
   },
   "DynamicPathColor": {
     "title": "Dynamic Path Color",
-    "description": "Color the driving path by drive mode. Dynamic Path Color changes the path fill and path outline while lane lines and road edges keep BP-style rendering. Overrides Custom Model Path Color and Rainbow Mode, and keeps Experimental path coloring unchanged."
-  },
-  "DynamicPathColorPalette": {
-    "title": "Dynamic Path Color Palette",
-    "description": "Choose whether Dynamic Path Color uses the custom BP palette or stock-themed fill colors with a vibrant outline. Lane lines and road edges keep BP-style rendering.",
-    "options": [
-      { "value": 0, "label": "Custom" },
-      { "value": 1, "label": "Stock" }
-    ]
+    "description": "Color the driving path by drive mode. Light gray when inactive or truly overriding, teal when steering-only, and green for full control. Overrides Custom Model Path Color and Rainbow Mode, and keeps Experimental path coloring unchanged."
   },
   "DeviceBootMode": {
     "title": "Device Boot Mode",
@@ -1391,8 +1383,8 @@
     "description": ""
   },
   "TrueVEgoUI": {
-    "title": "[TIZI/TICI only] Speedometer: Always Display True Speed",
-    "description": "When off, comma uses dash or cluster speed when supported. Enable to force true wheel-speed-based speed."
+    "title": "Speedometer: Match Vehicle Speedometer",
+    "description": "When enabled, comma matches the vehicle's dash or cluster speed when supported. Disable to display true wheel-speed-based speed."
   },
   "UbloxAvailable": {
     "title": "Ublox Available",

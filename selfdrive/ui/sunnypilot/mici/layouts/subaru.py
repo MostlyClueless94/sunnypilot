@@ -6,11 +6,24 @@ See the LICENSE.md file in the root directory for more details.
 """
 from collections.abc import Callable
 
-from openpilot.selfdrive.ui.mici.widgets.button import BigButton, BigParamControl, GreyBigButton
-from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import CUSTOM_MODEL_PATH_COLOR_LABELS, DYNAMIC_PATH_COLOR_PALETTE_LABELS
+from openpilot.selfdrive.ui.mici.widgets.button import BigButton, BigParamControl, BigToggle, GreyBigButton
+from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import CUSTOM_MODEL_PATH_COLOR_LABELS
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.widgets.scroller import NavScroller
+
+
+class InvertedBoolParamControl(BigParamControl):
+  def __init__(self, text: str, param: str, desc: str = "", toggle_callback: Callable | None = None):
+    super().__init__(text, param, desc=desc, toggle_callback=toggle_callback)
+    self.set_checked(not self.params.get_bool(self.param, False))
+
+  def _handle_mouse_release(self, mouse_pos):
+    BigToggle._handle_mouse_release(self, mouse_pos)
+    self.params.put_bool(self.param, not self._checked)
+
+  def refresh(self):
+    self.set_checked(not self.params.get_bool(self.param, False))
 
 
 class SubaruLayoutMici(NavScroller):
@@ -46,17 +59,8 @@ class SubaruLayoutMici(NavScroller):
 
     self._show_brake_status = BigParamControl("show brake\nstatus", "ShowBrakeStatus", desc="red when brake lights are on")
     self._show_confidence_ball = BigParamControl("show confidence\nball", "BPShowConfidenceBall", desc="display onroad confidence ball")
-    self._dynamic_path_color = BigParamControl("dynamic path\ncolor", "DynamicPathColor")
-
-    self._dynamic_path_palette_btn = BigButton("dynamic path\npalette")
-    self._dynamic_path_palette_btn.set_click_callback(
-      lambda: self._show_value_selector(
-        self._dynamic_path_palette_btn,
-        "DynamicPathColorPalette",
-        list(range(len(DYNAMIC_PATH_COLOR_PALETTE_LABELS))),
-        lambda value: DYNAMIC_PATH_COLOR_PALETTE_LABELS[value].lower(),
-      )
-    )
+    self._dynamic_path_color = BigParamControl("dynamic path\ncolor", "DynamicPathColor",
+                                               desc="light gray inactive, teal steering-only, green full control")
 
     self._custom_model_path_color_btn = BigButton("custom model\npath color")
     self._custom_model_path_color_btn.set_click_callback(
@@ -68,7 +72,11 @@ class SubaruLayoutMici(NavScroller):
       )
     )
 
-    self._true_v_ego_ui = BigParamControl("always use\ntrue speed", "TrueVEgoUI", desc="off: dash speed, on: true speed")
+    self._match_vehicle_speed = InvertedBoolParamControl(
+      "match vehicle\nspeedometer",
+      "TrueVEgoUI",
+      desc="on: dash speed, off: true speed",
+    )
     self._hide_v_ego_ui = BigParamControl("hide\nspeedometer", "HideVEgoUI")
 
     self.main_items = [
@@ -80,9 +88,8 @@ class SubaruLayoutMici(NavScroller):
       self._show_brake_status,
       self._show_confidence_ball,
       self._dynamic_path_color,
-      self._dynamic_path_palette_btn,
       self._custom_model_path_color_btn,
-      self._true_v_ego_ui,
+      self._match_vehicle_speed,
       self._hide_v_ego_ui,
     ]
     self._scroller.add_widgets(self.main_items)
@@ -92,7 +99,6 @@ class SubaruLayoutMici(NavScroller):
       ("ShowBrakeStatus", self._show_brake_status),
       ("BPShowConfidenceBall", self._show_confidence_ball),
       ("DynamicPathColor", self._dynamic_path_color),
-      ("TrueVEgoUI", self._true_v_ego_ui),
       ("HideVEgoUI", self._hide_v_ego_ui),
     )
 
@@ -160,17 +166,13 @@ class SubaruLayoutMici(NavScroller):
 
     for key, item in self._refresh_toggles:
       item.set_checked(self._get_bool_param(key))
+    self._match_vehicle_speed.set_checked(not self._get_bool_param("TrueVEgoUI"))
 
     smoothing_enabled = ui_state.params.get_bool("MCSubaruSmoothingTune")
     self._subaru_smoothing_strength_btn.set_enabled(smoothing_enabled)
     self._subaru_center_damping_btn.set_enabled(smoothing_enabled)
     self._subaru_smoothing_strength_btn.set_value(self._format_strength_label(max(-3, min(self._get_int_param("MCSubaruSmoothingStrength"), 4))))
     self._subaru_center_damping_btn.set_value(self._format_strength_label(max(-3, min(self._get_int_param("MCSubaruCenterDampingStrength"), 4))))
-
-    dynamic_path_enabled = ui_state.params.get_bool("DynamicPathColor")
-    self._dynamic_path_palette_btn.set_enabled(dynamic_path_enabled)
-    palette_index = max(0, min(self._get_int_param("DynamicPathColorPalette"), len(DYNAMIC_PATH_COLOR_PALETTE_LABELS) - 1))
-    self._dynamic_path_palette_btn.set_value(DYNAMIC_PATH_COLOR_PALETTE_LABELS[palette_index].lower())
 
     model_color_index = max(0, min(self._get_int_param("CustomModelPathColor"), len(CUSTOM_MODEL_PATH_COLOR_LABELS) - 1))
     self._custom_model_path_color_btn.set_value(CUSTOM_MODEL_PATH_COLOR_LABELS[model_color_index].lower())

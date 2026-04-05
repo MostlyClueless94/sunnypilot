@@ -35,13 +35,14 @@ def test_tici_subaru_page_contains_lateral_tuning_and_visuals_controls():
   assert 'param="ShowBrakeStatus"' in source
   assert 'param="BPShowConfidenceBall"' in source
   assert 'param="DynamicPathColor"' in source
-  assert 'param="DynamicPathColorPalette"' in source
   assert 'param="CustomModelPathColor"' in source
-  assert 'param="TrueVEgoUI"' in source
   assert 'param="HideVEgoUI"' in source
   assert 'Display current speed in red when brake lights are on.' in source
   assert 'Display the confidence ball on the driving view.' in source
-  assert 'When off, comma uses dash or cluster speed when supported. Enable to force true wheel-speed-based speed.' in source
+  assert 'Match Vehicle Speedometer' in source
+  assert "self._params.put_bool(\"TrueVEgoUI\", not enabled)" in source
+  assert "When enabled, comma matches the vehicle's dash or cluster speed when supported. Disable to display true wheel-speed-based speed." in source
+  assert 'Dynamic Path Color Palette' not in source
   assert source.index('param="ShowBrakeStatus"') < source.index('param="BPShowConfidenceBall"') < source.index('param="DynamicPathColor"')
 
 
@@ -73,10 +74,11 @@ def test_mici_subaru_page_uses_device_native_controls():
   assert 'list(range(-3, 5))' in source
   assert 'BigParamControl("show brake\\nstatus", "ShowBrakeStatus", desc="red when brake lights are on")' in source
   assert 'BigParamControl("show confidence\\nball", "BPShowConfidenceBall", desc="display onroad confidence ball")' in source
-  assert 'BigParamControl("dynamic path\\ncolor", "DynamicPathColor")' in source
-  assert 'BigButton("dynamic path\\npalette")' in source
+  assert 'BigParamControl("dynamic path\\ncolor", "DynamicPathColor",' in source
   assert 'BigButton("custom model\\npath color")' in source
-  assert 'BigParamControl("always use\\ntrue speed", "TrueVEgoUI", desc="off: dash speed, on: true speed")' in source
+  assert 'InvertedBoolParamControl(' in source
+  assert '"match vehicle\\nspeedometer"' in source
+  assert 'desc="on: dash speed, off: true speed"' in source
   assert 'BigParamControl("hide\\nspeedometer", "HideVEgoUI")' in source
   assert source.index('"ShowBrakeStatus"') < source.index('"BPShowConfidenceBall"') < source.index('"DynamicPathColor"')
 
@@ -104,4 +106,6 @@ def test_subaru_smoothing_params_are_declared_for_staging():
   assert '"ShowBrakeStatus"' in metadata_source
   assert 'Display current speed in red when brake lights are on.' in metadata_source
   assert '"TrueVEgoUI"' in metadata_source
-  assert 'When off, comma uses dash or cluster speed when supported. Enable to force true wheel-speed-based speed.' in metadata_source
+  assert 'Match Vehicle Speedometer' in metadata_source
+  assert "When enabled, comma matches the vehicle's dash or cluster speed when supported. Disable to display true wheel-speed-based speed." in metadata_source
+  assert '"DynamicPathColorPalette"' not in metadata_source

@@ -9,7 +9,7 @@ from collections.abc import Callable
 import pyray as rl
 
 from openpilot.common.params import Params
-from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import CUSTOM_MODEL_PATH_COLOR_LABELS, DYNAMIC_PATH_COLOR_PALETTE_LABELS
+from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import CUSTOM_MODEL_PATH_COLOR_LABELS
 from openpilot.system.ui.lib.application import FontWeight, gui_app
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.lib.text_measure import measure_text_cached
@@ -59,6 +59,9 @@ class SubaruLayout(Widget):
   def _format_subaru_strength_label(value: int) -> str:
     return tr("Stock") if value == 0 else f"{value:+d}"
 
+  def _set_match_vehicle_speed(self, enabled: bool) -> None:
+    self._params.put_bool("TrueVEgoUI", not enabled)
+
   def _initialize_items(self):
     self._subaru_smoothing_tune = toggle_item_sp(
       title=lambda: tr("Subaru Steering Smoothing"),
@@ -100,17 +103,9 @@ class SubaruLayout(Widget):
     )
     self._dynamic_path_color = toggle_item_sp(
       title=lambda: tr("Dynamic Path Color"),
-      description=lambda: tr("Color the driving path by drive mode. Gray when inactive or overriding, blue for steering-only, and green for full control."),
+      description=lambda: tr("Color the driving path by drive mode. Light gray when inactive or truly overriding, teal when steering-only, and green for full control."),
       param="DynamicPathColor",
       initial_state=self._get_bool_param("DynamicPathColor"),
-    )
-    self._dynamic_path_color_palette = multiple_button_item_sp(
-      title=lambda: tr("Dynamic Path Color Palette"),
-      description=lambda: tr("Choose whether Dynamic Path Color uses the custom palette or the stock-themed palette."),
-      buttons=[lambda label=label: tr(label) for label in DYNAMIC_PATH_COLOR_PALETTE_LABELS],
-      param="DynamicPathColorPalette",
-      button_width=160,
-      inline=False,
     )
     self._custom_model_path_color = multiple_button_item_sp(
       title=lambda: tr("Custom Model Path Color"),
@@ -120,12 +115,12 @@ class SubaruLayout(Widget):
       button_width=160,
       inline=False,
     )
-    self._true_v_ego_ui = toggle_item_sp(
-      title=lambda: tr("Always Display True Speed"),
-      description=lambda: tr("When off, comma uses dash or cluster speed when supported. Enable to force true wheel-speed-based speed."),
-      param="TrueVEgoUI",
-      initial_state=self._get_bool_param("TrueVEgoUI"),
+    self._match_vehicle_speed = toggle_item_sp(
+      title=lambda: tr("Match Vehicle Speedometer"),
+      description=lambda: tr("When enabled, comma matches the vehicle's dash or cluster speed when supported. Disable to display true wheel-speed-based speed."),
+      initial_state=not self._get_bool_param("TrueVEgoUI"),
     )
+    self._match_vehicle_speed.action_item.toggle._callback = self._set_match_vehicle_speed
     self._hide_v_ego_ui = toggle_item_sp(
       title=lambda: tr("Hide Speedometer"),
       description=lambda: tr("When enabled, the onroad speedometer is not displayed."),
@@ -142,9 +137,8 @@ class SubaruLayout(Widget):
       self._show_brake_status,
       self._show_confidence_ball,
       self._dynamic_path_color,
-      self._dynamic_path_color_palette,
       self._custom_model_path_color,
-      self._true_v_ego_ui,
+      self._match_vehicle_speed,
       self._hide_v_ego_ui,
     ]
 
@@ -161,14 +155,10 @@ class SubaruLayout(Widget):
     self._show_brake_status.action_item.set_state(self._get_bool_param("ShowBrakeStatus"))
     self._show_confidence_ball.action_item.set_state(self._get_bool_param("BPShowConfidenceBall"))
     self._dynamic_path_color.action_item.set_state(self._get_bool_param("DynamicPathColor"))
-    self._dynamic_path_color_palette.action_item.set_selected_button(
-      max(0, min(self._get_int_param("DynamicPathColorPalette"), len(DYNAMIC_PATH_COLOR_PALETTE_LABELS) - 1))
-    )
-    self._dynamic_path_color_palette.action_item.set_enabled(self._get_bool_param("DynamicPathColor"))
     self._custom_model_path_color.action_item.set_selected_button(
       max(0, min(self._get_int_param("CustomModelPathColor"), len(CUSTOM_MODEL_PATH_COLOR_LABELS) - 1))
     )
-    self._true_v_ego_ui.action_item.set_state(self._get_bool_param("TrueVEgoUI"))
+    self._match_vehicle_speed.action_item.set_state(not self._get_bool_param("TrueVEgoUI"))
     self._hide_v_ego_ui.action_item.set_state(self._get_bool_param("HideVEgoUI"))
 
   def _render(self, rect):

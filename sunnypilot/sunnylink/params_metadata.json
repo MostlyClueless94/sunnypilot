@@ -1172,15 +1172,21 @@
       { "value": 4, "label": "+4" }
     ]
   },
+  "MCSubaruAdvancedTuning": {
+    "title": "Advanced Tuning",
+    "description": "Show Subaru lateral tuning controls. Hidden controls keep their saved values active."
+  },
   "MCSubaruManualYieldResumeSpeed": {
     "title": "Manual Yield Resume Speed",
     "description": "Adjust how quickly steering re-engages after you release the wheel during a confirmed manual override.",
     "options": [
-      { "value": 0, "label": "Quick" },
-      { "value": 1, "label": "Medium" },
-      { "value": 2, "label": "Slow" },
-      { "value": 3, "label": "Slower" },
-      { "value": 4, "label": "Slowest" }
+      { "value": 0, "label": "Fastest" },
+      { "value": 1, "label": "Faster" },
+      { "value": 2, "label": "Fast" },
+      { "value": 3, "label": "Medium" },
+      { "value": 4, "label": "Slow" },
+      { "value": 5, "label": "Slower" },
+      { "value": 6, "label": "Slowest" }
     ]
   },
   "MCSubaruManualYieldResumeSoftness": {
@@ -1191,7 +1197,9 @@
       { "value": 1, "label": "Soft" },
       { "value": 2, "label": "Softer" },
       { "value": 3, "label": "Very Soft" },
-      { "value": 4, "label": "Softest" }
+      { "value": 4, "label": "Extra Soft" },
+      { "value": 5, "label": "Softest" },
+      { "value": 6, "label": "Max Soft" }
     ]
   },
   "ShowBrakeStatus": {

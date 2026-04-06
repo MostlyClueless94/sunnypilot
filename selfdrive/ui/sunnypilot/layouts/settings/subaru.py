@@ -18,8 +18,8 @@ from openpilot.system.ui.sunnypilot.widgets.list_view import multiple_button_ite
 from openpilot.system.ui.widgets import Widget
 from openpilot.system.ui.widgets.scroller_tici import Scroller
 
-RESUME_SPEED_LABELS = ["Quick", "Medium", "Slow", "Slower", "Slowest"]
-RESUME_SOFTNESS_LABELS = ["Standard", "Soft", "Softer", "Very Soft", "Softest"]
+RESUME_SPEED_LABELS = ["Fastest", "Faster", "Fast", "Medium", "Slow", "Slower", "Slowest"]
+RESUME_SOFTNESS_LABELS = ["Standard", "Soft", "Softer", "Very Soft", "Extra Soft", "Softest", "Max Soft"]
 
 
 class SubaruSectionHeader(Widget):
@@ -70,7 +70,20 @@ class SubaruLayout(Widget):
   def _format_resume_softness_label(value: int) -> str:
     return tr(RESUME_SOFTNESS_LABELS[max(0, min(value, len(RESUME_SOFTNESS_LABELS) - 1))])
 
+  def _set_advanced_tuning_visibility(self, enabled: bool) -> None:
+    self._subaru_smoothing_tune.set_visible(enabled)
+    self._subaru_smoothing_strength.set_visible(enabled)
+    self._subaru_center_damping_strength.set_visible(enabled)
+    self._manual_yield_resume_speed.set_visible(enabled)
+    self._manual_yield_resume_softness.set_visible(enabled)
+
   def _initialize_items(self):
+    self._subaru_advanced_tuning = toggle_item_sp(
+      title=lambda: tr("Advanced Tuning"),
+      description=lambda: tr("Show Subaru lateral tuning controls. Hidden controls keep their saved values active."),
+      param="MCSubaruAdvancedTuning",
+      initial_state=self._params.get_bool("MCSubaruAdvancedTuning"),
+    )
     self._subaru_smoothing_tune = toggle_item_sp(
       title=lambda: tr("Subaru Steering Smoothing"),
       description=lambda: tr("Enable Subaru low-speed steering tuning so you can adjust smoothing and near-center damping below."),
@@ -102,7 +115,7 @@ class SubaruLayout(Widget):
       description=lambda: tr("Adjust how quickly steering re-engages after you release the wheel during a confirmed manual override."),
       param="MCSubaruManualYieldResumeSpeed",
       min_value=0,
-      max_value=4,
+      max_value=6,
       value_change_step=1,
       label_callback=self._format_resume_speed_label,
       inline=False,
@@ -112,7 +125,7 @@ class SubaruLayout(Widget):
       description=lambda: tr("Adjust how gently steering re-engages after manual override. Higher levels reduce the initial reclaim bite."),
       param="MCSubaruManualYieldResumeSoftness",
       min_value=0,
-      max_value=4,
+      max_value=6,
       value_change_step=1,
       label_callback=self._format_resume_softness_label,
       inline=False,
@@ -155,9 +168,11 @@ class SubaruLayout(Widget):
       param="HideVEgoUI",
       initial_state=self._get_bool_param("HideVEgoUI"),
     )
+    self._set_advanced_tuning_visibility(self._params.get_bool("MCSubaruAdvancedTuning"))
 
     return [
       SubaruSectionHeader(lambda: tr("Lateral Tuning")),
+      self._subaru_advanced_tuning,
       self._subaru_smoothing_tune,
       self._subaru_smoothing_strength,
       self._subaru_center_damping_strength,
@@ -175,12 +190,15 @@ class SubaruLayout(Widget):
   def _update_state(self):
     super()._update_state()
 
+    advanced_tuning_enabled = self._params.get_bool("MCSubaruAdvancedTuning")
     smoothing_enabled = self._params.get_bool("MCSubaruSmoothingTune")
+    self._subaru_advanced_tuning.action_item.set_state(advanced_tuning_enabled)
     self._subaru_smoothing_tune.action_item.set_state(smoothing_enabled)
     self._subaru_smoothing_strength.action_item.current_value = max(-3, min(self._get_int_param("MCSubaruSmoothingStrength"), 4))
     self._subaru_center_damping_strength.action_item.current_value = max(-3, min(self._get_int_param("MCSubaruCenterDampingStrength"), 4))
-    self._manual_yield_resume_speed.action_item.current_value = max(0, min(self._get_int_param("MCSubaruManualYieldResumeSpeed", 1), 4))
-    self._manual_yield_resume_softness.action_item.current_value = max(0, min(self._get_int_param("MCSubaruManualYieldResumeSoftness"), 4))
+    self._manual_yield_resume_speed.action_item.current_value = max(0, min(self._get_int_param("MCSubaruManualYieldResumeSpeed", 4), 6))
+    self._manual_yield_resume_softness.action_item.current_value = max(0, min(self._get_int_param("MCSubaruManualYieldResumeSoftness", 4), 6))
+    self._set_advanced_tuning_visibility(advanced_tuning_enabled)
     self._subaru_smoothing_strength.action_item.set_enabled(smoothing_enabled)
     self._subaru_center_damping_strength.action_item.set_enabled(smoothing_enabled)
 

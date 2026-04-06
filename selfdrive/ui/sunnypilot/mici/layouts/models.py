@@ -9,6 +9,7 @@ from collections.abc import Callable
 from cereal import custom
 from openpilot.selfdrive.ui.mici.widgets.button import BigButton
 from openpilot.selfdrive.ui.ui_state import ui_state
+from openpilot.sunnypilot.models.helpers import update_angle_subaru_nnmv2_selection_policy
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.widgets.scroller import NavScroller
 
@@ -64,10 +65,12 @@ class ModelsLayoutMici(NavScroller):
     self._show_selection_view(folder_buttons, self._reset_main_view)
 
   def _select_model(self, bundle):
+    update_angle_subaru_nnmv2_selection_policy(ui_state.params, selected_bundle=bundle)
     ui_state.params.put("ModelManager_DownloadIndex", bundle.index)
     self._reset_main_view()
 
   def _select_default(self):
+    update_angle_subaru_nnmv2_selection_policy(ui_state.params, default_selected=True)
     ui_state.params.remove("ModelManager_ActiveBundle")
     self._reset_main_view()
 

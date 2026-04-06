@@ -13,13 +13,16 @@ from pathlib import Path
 import numpy as np
 
 from openpilot.common.params import Params
-from cereal import custom
+from cereal import car, custom, messaging
 from openpilot.sunnypilot.models.constants import Meta, MetaTombRaider, MetaSimPose
 from openpilot.system.hardware.hw import Paths
 
 # see the README.md for more details on the model selector versioning
 CURRENT_SELECTOR_VERSION = 15
 REQUIRED_MIN_SELECTOR_VERSION = 14
+ANGLE_SUBARU_NNMV2_INTERNAL_NAME = "NNMV2"
+ANGLE_SUBARU_NNMV2_OPTOUT_PARAM = "ModelManager_AngleSubaruNNMV2OptOut"
+ANGLE_SUBARU_NNMV2_AUTOFAILED_PARAM = "ModelManager_AngleSubaruNNMV2AutoFailed"
 
 
 CUSTOM_MODEL_PATH = Paths.model_root()
@@ -74,6 +77,85 @@ def get_active_bundle(params: Params = None) -> custom.ModelManagerSP.ModelBundl
     pass
 
   return None
+
+
+def is_angle_subaru_car_params(cp) -> bool:
+  return cp is not None and getattr(cp, "brand", None) == "subaru" and \
+    getattr(cp, "steerControlType", None) == car.CarParams.SteerControlType.angle
+
+
+def get_persistent_car_params(params: Params = None):
+  if params is None:
+    params = Params()
+
+  try:
+    if cp_bytes := params.get("CarParamsPersistent"):
+      return messaging.log_from_bytes(cp_bytes, car.CarParams)
+  except Exception:
+    pass
+
+  return None
+
+
+def is_angle_subaru_from_persistent_params(params: Params = None) -> bool:
+  return is_angle_subaru_car_params(get_persistent_car_params(params))
+
+
+def get_bundle_internal_name(bundle) -> str | None:
+  if bundle is None:
+    return None
+
+  if isinstance(bundle, dict):
+    return bundle.get("internalName")
+
+  return getattr(bundle, "internalName", None)
+
+
+def is_nnmv2_bundle(bundle) -> bool:
+  return get_bundle_internal_name(bundle) == ANGLE_SUBARU_NNMV2_INTERNAL_NAME
+
+
+def find_bundle_by_internal_name(bundles, internal_name: str):
+  return next((bundle for bundle in bundles if get_bundle_internal_name(bundle) == internal_name), None)
+
+
+def select_angle_subaru_auto_default_bundle(bundles, *, is_angle_subaru: bool, active_bundle=None,
+                                            download_index=None, opt_out: bool = False,
+                                            auto_failed: bool = False):
+  if not is_angle_subaru or active_bundle is not None or download_index is not None or opt_out or auto_failed:
+    return None
+
+  return find_bundle_by_internal_name(bundles, ANGLE_SUBARU_NNMV2_INTERNAL_NAME)
+
+
+def get_angle_subaru_auto_default_bundle(params: Params, bundles, active_bundle=None, download_index=None):
+  return select_angle_subaru_auto_default_bundle(
+    bundles,
+    is_angle_subaru=is_angle_subaru_from_persistent_params(params),
+    active_bundle=active_bundle,
+    download_index=download_index,
+    opt_out=params.get_bool(ANGLE_SUBARU_NNMV2_OPTOUT_PARAM),
+    auto_failed=params.get_bool(ANGLE_SUBARU_NNMV2_AUTOFAILED_PARAM),
+  )
+
+
+def update_angle_subaru_nnmv2_selection_policy(params: Params, *, default_selected: bool = False,
+                                               selected_bundle=None) -> None:
+  if not is_angle_subaru_from_persistent_params(params):
+    return
+
+  if default_selected:
+    params.put_bool(ANGLE_SUBARU_NNMV2_OPTOUT_PARAM, True)
+    return
+
+  if selected_bundle is None:
+    return
+
+  if is_nnmv2_bundle(selected_bundle):
+    params.put_bool(ANGLE_SUBARU_NNMV2_OPTOUT_PARAM, False)
+    params.put_bool(ANGLE_SUBARU_NNMV2_AUTOFAILED_PARAM, False)
+  else:
+    params.put_bool(ANGLE_SUBARU_NNMV2_OPTOUT_PARAM, True)
 
 
 def get_active_model_runner(params: Params = None, force_check=False) -> custom.ModelManagerSP.Runner:

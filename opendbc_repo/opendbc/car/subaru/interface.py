@@ -1,4 +1,3 @@
-from openpilot.common.params import Params
 from opendbc.car import get_safety_config, structs, uds
 from opendbc.car.disable_ecu import disable_ecu
 from opendbc.car.interfaces import CarInterfaceBase
@@ -13,9 +12,6 @@ class CarInterface(CarInterfaceBase):
 
   @staticmethod
   def _get_params(ret: structs.CarParams, candidate: CAR, fingerprint, car_fw, alpha_long, is_release, docs) -> structs.CarParams:
-    params = Params()
-    mc_subaru_actuator_delay_test = params.get_bool("MCSubaruActuatorDelayTest")
-
     ret.brand = "subaru"
     ret.radarUnavailable = True
     # for HYBRID CARS to be upstreamed, we need:
@@ -47,8 +43,6 @@ class CarInterface(CarInterfaceBase):
     if ret.flags & SubaruFlags.LKAS_ANGLE:
       ret.steerControlType = structs.CarParams.SteerControlType.angle
       ret.safetyConfigs[0].safetyParam |= SubaruSafetyFlags.LKAS_ANGLE.value
-      if mc_subaru_actuator_delay_test:
-        ret.steerActuatorDelay = 0.08
 
     elif candidate == CAR.SUBARU_ASCENT:
       ret.steerActuatorDelay = 0.3  # end-to-end angle controller

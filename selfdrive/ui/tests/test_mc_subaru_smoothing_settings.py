@@ -11,56 +11,59 @@ def _read(path: Path) -> str:
   return path.read_text(encoding="utf-8")
 
 
-def test_mc_custom_contains_subaru_smoothing_controls():
+def test_mc_custom_no_longer_contains_subaru_specific_controls():
   source = _read(MC_CUSTOM)
-  assert 'param="MCSubaruUnwindRateTest"' not in source
-  assert 'param="MCSubaruUnwindRateMode"' not in source
-  assert 'param="MCSubaruChatterFix"' not in source
-  assert 'MCSubaruActuatorDelayTest' in source
-  assert 'Subaru Faster Unwind (Test)' not in source
-  assert 'Subaru Unwind Mode' not in source
-  assert 'Subaru Chatter Fix (Test)' not in source
-  assert 'SUBARU_UNWIND_MODE_LABELS' not in source
-  assert 'subaru_unwind_rate_test_enabled' not in source
-  assert 'Subaru Delay Tweak (Test)' in source
-  assert 'ConfirmDialog(tr("System reboot required for changes to take effect. Reboot now?")' in source
-  assert 'ui_state.params.put_bool("DoReboot", True)' in source
-  assert 'self._subaru_actuator_delay_test.action_item.set_enabled(ui_state.is_offroad())' in source
-  assert 'param="MCSubaruSmoothingTune"' in source
-  assert 'param="MCSubaruSmoothingStrength"' in source
-  assert 'param="MCSubaruCenterDampingStrength"' in source
-  assert 'min_value=-8' in source
-  assert 'max_value=8' in source
-  assert 'self._subaru_smoothing_strength.action_item.set_enabled(subaru_smoothing_tune_enabled)' in source
-  assert 'self._subaru_center_damping_strength.action_item.set_enabled(subaru_smoothing_tune_enabled)' in source
-  assert 'return tr("Stock") if value == 0 else f"{value:+d}"' in source
+  assert 'param="DynamicPathColor"' in source
+  assert 'param="DynamicPathColorPalette"' in source
+  assert 'param="CustomModelPathColor"' in source
+  assert 'param="MCShowVehicleBrakeStatus"' in source
+  assert 'param="MCSubaruSmoothingTune"' not in source
+  assert 'param="MCSubaruSmoothingStrength"' not in source
+  assert 'param="MCSubaruCenterDampingStrength"' not in source
+  assert 'param="MCSubaruManualYieldResumeSpeed"' not in source
+  assert 'param="MCSubaruManualYieldResumeSoftness"' not in source
+  assert 'param="MCSubaruAdvancedTuning"' not in source
+  assert 'param="MCSubaruActuatorDelayTest"' not in source
+  assert 'SectionHeader(tr("Subaru"))' not in source
+  assert 'Subaru Delay Tweak (Test)' not in source
+  assert 'self._dynamic_path_color_palette.action_item.set_enabled(self._params.get_bool("DynamicPathColor"))' in source
 
 
-def test_params_keys_register_subaru_smoothing_params():
+def test_params_keys_register_subaru_tuning_defaults_for_brand_specific_menu():
   source = _read(PARAMS_KEYS)
-  assert '{"MCSubaruChatterFix", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
-  assert '{"MCSubaruUnwindRateTest", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
-  assert '{"MCSubaruUnwindRateMode", {PERSISTENT | BACKUP, INT, "0"}}' in source
-  assert '{"MCSubaruActuatorDelayTest", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
-  assert '{"MCSubaruSmoothingTune", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
-  assert '{"MCSubaruSmoothingStrength", {PERSISTENT | BACKUP, INT, "0"}}' in source
-  assert '{"MCSubaruCenterDampingStrength", {PERSISTENT | BACKUP, INT, "0"}}' in source
+  assert '{"MCSubaruAdvancedTuning", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
+  assert '{"MCSubaruSmoothingTune", {PERSISTENT | BACKUP, BOOL, "1"}}' in source
+  assert '{"MCSubaruSmoothingStrength", {PERSISTENT | BACKUP, INT, "2"}}' in source
+  assert '{"MCSubaruCenterDampingStrength", {PERSISTENT | BACKUP, INT, "2"}}' in source
+  assert '{"MCSubaruManualYieldResumeSpeed", {PERSISTENT | BACKUP, INT, "4"}}' in source
+  assert '{"MCSubaruManualYieldResumeSoftness", {PERSISTENT | BACKUP, INT, "4"}}' in source
+  assert '{"SubaruStopAndGo", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
+  assert '{"SubaruStopAndGoManualParkingBrake", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
 
 
-def test_params_metadata_describes_subaru_smoothing_params():
+def test_params_metadata_describes_subaru_brand_menu_ranges_and_labels():
   source = _read(PARAMS_METADATA)
-  assert '"MCSubaruChatterFix"' in source
-  assert '"MCSubaruUnwindRateTest"' in source
-  assert '"MCSubaruUnwindRateMode"' in source
-  assert '"label": "Both"' in source
-  assert '"label": "Low Only"' in source
-  assert '"label": "High Only"' in source
-  assert '"MCSubaruActuatorDelayTest"' in source
+  assert '"MCSubaruAdvancedTuning"' in source
+  assert '"title": "Advanced Tuning"' in source
+  assert 'Show Subaru lateral tuning controls. Hidden controls keep their saved values active.' in source
   assert '"MCSubaruSmoothingTune"' in source
+  assert '"title": "Subaru Steering Smoothing"' in source
   assert '"MCSubaruSmoothingStrength"' in source
+  assert '"min": -3' in source
+  assert '"max": 4' in source
+  assert '"label": "-3"' in source
+  assert '"label": "+4"' in source
+  assert '"label": "+5"' not in source
+  assert '"label": "-4"' not in source
   assert '"MCSubaruCenterDampingStrength"' in source
-  assert '"label": "-8"' in source
-  assert '"label": "+8"' in source
-  assert '"min": -8' in source
-  assert '"max": 8' in source
-  assert '"label": "Stock"' in source
+  assert '"title": "Center Damping"' in source
+  assert '"MCSubaruManualYieldResumeSpeed"' in source
+  assert '"title": "Manual Yield Resume Speed"' in source
+  assert '"label": "Fastest"' in source
+  assert '"label": "Slow"' in source
+  assert '"label": "Slowest"' in source
+  assert '"MCSubaruManualYieldResumeSoftness"' in source
+  assert '"title": "Manual Yield Resume Softness"' in source
+  assert '"label": "Standard"' in source
+  assert '"label": "Extra Soft"' in source
+  assert '"label": "Max Soft"' in source

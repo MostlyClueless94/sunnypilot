@@ -289,33 +289,13 @@
     "description": "Test a lower Subaru angle steering actuator delay from 0.10s to 0.08s. This requires a reboot and is intended to help unwind timing after larger turns."
   },
   "MCSubaruSmoothingTune": {
-    "title": "MC Custom: Subaru Steering Smoothing",
-    "description": "Enable MC-owned Subaru low-speed steering tuning. When enabled, you can adjust overall low-speed smoothing and near-center damping strength below."
+    "title": "Subaru Steering Smoothing",
+    "description": "Enable Subaru low-speed steering tuning. When enabled, you can adjust smoothing and near-center damping strength below."
   },
   "MCSubaruSmoothingStrength": {
-    "title": "MC Custom: Subaru Smoothing Strength",
-    "description": "Adjust low-speed Subaru smoothing. Positive values add more smoothing, negative values make it more responsive, and Stock keeps the current MostlyClueless behavior.",
+    "title": "Smoothing Strength",
+    "description": "Adjust low-speed Subaru smoothing. Positive values add more smoothing, negative values make it more responsive, and Stock keeps the current validated Subaru behavior.",
     "options": [
-      {
-        "value": -8,
-        "label": "-8"
-      },
-      {
-        "value": -7,
-        "label": "-7"
-      },
-      {
-        "value": -6,
-        "label": "-6"
-      },
-      {
-        "value": -5,
-        "label": "-5"
-      },
-      {
-        "value": -4,
-        "label": "-4"
-      },
       {
         "value": -3,
         "label": "-3"
@@ -347,52 +327,16 @@
       {
         "value": 4,
         "label": "+4"
-      },
-      {
-        "value": 5,
-        "label": "+5"
-      },
-      {
-        "value": 6,
-        "label": "+6"
-      },
-      {
-        "value": 7,
-        "label": "+7"
-      },
-      {
-        "value": 8,
-        "label": "+8"
       }
     ],
-    "min": -8,
-    "max": 8,
+    "min": -3,
+    "max": 4,
     "step": 1
   },
   "MCSubaruCenterDampingStrength": {
-    "title": "MC Custom: Subaru Center Damping",
-    "description": "Adjust Subaru near-center damping and sign-flip control at low speed. Positive values add more damping, negative values make it more responsive, and Stock keeps the current MostlyClueless behavior.",
+    "title": "Center Damping",
+    "description": "Adjust Subaru near-center damping and sign-flip control at low speed. Positive values add more damping, negative values make it more responsive, and Stock keeps the current validated Subaru behavior.",
     "options": [
-      {
-        "value": -8,
-        "label": "-8"
-      },
-      {
-        "value": -7,
-        "label": "-7"
-      },
-      {
-        "value": -6,
-        "label": "-6"
-      },
-      {
-        "value": -5,
-        "label": "-5"
-      },
-      {
-        "value": -4,
-        "label": "-4"
-      },
       {
         "value": -3,
         "label": "-3"
@@ -424,26 +368,46 @@
       {
         "value": 4,
         "label": "+4"
-      },
-      {
-        "value": 5,
-        "label": "+5"
-      },
-      {
-        "value": 6,
-        "label": "+6"
-      },
-      {
-        "value": 7,
-        "label": "+7"
-      },
-      {
-        "value": 8,
-        "label": "+8"
       }
     ],
-    "min": -8,
-    "max": 8,
+    "min": -3,
+    "max": 4,
+    "step": 1
+  },
+  "MCSubaruAdvancedTuning": {
+    "title": "Advanced Tuning",
+    "description": "Show Subaru lateral tuning controls. Hidden controls keep their saved values active."
+  },
+  "MCSubaruManualYieldResumeSpeed": {
+    "title": "Manual Yield Resume Speed",
+    "description": "Adjust how quickly steering re-engages after you release the wheel during a confirmed manual override.",
+    "options": [
+      { "value": 0, "label": "Fastest" },
+      { "value": 1, "label": "Faster" },
+      { "value": 2, "label": "Fast" },
+      { "value": 3, "label": "Medium" },
+      { "value": 4, "label": "Slow" },
+      { "value": 5, "label": "Slower" },
+      { "value": 6, "label": "Slowest" }
+    ],
+    "min": 0,
+    "max": 6,
+    "step": 1
+  },
+  "MCSubaruManualYieldResumeSoftness": {
+    "title": "Manual Yield Resume Softness",
+    "description": "Adjust how gently steering re-engages after manual override. Higher levels reduce the initial reclaim bite.",
+    "options": [
+      { "value": 0, "label": "Standard" },
+      { "value": 1, "label": "Soft" },
+      { "value": 2, "label": "Softer" },
+      { "value": 3, "label": "Very Soft" },
+      { "value": 4, "label": "Extra Soft" },
+      { "value": 5, "label": "Softest" },
+      { "value": 6, "label": "Max Soft" }
+    ],
+    "min": 0,
+    "max": 6,
     "step": 1
   },
   "CustomAccIncrementsEnabled": {

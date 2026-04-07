@@ -19,13 +19,13 @@ class TestSubaruInterface(unittest.TestCase):
     self.assertTrue(bool(CP.flags & SubaruFlags.LKAS_ANGLE))
     self.assertAlmostEqual(CP.steerActuatorDelay, 0.1)
 
-  def test_subaru_delay_toggle_on_lowers_angle_delay(self):
+  def test_subaru_delay_toggle_is_legacy_and_no_longer_changes_angle_delay(self):
     self.params.put_bool("MCSubaruActuatorDelayTest", True)
 
     CP = CarInterface.get_non_essential_params(CAR.SUBARU_OUTBACK_2023)
 
     self.assertTrue(bool(CP.flags & SubaruFlags.LKAS_ANGLE))
-    self.assertAlmostEqual(CP.steerActuatorDelay, 0.08)
+    self.assertAlmostEqual(CP.steerActuatorDelay, 0.1)
 
   def test_subaru_delay_toggle_does_not_change_torque_subaru(self):
     self.params.put_bool("MCSubaruActuatorDelayTest", True)

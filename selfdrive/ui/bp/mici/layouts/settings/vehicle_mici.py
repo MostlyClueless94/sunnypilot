@@ -15,6 +15,7 @@ from openpilot.selfdrive.ui.bp.mici.widgets.vehicle_select_mici import (
   VehicleMakeSelectMici,
   load_car_platforms,
 )
+from openpilot.selfdrive.ui.sunnypilot.mici.layouts.subaru import SubaruLayoutMici
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.multilang import tr
@@ -46,6 +47,17 @@ def get_vehicle_status_text() -> tuple[str, str]:
   return (tr("vehicle"), tr("unrecognized"))
 
 
+def get_vehicle_brand() -> str:
+  if bundle := ui_state.params.get("CarPlatformBundle"):
+    brand = bundle.get("brand", "")
+    if isinstance(brand, bytes):
+      brand = brand.decode("utf-8", errors="replace")
+    return str(brand)
+  if ui_state.CP is not None and ui_state.CP.carFingerprint != "MOCK":
+    return str(ui_state.CP.brand)
+  return ""
+
+
 class VehicleLayoutMici(NavScroller):
   """Three-button horizontal strip: current vehicle | clear | select."""
 
@@ -63,12 +75,14 @@ class VehicleLayoutMici(NavScroller):
     self._btn_current = BigButtonBP(tr("current vehicle"), "", "../../sunnypilot/selfdrive/assets/offroad/icon_vehicle.png")
     self._btn_clear = BigButtonBP(tr("clear vehicle"), "", "../../sunnypilot/selfdrive/assets/offroad/icon_vehicle.png")
     self._btn_select = BigButtonBP(tr("select vehicle"), "", "../../sunnypilot/selfdrive/assets/offroad/icon_vehicle.png")
+    self._btn_subaru = BigButtonBP(tr("subaru settings"), "", "../../sunnypilot/selfdrive/assets/offroad/icon_vehicle.png")
 
     self._btn_current.set_enabled(False)
     self._btn_clear.set_click_callback(self._on_clear)
     self._btn_select.set_click_callback(self._on_select)
+    self._btn_subaru.set_click_callback(self._on_subaru_settings)
 
-    self._scroller.add_widgets([self._btn_current, self._btn_clear, self._btn_select])
+    self._scroller.add_widgets([self._btn_current, self._btn_clear, self._btn_select, self._btn_subaru])
 
   def show_event(self):
     super().show_event()
@@ -85,8 +99,11 @@ class VehicleLayoutMici(NavScroller):
     self._btn_current.set_text(t)
     self._btn_current.set_value(v)
     has_manual = bool(ui_state.params.get("CarPlatformBundle"))
+    is_subaru = get_vehicle_brand() == "subaru"
     self._btn_clear.set_enabled(has_manual)
     self._btn_select.set_enabled(len(self._platforms) > 0)
+    self._btn_subaru.set_visible(is_subaru)
+    self._btn_subaru.set_enabled(is_subaru)
 
   def _on_clear(self):
     if ui_state.params.get("CarPlatformBundle"):
@@ -101,3 +118,8 @@ class VehicleLayoutMici(NavScroller):
       self._refresh_display()
 
     gui_app.push_widget(VehicleMakeSelectMici(self._platforms, on_stack_done=on_complete))
+
+  def _on_subaru_settings(self):
+    if get_vehicle_brand() != "subaru":
+      return
+    gui_app.push_widget(SubaruLayoutMici(back_callback=gui_app.pop_widget))

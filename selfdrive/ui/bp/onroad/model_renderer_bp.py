@@ -4,6 +4,7 @@ from openpilot.common.filter_simple import FirstOrderFilter
 from openpilot.common.params import Params
 from openpilot.selfdrive.ui.onroad.model_renderer import ModelRenderer, LeadVehicle, CLIP_MARGIN, MIN_DRAW_DISTANCE, MAX_DRAW_DISTANCE
 from openpilot.selfdrive.ui.bp.onroad.chevron_metrics_bp import ChevronMetricsBP
+from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import STOCK_LAT_ONLY_COLOR, get_dynamic_edge_color
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.shader_polygon import draw_polygon
@@ -12,9 +13,13 @@ from openpilot.selfdrive.ui.bp.lib.ui_debug_logger import bp_ui_log
 # BluePilot: Lane line colors by status (upstream removed LANE_LINE_COLORS dict)
 LANE_LINE_COLORS_BP = {
   UIStatus.DISENGAGED: rl.Color(0, 0, 0, 255),
+  UIStatus.LAT_ONLY: STOCK_LAT_ONLY_COLOR,
+  UIStatus.LONG_ONLY: rl.Color(0, 255, 80, 255),
   UIStatus.ENGAGED: rl.Color(0, 255, 80, 255),
   UIStatus.OVERRIDE: rl.Color(145, 155, 149, 255),
 }
+OUTER_LANE_LINE_COLOR_BP = rl.Color(255, 255, 255, 255)
+ROAD_EDGE_COLOR_BP = rl.Color(255, 0, 0, 255)
 
 # BluePilot: Radar/vision lead indicator colors
 LEAD_RADAR_GLOW = rl.Color(0, 134, 233, 255)
@@ -64,7 +69,11 @@ class ModelRendererBP(ModelRenderer):
 
     if (sm.recv_frame["liveCalibration"] < ui_state.started_frame or
         sm.recv_frame["modelV2"] < ui_state.started_frame):
-      bp_ui_log.visibility("ModelRenderer", False, reason=f"stale calib={sm.recv_frame['liveCalibration']} model={sm.recv_frame['modelV2']} started={ui_state.started_frame}")
+      stale_reason = " ".join((
+        f"stale calib={sm.recv_frame['liveCalibration']}",
+        f"model={sm.recv_frame['modelV2']} started={ui_state.started_frame}",
+      ))
+      bp_ui_log.visibility("ModelRenderer", False, reason=stale_reason)
       return
 
     bp_ui_log.state("ModelRenderer", "render_active", True)
@@ -262,9 +271,12 @@ class ModelRendererBP(ModelRenderer):
       return rl.Color(0, 0, 0, 255)
 
     if not is_current_lane:
-      return rl.Color(255, 255, 255, 255)
+      return OUTER_LANE_LINE_COLOR_BP
 
-    base = LANE_LINE_COLORS_BP.get(ui_state.status, LANE_LINE_COLORS_BP[UIStatus.DISENGAGED])
+    if ui_state.status == UIStatus.LAT_ONLY and ui_state.dynamic_path_color:
+      base = get_dynamic_edge_color(UIStatus.LAT_ONLY, ui_state.dynamic_path_color_palette)
+    else:
+      base = LANE_LINE_COLORS_BP.get(ui_state.status, LANE_LINE_COLORS_BP[UIStatus.DISENGAGED])
     brightness = np.interp(prob, [0.0, 0.5, 1.0], [0.4, 0.7, 1.0])
     return rl.Color(int(base.r * brightness), int(base.g * brightness), int(base.b * brightness), 255)
 
@@ -290,7 +302,7 @@ class ModelRendererBP(ModelRenderer):
       if road_edge.projected_points.size == 0:
         continue
       edge_alpha = np.clip(1.0 - self._road_edge_stds[i], 0.0, 1.0) * 0.6
-      color = rl.Color(255, 0, 0, int(edge_alpha * 255))
+      color = rl.Color(ROAD_EDGE_COLOR_BP.r, ROAD_EDGE_COLOR_BP.g, ROAD_EDGE_COLOR_BP.b, int(edge_alpha * 255))
       draw_polygon(self._rect, road_edge.projected_points, color)
 
     self._draw_road_edge_glow_effects()
@@ -308,7 +320,7 @@ class ModelRendererBP(ModelRenderer):
       if not is_current_lane:
         base_alpha *= 0.4
       base_color = self._get_ll_color(float(self._lane_line_probs[i]), is_current_lane)
-      for glow_width, glow_alpha in zip(glow_widths, glow_alphas):
+      for glow_width, glow_alpha in zip(glow_widths, glow_alphas, strict=True):
         expanded_points = self._expand_polygon(lane_line.projected_points, glow_width)
         if expanded_points.size > 0:
           alpha = int(base_alpha * glow_alpha * 255)
@@ -326,11 +338,11 @@ class ModelRendererBP(ModelRenderer):
       edge_alpha = np.clip(1.0 - self._road_edge_stds[i], 0.0, 1.0)
       if edge_alpha < 0.3:
         continue
-      for glow_width, glow_alpha in zip(glow_widths, glow_alphas):
+      for glow_width, glow_alpha in zip(glow_widths, glow_alphas, strict=True):
         expanded_points = self._expand_polygon(road_edge.projected_points, glow_width)
         if expanded_points.size > 0:
           alpha = int(edge_alpha * glow_alpha * 255)
-          color = rl.Color(255, 0, 0, alpha)
+          color = rl.Color(ROAD_EDGE_COLOR_BP.r, ROAD_EDGE_COLOR_BP.g, ROAD_EDGE_COLOR_BP.b, alpha)
           draw_polygon(self._rect, expanded_points, color)
 
   def _expand_polygon(self, points: np.ndarray, width: float) -> np.ndarray:

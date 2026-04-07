@@ -88,6 +88,8 @@ class UIStateSP:
     state = ss.state
     mads = ss_sp.mads
     mads_state = mads.state
+    override_longitudinal = any(e.overrideLongitudinal for e in onroad_evt)
+    override_lateral = any(e.overrideLateral for e in onroad_evt)
 
     if state == OpenpilotState.preEnabled:
       return "override"
@@ -96,8 +98,11 @@ class UIStateSP:
       if not mads.available:
         return "override"
 
-      if any(e.overrideLongitudinal for e in onroad_evt):
+      if override_lateral:
         return "override"
+
+      if override_longitudinal:
+        return "lat_only" if mads.enabled else "override"
 
     if mads_state in (MADSState.paused, MADSState.overriding):
       return "override"

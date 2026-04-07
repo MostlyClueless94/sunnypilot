@@ -9,7 +9,6 @@ from collections.abc import Callable
 from openpilot.selfdrive.ui.mici.widgets.button import BigButton, BigParamControl, GreyBigButton
 from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import CUSTOM_MODEL_PATH_COLOR_LABELS
 from openpilot.selfdrive.ui.ui_state import ui_state
-from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.widgets.scroller import NavScroller
 
 RESUME_SPEED_LABELS = ["Fastest", "Faster", "Fast", "Medium", "Slow", "Slower", "Slowest"]
@@ -204,8 +203,10 @@ class SubaruLayoutMici(NavScroller):
     self._subaru_center_damping_btn.set_enabled(smoothing_enabled)
     self._subaru_smoothing_strength_btn.set_value(self._format_strength_label(max(-3, min(self._get_int_param("MCSubaruSmoothingStrength"), 4))))
     self._subaru_center_damping_btn.set_value(self._format_strength_label(max(-3, min(self._get_int_param("MCSubaruCenterDampingStrength"), 4))))
-    self._manual_yield_resume_speed_btn.set_value(self._format_resume_speed_label(max(0, min(self._get_int_param("MCSubaruManualYieldResumeSpeed", 4), 6))))
-    self._manual_yield_resume_softness_btn.set_value(self._format_resume_softness_label(max(0, min(self._get_int_param("MCSubaruManualYieldResumeSoftness", 4), 6))))
+    resume_speed = max(0, min(self._get_int_param("MCSubaruManualYieldResumeSpeed", 4), 6))
+    resume_softness = max(0, min(self._get_int_param("MCSubaruManualYieldResumeSoftness", 4), 6))
+    self._manual_yield_resume_speed_btn.set_value(self._format_resume_speed_label(resume_speed))
+    self._manual_yield_resume_softness_btn.set_value(self._format_resume_softness_label(resume_softness))
 
     model_color_index = max(0, min(self._get_int_param("CustomModelPathColor"), len(CUSTOM_MODEL_PATH_COLOR_LABELS) - 1))
     self._custom_model_path_color_btn.set_value(CUSTOM_MODEL_PATH_COLOR_LABELS[model_color_index].lower())

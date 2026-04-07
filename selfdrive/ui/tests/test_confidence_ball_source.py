@@ -34,9 +34,13 @@ def test_shared_confidence_ball_supports_engaged_green_background():
 
 def test_tici_onroad_wires_confidence_ball_toggle_and_left_strip():
   source = _read(TICI_ONROAD)
+  left_strip_logic = (
+    "ball_offset = (self._confidence_ball.BALL_WIDTH + BALL_BORDER_MARGIN) "
+    + "if self._show_confidence_ball and self._confidence_ball is not None else 0"
+  )
   assert 'from openpilot.selfdrive.ui.sunnypilot.onroad.confidence_ball import ConfidenceBallTiciSP' in source
   assert '"BPShowConfidenceBall"' in source
-  assert "ball_offset = (self._confidence_ball.BALL_WIDTH + BALL_BORDER_MARGIN) if self._show_confidence_ball and self._confidence_ball is not None else 0" in source
+  assert left_strip_logic in source
   assert "self._confidence_ball.render(ball_rect)" in source
   assert "self._hud_renderer.render(ui_rect)" in source
   assert "self.alert_renderer.render(ui_rect)" in source

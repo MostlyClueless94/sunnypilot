@@ -40,6 +40,8 @@ PYTEST_TARGETS = (
 KNOWN_LOCAL_IMPORT_ISSUES = (
   "No module named 'openpilot.common'",
   "No module named 'openpilot.common.params_pyx'",
+  "No module named 'openpilot.selfdrive'",
+  "No module named 'openpilot.sunnypilot'",
   "No module named 'pyray'",
 )
 
@@ -80,10 +82,10 @@ def run_ruff() -> None:
   result = subprocess.run(cmd, cwd=REPO_ROOT, env=repo_env(), text=True, capture_output=True)
   if result.returncode != 0:
     emit_output(result)
-    if ruff_binary is None and "No module named ruff" in combined_output(result):
+    if ruff_binary is None and "No module named ruff" in (result.stderr or ""):
       raise SystemExit(
         "[shipping-check] ruff is not available in the current Python environment. "
-        "Run ./tools/op.sh setup or install the testing dependencies before using this check."
+        + "Run ./tools/op.sh setup or install the testing dependencies before using this check."
       )
     raise SystemExit(f"[shipping-check] ruff failed with exit code {result.returncode}")
 
@@ -135,7 +137,7 @@ def run_import_smoke(ci_mode: bool) -> None:
   if should_soft_fail(first_failure_output, ci_mode):
     print(
       "[shipping-check] import smoke skipped locally due to the known Windows/bootstrap dependency issue. "
-      "CI remains the authoritative full import check."
+      + "CI remains the authoritative full import check."
     )
     emit_output(failures[0][1])
     return
@@ -164,7 +166,7 @@ def run_pytest(ci_mode: bool) -> None:
   if should_soft_fail(output, ci_mode):
     print(
       "[shipping-check] focused pytest skipped locally due to the known Windows/bootstrap dependency issue. "
-      "CI remains the authoritative full pytest gate."
+      + "CI remains the authoritative full pytest gate."
     )
     emit_output(result)
     return

@@ -1,13 +1,13 @@
-# Major Subaru Angle-Based Steering Improvements (subi-staging)
+# SubiPilot 1.0 Subaru Angle Release
+- Stable install: `https://installer.comma.ai/MostlyClueless94/subi-1.0`
 - Broad testing: `https://installer.comma.ai/MostlyClueless94/subi-staging`
-- Stable release: `https://installer.comma.ai/MostlyClueless94/subi-1.0`
-- Improved below-10mph wheel chatter via a multi-stage low-speed angle smoothing pipeline.
-- Added a center-zone delta deadband to suppress near-center oscillation.
-- Added straight-line stability hold to freeze the LKAS target when deviation stays below threshold.
-- Added center damping to actively reduce rapid sign-flip oscillations near zero angle.
-- All low-speed steering corrections blend out by 10mph, with no effect on normal highway driving.
-- Fixed the stale ramp-target bug in MADS manual override handoff.
-- Added a manual-override hold and smooth re-entry ramp to reduce steering twitch when handing control back to LKAS.
+- Personal testing: `https://installer.comma.ai/MostlyClueless94/MostlyClueless`
+- Promotes the current validated `subi-staging` Subaru angle build to the stable `subi-1.0` lane.
+- Includes the low-speed Subaru steering package: smoothing, center deadband, straight-line stability hold, and center damping, all blended out by 10 mph.
+- Keeps the confirmed manual-override hold and smooth measured-angle re-entry ramp, with advanced Subaru tuning controls available in the Subaru menu.
+- Includes the Subaru UI/status cleanup: `Match Vehicle Speedometer`, brighter default dynamic path colors, gas-override teal handling, brake-status speed highlight, and the optional confidence ball.
+- Keeps the 2026-03-21 rollback in place: no continuous VM engage-gap request gate and no soft-capture handoff blending.
+- Includes the angle-Subaru `NNMV2` auto-default policy and the 2024 Outback firmware fingerprint support carried on `subi-staging`.
 
 # SubiPilot 1.0 Update
 - Stable install: `https://installer.comma.ai/MostlyClueless94/subi-1.0`

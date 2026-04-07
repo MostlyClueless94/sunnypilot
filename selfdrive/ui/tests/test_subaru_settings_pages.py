@@ -25,6 +25,20 @@ def test_tici_settings_root_exposes_dedicated_subaru_panel():
 
 def test_tici_subaru_page_contains_lateral_tuning_and_visuals_controls():
   source = _read(TICI_SUBARU)
+  tuning_then_visuals_positions = [
+    source.index('param="MCSubaruAdvancedTuning"'),
+    source.index('param="MCSubaruSmoothingTune"'),
+    source.index('param="MCSubaruSmoothingStrength"'),
+    source.index('param="MCSubaruCenterDampingStrength"'),
+    source.index('param="MCSubaruManualYieldResumeSpeed"'),
+    source.index('param="MCSubaruManualYieldResumeSoftness"'),
+    source.index('param="ShowBrakeStatus"'),
+  ]
+  visuals_positions = [
+    source.index('param="ShowBrakeStatus"'),
+    source.index('param="BPShowConfidenceBall"'),
+    source.index('param="DynamicPathColor"'),
+  ]
   assert 'tr("Lateral Tuning")' in source
   assert 'tr("Visuals")' in source
   assert 'param="MCSubaruAdvancedTuning"' in source
@@ -58,8 +72,8 @@ def test_tici_subaru_page_contains_lateral_tuning_and_visuals_controls():
   assert 'Adjust how quickly steering re-engages after you release the wheel during a confirmed manual override.' in source
   assert 'Adjust how gently steering re-engages after manual override. Higher levels reduce the initial reclaim bite.' in source
   assert 'Dynamic Path Color Palette' not in source
-  assert source.index('param="MCSubaruAdvancedTuning"') < source.index('param="MCSubaruSmoothingTune"') < source.index('param="MCSubaruSmoothingStrength"') < source.index('param="MCSubaruCenterDampingStrength"') < source.index('param="MCSubaruManualYieldResumeSpeed"') < source.index('param="MCSubaruManualYieldResumeSoftness"') < source.index('param="ShowBrakeStatus"')
-  assert source.index('param="ShowBrakeStatus"') < source.index('param="BPShowConfidenceBall"') < source.index('param="DynamicPathColor"')
+  assert tuning_then_visuals_positions == sorted(tuning_then_visuals_positions)
+  assert visuals_positions == sorted(visuals_positions)
   assert 'def _set_advanced_tuning_visibility(self, enabled: bool) -> None:' in source
   assert 'self._set_advanced_tuning_visibility(self._params.get_bool("MCSubaruAdvancedTuning"))' in source
   assert 'self._set_advanced_tuning_visibility(advanced_tuning_enabled)' in source
@@ -85,6 +99,19 @@ def test_mici_settings_root_exposes_subaru_entry():
 
 def test_mici_subaru_page_uses_device_native_controls():
   source = _read(MICI_SUBARU)
+  mici_tuning_then_visuals_positions = [
+    source.index('"MCSubaruAdvancedTuning"'),
+    source.index('"MCSubaruSmoothingTune"'),
+    source.index('"MCSubaruCenterDampingStrength"'),
+    source.index('"MCSubaruManualYieldResumeSpeed"'),
+    source.index('"MCSubaruManualYieldResumeSoftness"'),
+    source.index('"ShowBrakeStatus"'),
+  ]
+  mici_visuals_positions = [
+    source.index('"ShowBrakeStatus"'),
+    source.index('"BPShowConfidenceBall"'),
+    source.index('"DynamicPathColor"'),
+  ]
   assert 'GreyBigButton("lateral\\ntuning")' in source
   assert 'GreyBigButton("visuals")' in source
   assert 'BigParamControl("advanced\\ntuning", "MCSubaruAdvancedTuning"' in source
@@ -110,8 +137,8 @@ def test_mici_subaru_page_uses_device_native_controls():
   assert '"TrueVEgoUI"' not in source
   assert 'desc="on: dash speed, off: true speed"' in source
   assert 'BigParamControl("hide\\nspeedometer", "HideVEgoUI")' in source
-  assert source.index('"MCSubaruAdvancedTuning"') < source.index('"MCSubaruSmoothingTune"') < source.index('"MCSubaruCenterDampingStrength"') < source.index('"MCSubaruManualYieldResumeSpeed"') < source.index('"MCSubaruManualYieldResumeSoftness"') < source.index('"ShowBrakeStatus"')
-  assert source.index('"ShowBrakeStatus"') < source.index('"BPShowConfidenceBall"') < source.index('"DynamicPathColor"')
+  assert mici_tuning_then_visuals_positions == sorted(mici_tuning_then_visuals_positions)
+  assert mici_visuals_positions == sorted(mici_visuals_positions)
   assert 'def _set_advanced_tuning_visibility(self, enabled: bool) -> None:' in source
   assert 'self._set_advanced_tuning_visibility(advanced_tuning_enabled)' in source
   assert 'self._set_advanced_tuning_visibility(ui_state.params.get_bool("MCSubaruAdvancedTuning"))' in source

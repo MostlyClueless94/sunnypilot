@@ -68,7 +68,7 @@ class ChevronMetricsBP(ChevronMetrics):
 
     box_rects: list[rl.Rectangle] = []
     current_x = start_x
-    for line, text_size in zip(text_lines, text_sizes):
+    for line, text_size in zip(text_lines, text_sizes, strict=False):
       box_width = text_size.x + (padding * 2)
       box_rect = rl.Rectangle(int(current_x), int(y), box_width, box_height)
       box_rects.append(box_rect)

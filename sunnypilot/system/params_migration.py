@@ -55,10 +55,7 @@ def run_migration(_params):
         if legacy_true_v_ego is not None:
           match_vehicle_speedometer = not _params.get_bool("TrueVEgoUI")
           _params.put_bool("MatchVehicleSpeedometer", match_vehicle_speedometer)
-          log_str = (
-            "Successfully migrated TrueVEgoUI to MatchVehicleSpeedometer "
-            f"with value {match_vehicle_speedometer}."
-          )
+          log_str = f"Successfully migrated TrueVEgoUI to MatchVehicleSpeedometer with value {match_vehicle_speedometer}."
         else:
           log_str = "Migration not required for MatchVehicleSpeedometer."
       else:
@@ -66,9 +63,6 @@ def run_migration(_params):
 
       _params.remove("TrueVEgoUI")
       _params.put("MatchVehicleSpeedometerMigrated", MATCH_VEHICLE_SPEEDOMETER_MIGRATION_VERSION)
-      cloudlog.info(
-        log_str + " Setting MatchVehicleSpeedometerMigrated to "
-        f"{MATCH_VEHICLE_SPEEDOMETER_MIGRATION_VERSION}"
-      )
+      cloudlog.info(log_str + f" Setting MatchVehicleSpeedometerMigrated to {MATCH_VEHICLE_SPEEDOMETER_MIGRATION_VERSION}")
     except Exception as e:
       cloudlog.exception(f"Error migrating MatchVehicleSpeedometer: {e}")

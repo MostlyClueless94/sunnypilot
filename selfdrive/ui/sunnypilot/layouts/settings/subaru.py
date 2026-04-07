@@ -20,6 +20,27 @@ from openpilot.system.ui.widgets.scroller_tici import Scroller
 
 RESUME_SPEED_LABELS = ["Fastest", "Faster", "Fast", "Medium", "Slow", "Slower", "Slowest"]
 RESUME_SOFTNESS_LABELS = ["Standard", "Soft", "Softer", "Very Soft", "Extra Soft", "Softest", "Max Soft"]
+ADVANCED_TUNING_DESC = "Show Subaru lateral tuning controls. Hidden controls keep their saved values active."
+SMOOTHING_TUNE_DESC = "Enable Subaru low-speed steering tuning so you can adjust smoothing and near-center damping below."
+SMOOTHING_STRENGTH_DESC = (
+  "Adjust low-speed Subaru smoothing. Positive values add more smoothing, "
+  + "negative values make it more responsive, and Stock keeps the current "
+  + "validated Subaru behavior."
+)
+CENTER_DAMPING_DESC = (
+  "Adjust Subaru near-center damping and sign-flip control at low speed. "
+  + "Positive values add more damping, negative values make it more "
+  + "responsive, and Stock keeps the current validated Subaru behavior."
+)
+DYNAMIC_PATH_COLOR_DESC = (
+  "Color the driving path by drive mode. Light gray when inactive or truly "
+  + "overriding, teal when steering-only, and green for full control."
+)
+CUSTOM_MODEL_PATH_COLOR_DESC = (
+  "Use preset colors for the driving path overlay. Stock keeps the normal "
+  + "path behavior, and Dynamic Path Color still takes priority when enabled."
+)
+MATCH_VEHICLE_SPEED_DESC = "When enabled, comma matches the vehicle's dash or cluster speed when supported. Disable to display true wheel-speed-based speed."
 
 
 class SubaruSectionHeader(Widget):
@@ -80,19 +101,19 @@ class SubaruLayout(Widget):
   def _initialize_items(self):
     self._subaru_advanced_tuning = toggle_item_sp(
       title=lambda: tr("Advanced Tuning"),
-      description=lambda: tr("Show Subaru lateral tuning controls. Hidden controls keep their saved values active."),
+      description=lambda: tr(ADVANCED_TUNING_DESC),
       param="MCSubaruAdvancedTuning",
       initial_state=self._params.get_bool("MCSubaruAdvancedTuning"),
     )
     self._subaru_smoothing_tune = toggle_item_sp(
       title=lambda: tr("Subaru Steering Smoothing"),
-      description=lambda: tr("Enable Subaru low-speed steering tuning so you can adjust smoothing and near-center damping below."),
+      description=lambda: tr(SMOOTHING_TUNE_DESC),
       param="MCSubaruSmoothingTune",
       initial_state=self._params.get_bool("MCSubaruSmoothingTune"),
     )
     self._subaru_smoothing_strength = option_item_sp(
       title=lambda: tr("Smoothing Strength"),
-      description=lambda: tr("Adjust low-speed Subaru smoothing. Positive values add more smoothing, negative values make it more responsive, and Stock keeps the current validated Subaru behavior."),
+      description=lambda: tr(SMOOTHING_STRENGTH_DESC),
       param="MCSubaruSmoothingStrength",
       min_value=-3,
       max_value=4,
@@ -102,7 +123,7 @@ class SubaruLayout(Widget):
     )
     self._subaru_center_damping_strength = option_item_sp(
       title=lambda: tr("Center Damping"),
-      description=lambda: tr("Adjust Subaru near-center damping and sign-flip control at low speed. Positive values add more damping, negative values make it more responsive, and Stock keeps the current validated Subaru behavior."),
+      description=lambda: tr(CENTER_DAMPING_DESC),
       param="MCSubaruCenterDampingStrength",
       min_value=-3,
       max_value=4,
@@ -144,13 +165,13 @@ class SubaruLayout(Widget):
     )
     self._dynamic_path_color = toggle_item_sp(
       title=lambda: tr("Dynamic Path Color"),
-      description=lambda: tr("Color the driving path by drive mode. Light gray when inactive or truly overriding, teal when steering-only, and green for full control."),
+      description=lambda: tr(DYNAMIC_PATH_COLOR_DESC),
       param="DynamicPathColor",
       initial_state=self._get_bool_param("DynamicPathColor"),
     )
     self._custom_model_path_color = multiple_button_item_sp(
       title=lambda: tr("Custom Model Path Color"),
-      description=lambda: tr("Use preset colors for the driving path overlay. Stock keeps the normal path behavior, and Dynamic Path Color still takes priority when enabled."),
+      description=lambda: tr(CUSTOM_MODEL_PATH_COLOR_DESC),
       buttons=[lambda label=label: tr(label) for label in CUSTOM_MODEL_PATH_COLOR_LABELS],
       param="CustomModelPathColor",
       button_width=160,
@@ -158,7 +179,7 @@ class SubaruLayout(Widget):
     )
     self._match_vehicle_speed = toggle_item_sp(
       title=lambda: tr("Match Vehicle Speedometer"),
-      description=lambda: tr("When enabled, comma matches the vehicle's dash or cluster speed when supported. Disable to display true wheel-speed-based speed."),
+      description=lambda: tr(MATCH_VEHICLE_SPEED_DESC),
       param="MatchVehicleSpeedometer",
       initial_state=self._get_bool_param("MatchVehicleSpeedometer", True),
     )

@@ -1,6 +1,5 @@
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
 
 from openpilot.selfdrive.ui.sunnypilot.onroad import brake_status
 from openpilot.selfdrive.ui.sunnypilot.onroad.brake_status import (
@@ -81,10 +80,10 @@ def test_brake_status_does_not_trigger_on_coast():
   assert is_vehicle_braking(sm, _build_cp(openpilot_longitudinal=False)) is False
 
 
-def test_should_highlight_braking_speed_respects_show_toggle():
+def test_should_highlight_braking_speed_respects_show_toggle(monkeypatch):
   ui_state = SimpleNamespace(sm=_build_sm(brake_lights_available=True, brake_lights_on=True), CP=_build_cp())
-  with patch.object(brake_status, "ui_state", ui_state):
-    assert should_highlight_braking_speed(False) is False
+  monkeypatch.setattr(brake_status, "ui_state", ui_state)
+  assert should_highlight_braking_speed(False) is False
 
 
 def test_speed_renderers_still_call_brake_status_helper():

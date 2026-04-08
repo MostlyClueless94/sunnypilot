@@ -6,7 +6,18 @@ See the LICENSE.md file in the root directory for more details.
 """
 from collections.abc import Callable
 
-from openpilot.selfdrive.ui.mici.widgets.button import BigButton, BigParamControl, GreyBigButton
+import pyray as rl
+
+try:
+  from openpilot.selfdrive.ui.mici.widgets.button import BigButton, BigParamControl, GreyBigButton
+except ImportError:
+  from openpilot.selfdrive.ui.bp.mici.widgets.button_bp import BigButtonBP as BigButton, BigParamControlBP as BigParamControl
+
+  class GreyBigButton(BigButton):
+    def __init__(self, text: str, value: str = ""):
+      super().__init__(text, value, tint=rl.Color(0x66, 0x66, 0x66, 0xFF))
+      self.set_touch_valid_callback(lambda: False)
+
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.widgets.scroller import NavScroller
 

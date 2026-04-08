@@ -88,6 +88,17 @@ def test_mici_subaru_layout_contains_driving_only_subaru_controls():
   assert 'HideVEgoUI' not in source
 
 
+def test_mici_subaru_layout_has_safe_grey_header_fallback_for_bp_branch():
+  source = _read(MICI_SUBARU)
+  assert "try:" in source
+  assert "from openpilot.selfdrive.ui.mici.widgets.button import BigButton, BigParamControl, GreyBigButton" in source
+  assert "except ImportError:" in source
+  assert "from openpilot.selfdrive.ui.bp.mici.widgets.button_bp import BigButtonBP as BigButton, BigParamControlBP as BigParamControl" in source
+  assert "class GreyBigButton(BigButton):" in source
+  assert "tint=rl.Color(0x66, 0x66, 0x66, 0xFF)" in source
+  assert "self.set_touch_valid_callback(lambda: False)" in source
+
+
 def test_mici_subaru_layout_preserves_scroll_restore_selector_stack():
   source = _read(MICI_SUBARU)
   assert "def _show_selection_view(self, items, back_callback: Callable):" in source

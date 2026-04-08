@@ -103,5 +103,5 @@ def test_params_metadata_describes_subaru_brand_menu_ranges_and_labels():
   assert 'Experiment — MostlyClueless only.' in source
   assert '"MCSubaruSoftCaptureLevel"' in source
   assert '"title": "Soft-Capture Strength"' in source
-  assert '"label": "1 — Light"' in source
-  assert '"label": "5 — Max"' in source
+  assert '"label": "1 - Light"' in source
+  assert '"label": "5 - Max"' in source

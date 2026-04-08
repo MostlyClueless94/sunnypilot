@@ -45,7 +45,7 @@ SOFT_CAPTURE_STRENGTH_DESC = (
   + "(0.50 s, near-zero start). Higher levels reduce snap-to-target feel "
   + "but extend the handoff window."
 )
-SOFT_CAPTURE_STRENGTH_LABELS = ["1 — Light", "2 — Mild", "3 — Medium", "4 — Strong", "5 — Max"]
+SOFT_CAPTURE_STRENGTH_LABELS = ["1 - Light", "2 - Mild", "3 - Medium", "4 - Strong", "5 - Max"]
 DYNAMIC_PATH_COLOR_DESC = (
   "Color the driving path by drive mode. Light gray when inactive or truly "
   + "overriding, teal when steering-only, and green for full control."

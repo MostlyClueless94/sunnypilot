@@ -46,6 +46,8 @@ def test_mc_custom_hides_subaru_section_for_non_subaru_and_preserves_tuning_logi
   assert 'self._subaru_center_damping.action_item.set_enabled(smoothing_enabled)' in source
   assert 'toggle.action_item.set_enabled(has_stop_and_go and ui_state.is_offroad())' in source
   assert 'self._set_subaru_section_visibility(is_subaru, advanced_tuning_enabled)' in source
+  assert 'callback=self._on_subaru_toggle_changed' in source
+  assert 'def _on_subaru_toggle_changed(self, _):' in source
 
 
 def test_params_keys_register_subaru_tuning_defaults_for_mc_custom_menu():

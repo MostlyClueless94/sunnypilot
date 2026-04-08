@@ -1,3 +1,13 @@
+# SubiPilot Staging Soft-Capture Experiment
+- Stable install: `https://installer.comma.ai/MostlyClueless94/subi-1.0`
+- Broad testing: `https://installer.comma.ai/MostlyClueless94/subi-staging`
+- Personal testing: `https://installer.comma.ai/MostlyClueless94/MostlyClueless`
+- Reintroduces the optional Subaru soft-capture engage blend experiment on `subi-staging` only.
+- Feature is off by default and is exposed on both the TICI and MICI Subaru settings pages.
+- Adds a `Soft-Capture Strength` selector with ASCII labels: `1 - Light` through `5 - Max`.
+- Keeps the existing low-speed smoothing and manual-yield reclaim behavior unchanged.
+- `subi-1.0` remains unchanged and does not pick up this experiment automatically.
+
 # SubiPilot 1.0 Subaru Angle Release
 - Stable install: `https://installer.comma.ai/MostlyClueless94/subi-1.0`
 - Broad testing: `https://installer.comma.ai/MostlyClueless94/subi-staging`
@@ -6,7 +16,7 @@
 - Includes the low-speed Subaru steering package: smoothing, center deadband, straight-line stability hold, and center damping, all blended out by 10 mph.
 - Keeps the confirmed manual-override hold and smooth measured-angle re-entry ramp, with advanced Subaru tuning controls available in the Subaru menu.
 - Includes the Subaru UI/status cleanup: `Match Vehicle Speedometer`, brighter default dynamic path colors, gas-override teal handling, brake-status speed highlight, and the optional confidence ball.
-- Keeps the 2026-03-21 rollback in place: no continuous VM engage-gap request gate and no soft-capture handoff blending.
+- Keeps the 2026-03-21 rollback in place for the stable release lane: no continuous VM engage-gap request gate, and no soft-capture handoff blending on `subi-1.0`.
 - Includes the angle-Subaru `NNMV2` auto-default policy and the 2024 Outback firmware fingerprint support carried on `subi-staging`.
 
 # SubiPilot 1.0 Update

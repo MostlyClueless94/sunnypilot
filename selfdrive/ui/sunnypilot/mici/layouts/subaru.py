@@ -13,6 +13,7 @@ from openpilot.system.ui.widgets.scroller import NavScroller
 
 RESUME_SPEED_LABELS = ["Fastest", "Faster", "Fast", "Medium", "Slow", "Slower", "Slowest"]
 RESUME_SOFTNESS_LABELS = ["Standard", "Soft", "Softer", "Very Soft", "Extra Soft", "Softest", "Max Soft"]
+SOFT_CAPTURE_STRENGTH_LABELS = ["1 - Light", "2 - Mild", "3 - Medium", "4 - Strong", "5 - Max"]
 
 
 class SubaruLayoutMici(NavScroller):
@@ -65,6 +66,20 @@ class SubaruLayoutMici(NavScroller):
         self._format_resume_softness_label,
       )
     )
+    self._subaru_soft_capture_toggle = BigParamControl(
+      "soft-capture\nengage blend",
+      "MCSubaruSoftCaptureEnabled",
+      desc="smooth steering handoff on engage",
+    )
+    self._subaru_soft_capture_strength_btn = BigButton("soft-capture\nstrength")
+    self._subaru_soft_capture_strength_btn.set_click_callback(
+      lambda: self._show_value_selector(
+        self._subaru_soft_capture_strength_btn,
+        "MCSubaruSoftCaptureLevel",
+        list(range(1, 6)),
+        self._format_soft_capture_label,
+      )
+    )
 
     self._show_brake_status = BigParamControl("show brake\nstatus", "ShowBrakeStatus", desc="red when brake lights are on")
     self._show_confidence_ball = BigParamControl("show confidence\nball", "BPShowConfidenceBall", desc="display onroad confidence ball")
@@ -96,6 +111,8 @@ class SubaruLayoutMici(NavScroller):
       self._subaru_center_damping_btn,
       self._manual_yield_resume_speed_btn,
       self._manual_yield_resume_softness_btn,
+      self._subaru_soft_capture_toggle,
+      self._subaru_soft_capture_strength_btn,
       self._visuals_header,
       self._show_brake_status,
       self._show_confidence_ball,
@@ -109,6 +126,7 @@ class SubaruLayoutMici(NavScroller):
     self._refresh_toggles = (
       ("MCSubaruAdvancedTuning", self._subaru_advanced_tuning_toggle),
       ("MCSubaruSmoothingTune", self._subaru_smoothing_toggle),
+      ("MCSubaruSoftCaptureEnabled", self._subaru_soft_capture_toggle),
       ("ShowBrakeStatus", self._show_brake_status),
       ("BPShowConfidenceBall", self._show_confidence_ball),
       ("DynamicPathColor", self._dynamic_path_color),
@@ -128,12 +146,18 @@ class SubaruLayoutMici(NavScroller):
   def _format_resume_softness_label(value: int) -> str:
     return RESUME_SOFTNESS_LABELS[max(0, min(value, len(RESUME_SOFTNESS_LABELS) - 1))]
 
+  @staticmethod
+  def _format_soft_capture_label(value: int) -> str:
+    return SOFT_CAPTURE_STRENGTH_LABELS[max(0, min(value - 1, len(SOFT_CAPTURE_STRENGTH_LABELS) - 1))]
+
   def _set_advanced_tuning_visibility(self, enabled: bool) -> None:
     self._subaru_smoothing_toggle.set_visible(enabled)
     self._subaru_smoothing_strength_btn.set_visible(enabled)
     self._subaru_center_damping_btn.set_visible(enabled)
     self._manual_yield_resume_speed_btn.set_visible(enabled)
     self._manual_yield_resume_softness_btn.set_visible(enabled)
+    self._subaru_soft_capture_toggle.set_visible(enabled)
+    self._subaru_soft_capture_strength_btn.set_visible(enabled)
 
   @staticmethod
   def _get_int_param(key: str, default: int = 0) -> int:
@@ -205,8 +229,12 @@ class SubaruLayoutMici(NavScroller):
     self._subaru_center_damping_btn.set_value(self._format_strength_label(max(-3, min(self._get_int_param("MCSubaruCenterDampingStrength"), 4))))
     resume_speed = max(0, min(self._get_int_param("MCSubaruManualYieldResumeSpeed", 4), 6))
     resume_softness = max(0, min(self._get_int_param("MCSubaruManualYieldResumeSoftness", 4), 6))
+    soft_capture_enabled = ui_state.params.get_bool("MCSubaruSoftCaptureEnabled")
+    soft_capture_level = max(1, min(self._get_int_param("MCSubaruSoftCaptureLevel", 3), 5))
     self._manual_yield_resume_speed_btn.set_value(self._format_resume_speed_label(resume_speed))
     self._manual_yield_resume_softness_btn.set_value(self._format_resume_softness_label(resume_softness))
+    self._subaru_soft_capture_strength_btn.set_enabled(soft_capture_enabled)
+    self._subaru_soft_capture_strength_btn.set_value(self._format_soft_capture_label(soft_capture_level))
 
     model_color_index = max(0, min(self._get_int_param("CustomModelPathColor"), len(CUSTOM_MODEL_PATH_COLOR_LABELS) - 1))
     self._custom_model_path_color_btn.set_value(CUSTOM_MODEL_PATH_COLOR_LABELS[model_color_index].lower())

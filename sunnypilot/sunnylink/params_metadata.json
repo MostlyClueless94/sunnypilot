@@ -1202,6 +1202,24 @@
       { "value": 6, "label": "Max Soft" }
     ]
   },
+  "MCSubaruSoftCaptureEnabled": {
+    "title": "Soft-Capture Engage Blend",
+    "description": "Smooth the transition when openpilot takes back steering control. When enabled, the wheel angle blends gradually toward the model target instead of snapping instantly. Experiment - subi-staging only."
+  },
+  "MCSubaruSoftCaptureLevel": {
+    "title": "Soft-Capture Strength",
+    "description": "Adjust how gently openpilot reclaims steering on engage. Level 1 is a light blend (0.15 s). Level 5 is the most damped (0.50 s, near-zero start). Higher levels reduce snap-to-target feel but extend the handoff window.",
+    "options": [
+      { "value": 1, "label": "1 - Light" },
+      { "value": 2, "label": "2 - Mild" },
+      { "value": 3, "label": "3 - Medium" },
+      { "value": 4, "label": "4 - Strong" },
+      { "value": 5, "label": "5 - Max" }
+    ],
+    "min": 1,
+    "max": 5,
+    "step": 1
+  },
   "ShowBrakeStatus": {
     "title": "Show Brake Status",
     "description": "Display current speed in red when brake lights are on."

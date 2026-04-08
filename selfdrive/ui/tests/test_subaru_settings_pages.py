@@ -32,6 +32,8 @@ def test_tici_subaru_page_contains_lateral_tuning_and_visuals_controls():
     source.index('param="MCSubaruCenterDampingStrength"'),
     source.index('param="MCSubaruManualYieldResumeSpeed"'),
     source.index('param="MCSubaruManualYieldResumeSoftness"'),
+    source.index('param="MCSubaruSoftCaptureEnabled"'),
+    source.index('param="MCSubaruSoftCaptureLevel"'),
     source.index('param="ShowBrakeStatus"'),
   ]
   visuals_positions = [
@@ -47,16 +49,23 @@ def test_tici_subaru_page_contains_lateral_tuning_and_visuals_controls():
   assert 'param="MCSubaruCenterDampingStrength"' in source
   assert 'param="MCSubaruManualYieldResumeSpeed"' in source
   assert 'param="MCSubaruManualYieldResumeSoftness"' in source
+  assert 'param="MCSubaruSoftCaptureEnabled"' in source
+  assert 'param="MCSubaruSoftCaptureLevel"' in source
   assert 'min_value=-3' in source
   assert 'max_value=6' in source
   assert 'Advanced Tuning' in source
   assert 'title=lambda: tr("Manual Yield Resume Speed")' in source
   assert 'title=lambda: tr("Manual Yield Resume Softness")' in source
+  assert 'title=lambda: tr("Soft-Capture Engage Blend")' in source
+  assert 'title=lambda: tr("Soft-Capture Strength")' in source
   assert 'Fastest' in source
   assert 'Slowest' in source
   assert 'Standard' in source
   assert 'Softest' in source
   assert 'Max Soft' in source
+  assert '1 - Light' in source
+  assert '5 - Max' in source
+  assert '1 — Light' not in source
   assert 'param="ShowBrakeStatus"' in source
   assert 'param="BPShowConfidenceBall"' in source
   assert 'param="DynamicPathColor"' in source
@@ -71,6 +80,11 @@ def test_tici_subaru_page_contains_lateral_tuning_and_visuals_controls():
   assert 'Show Subaru lateral tuning controls. Hidden controls keep their saved values active.' in source
   assert 'Adjust how quickly steering re-engages after you release the wheel during a confirmed manual override.' in source
   assert 'Adjust how gently steering re-engages after manual override. Higher levels reduce the initial reclaim bite.' in source
+  assert 'self._subaru_soft_capture.set_visible(enabled)' in source
+  assert 'self._subaru_soft_capture_strength.set_visible(enabled)' in source
+  assert 'self._subaru_soft_capture.action_item.set_state(soft_capture_enabled)' in source
+  assert 'self._subaru_soft_capture_strength.action_item.current_value = max(1, min(self._get_int_param("MCSubaruSoftCaptureLevel", 3), 5))' in source
+  assert 'self._subaru_soft_capture_strength.action_item.set_enabled(soft_capture_enabled)' in source
   assert 'Dynamic Path Color Palette' not in source
   assert tuning_then_visuals_positions == sorted(tuning_then_visuals_positions)
   assert visuals_positions == sorted(visuals_positions)
@@ -105,6 +119,8 @@ def test_mici_subaru_page_uses_device_native_controls():
     source.index('"MCSubaruCenterDampingStrength"'),
     source.index('"MCSubaruManualYieldResumeSpeed"'),
     source.index('"MCSubaruManualYieldResumeSoftness"'),
+    source.index('"MCSubaruSoftCaptureEnabled"'),
+    source.index('"MCSubaruSoftCaptureLevel"'),
     source.index('"ShowBrakeStatus"'),
   ]
   mici_visuals_positions = [
@@ -120,13 +136,21 @@ def test_mici_subaru_page_uses_device_native_controls():
   assert 'BigButton("center\\ndamping")' in source
   assert 'BigButton("manual yield\\nresume speed")' in source
   assert 'BigButton("manual yield\\nresume softness")' in source
+  assert '"soft-capture\\nengage blend"' in source
+  assert '"MCSubaruSoftCaptureEnabled"' in source
+  assert 'BigButton("soft-capture\\nstrength")' in source
   assert 'list(range(-3, 5))' in source
   assert 'list(range(7))' in source
+  assert 'list(range(1, 6))' in source
   assert 'MCSubaruManualYieldResumeSpeed' in source
   assert 'MCSubaruManualYieldResumeSoftness' in source
+  assert 'MCSubaruSoftCaptureLevel' in source
   assert 'Fastest' in source
   assert 'Softest' in source
   assert 'Max Soft' in source
+  assert '1 - Light' in source
+  assert '5 - Max' in source
+  assert '1 — Light' not in source
   assert 'BigParamControl("show brake\\nstatus", "ShowBrakeStatus", desc="red when brake lights are on")' in source
   assert 'BigParamControl("show confidence\\nball", "BPShowConfidenceBall", desc="display onroad confidence ball")' in source
   assert 'BigParamControl("dynamic path\\ncolor", "DynamicPathColor",' in source
@@ -142,6 +166,10 @@ def test_mici_subaru_page_uses_device_native_controls():
   assert 'def _set_advanced_tuning_visibility(self, enabled: bool) -> None:' in source
   assert 'self._set_advanced_tuning_visibility(advanced_tuning_enabled)' in source
   assert 'self._set_advanced_tuning_visibility(ui_state.params.get_bool("MCSubaruAdvancedTuning"))' in source
+  assert 'self._subaru_soft_capture_toggle.set_visible(enabled)' in source
+  assert 'self._subaru_soft_capture_strength_btn.set_visible(enabled)' in source
+  assert 'self._subaru_soft_capture_strength_btn.set_enabled(soft_capture_enabled)' in source
+  assert 'self._subaru_soft_capture_strength_btn.set_value(self._format_soft_capture_label(soft_capture_level))' in source
 
 
 def test_mici_general_toggles_no_longer_duplicate_brake_status():
@@ -152,7 +180,14 @@ def test_mici_general_toggles_no_longer_duplicate_brake_status():
 def test_subaru_smoothing_params_are_declared_for_staging():
   params_source = _read(PARAMS_KEYS)
   metadata_source = _read(PARAMS_METADATA)
-  for key in ("MCSubaruAdvancedTuning", "MCSubaruSmoothingTune", "MCSubaruSmoothingStrength", "MCSubaruCenterDampingStrength"):
+  for key in (
+    "MCSubaruAdvancedTuning",
+    "MCSubaruSmoothingTune",
+    "MCSubaruSmoothingStrength",
+    "MCSubaruCenterDampingStrength",
+    "MCSubaruSoftCaptureEnabled",
+    "MCSubaruSoftCaptureLevel",
+  ):
     assert key in params_source
     assert f'"{key}"' in metadata_source
   for key in ("MCSubaruManualYieldResumeSpeed", "MCSubaruManualYieldResumeSoftness"):
@@ -168,12 +203,20 @@ def test_subaru_smoothing_params_are_declared_for_staging():
   assert '{"MCSubaruCenterDampingStrength", {PERSISTENT | BACKUP, INT, "2"}}' in params_source
   assert '{"MCSubaruManualYieldResumeSpeed", {PERSISTENT | BACKUP, INT, "4"}}' in params_source
   assert '{"MCSubaruManualYieldResumeSoftness", {PERSISTENT | BACKUP, INT, "4"}}' in params_source
+  assert '{"MCSubaruSoftCaptureEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in params_source
+  assert '{"MCSubaruSoftCaptureLevel", {PERSISTENT | BACKUP, INT, "3"}}' in params_source
   assert '{ "value": 0, "label": "Fastest" }' in metadata_source
   assert '{ "value": 4, "label": "Slow" }' in metadata_source
   assert '{ "value": 6, "label": "Slowest" }' in metadata_source
   assert '{ "value": 0, "label": "Standard" }' in metadata_source
   assert '{ "value": 4, "label": "Extra Soft" }' in metadata_source
   assert '{ "value": 6, "label": "Max Soft" }' in metadata_source
+  assert 'Soft-Capture Engage Blend' in metadata_source
+  assert 'Soft-Capture Strength' in metadata_source
+  assert 'Experiment - subi-staging only.' in metadata_source
+  assert '{ "value": 1, "label": "1 - Light" }' in metadata_source
+  assert '{ "value": 5, "label": "5 - Max" }' in metadata_source
+  assert '1 — Light' not in metadata_source
   assert '"BPShowConfidenceBall"' in params_source
   assert '{"BPShowConfidenceBall", {PERSISTENT | BACKUP, BOOL, "0"}}' in params_source
   assert '"BPShowConfidenceBall"' in metadata_source

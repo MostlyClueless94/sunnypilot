@@ -16,35 +16,20 @@ def _read(path: Path) -> str:
 
 def test_tici_subaru_brand_page_keeps_stop_and_go_and_hosts_subaru_tuning():
   source = _read(TICI_SUBARU)
-  assert 'param="SubaruStopAndGo"' in source
-  assert 'param="SubaruStopAndGoManualParkingBrake"' in source
-  assert 'param="MCSubaruAdvancedTuning"' in source
-  assert 'param="MCSubaruSmoothingTune"' in source
-  assert 'param="MCSubaruSmoothingStrength"' in source
-  assert 'param="MCSubaruCenterDampingStrength"' in source
-  assert 'param="MCSubaruManualYieldResumeSpeed"' in source
-  assert 'param="MCSubaruManualYieldResumeSoftness"' in source
-  assert 'min_value=-3' in source
-  assert 'max_value=4' in source
-  assert 'min_value=0' in source
-  assert 'max_value=6' in source
-  assert 'SectionHeader(tr("Lateral Tuning"))' in source
-  assert 'Show Subaru lateral tuning controls. Hidden controls keep their saved values active.' in source
-  assert 'self._set_advanced_tuning_visibility(advanced_tuning_enabled)' in source
-  assert 'self.subaru_smoothing_strength.action_item.set_enabled(smoothing_enabled)' in source
-  assert 'self.subaru_center_damping_strength.action_item.set_enabled(smoothing_enabled)' in source
+  assert "class SubaruSettings(BrandSettings):" in source
+  assert "def update_settings(self):" in source
+  assert "return None" in source
+  assert 'param="SubaruStopAndGo"' not in source
+  assert 'param="MCSubaruAdvancedTuning"' not in source
+  assert 'SectionHeader(tr("Lateral Tuning"))' not in source
 
 
 def test_tici_subaru_brand_page_hides_tuning_block_behind_advanced_tuning():
   source = _read(TICI_SUBARU)
-  assert 'def _set_advanced_tuning_visibility(self, enabled: bool) -> None:' in source
-  assert 'self.subaru_smoothing_tune.set_visible(enabled)' in source
-  assert 'self.subaru_smoothing_strength.set_visible(enabled)' in source
-  assert 'self.subaru_center_damping_strength.set_visible(enabled)' in source
-  assert 'self.manual_yield_resume_speed.set_visible(enabled)' in source
-  assert 'self.manual_yield_resume_softness.set_visible(enabled)' in source
-  assert 'self.subaru_smoothing_strength.action_item.current_value = max(-3, min(self._get_int_param("MCSubaruSmoothingStrength", 2), 4))' in source
-  assert 'self.manual_yield_resume_speed.action_item.current_value = max(0, min(self._get_int_param("MCSubaruManualYieldResumeSpeed", 4), 6))' in source
+  assert "from openpilot.selfdrive.ui.sunnypilot.layouts.settings.vehicle.brands.base import BrandSettings" in source
+  assert "self.items" not in source
+  assert "toggle_item_sp" not in source
+  assert "option_item_sp" not in source
 
 
 def test_ford_brand_page_does_not_gain_subaru_controls():

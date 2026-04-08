@@ -19,8 +19,8 @@ def test_mc_custom_hosts_subaru_controls_at_the_end_of_the_page():
   assert 'param="MCShowVehicleBrakeStatus"' in source
   assert 'SectionHeader(tr("Subaru"))' in source
   assert source.index("self._show_vehicle_brake_status,") < source.index("self._subaru_header,")
-  assert 'param="SubaruStopAndGo"' in source
-  assert 'param="SubaruStopAndGoManualParkingBrake"' in source
+  assert 'param="SubaruStopAndGo"' not in source
+  assert 'param="SubaruStopAndGoManualParkingBrake"' not in source
   assert 'param="MCSubaruAdvancedTuning"' in source
   assert 'param="MCSubaruSmoothingTune"' in source
   assert 'param="MCSubaruSmoothingStrength"' in source
@@ -31,21 +31,20 @@ def test_mc_custom_hosts_subaru_controls_at_the_end_of_the_page():
   assert 'self._dynamic_path_color_palette.action_item.set_enabled(self._params.get_bool("DynamicPathColor"))' in source
 
 
-def test_mc_custom_hides_subaru_section_for_non_subaru_and_preserves_tuning_logic():
+def test_mc_custom_always_shows_subaru_section_and_preserves_tuning_logic():
   source = _read(MC_CUSTOM)
-  assert 'def _get_current_brand(self) -> str:' in source
-  assert 'if bundle := ui_state.params.get("CarPlatformBundle"):' in source
-  assert 'if ui_state.CP is not None and ui_state.CP.carFingerprint != "MOCK":' in source
-  assert 'def _set_subaru_section_visibility(self, is_subaru: bool, advanced_tuning_enabled: bool) -> None:' in source
-  assert 'self._subaru_header.set_visible(is_subaru)' in source
-  assert 'self._subaru_stop_and_go.set_visible(is_subaru)' in source
-  assert 'self._subaru_advanced_tuning.set_visible(is_subaru)' in source
-  assert 'self._subaru_smoothing_tune.set_visible(is_subaru and advanced_tuning_enabled)' in source
-  assert 'self._manual_yield_resume_softness.set_visible(is_subaru and advanced_tuning_enabled)' in source
+  assert 'def _get_current_brand(self) -> str:' not in source
+  assert 'CarPlatformBundle' not in source
+  assert 'def _is_subaru_active(self) -> bool:' not in source
+  assert 'def _get_subaru_stop_and_go_available(self) -> bool:' not in source
+  assert 'def _set_subaru_section_visibility(self, advanced_tuning_enabled: bool) -> None:' in source
+  assert 'self._subaru_header.set_visible(True)' in source
+  assert 'self._subaru_advanced_tuning.set_visible(True)' in source
+  assert 'self._subaru_smoothing_tune.set_visible(advanced_tuning_enabled)' in source
+  assert 'self._manual_yield_resume_softness.set_visible(advanced_tuning_enabled)' in source
   assert 'self._subaru_smoothing_strength.action_item.set_enabled(smoothing_enabled)' in source
   assert 'self._subaru_center_damping.action_item.set_enabled(smoothing_enabled)' in source
-  assert 'toggle.action_item.set_enabled(has_stop_and_go and ui_state.is_offroad())' in source
-  assert 'self._set_subaru_section_visibility(is_subaru, advanced_tuning_enabled)' in source
+  assert 'self._set_subaru_section_visibility(advanced_tuning_enabled)' in source
   assert 'callback=self._on_subaru_toggle_changed' in source
   assert 'def _on_subaru_toggle_changed(self, _):' in source
 

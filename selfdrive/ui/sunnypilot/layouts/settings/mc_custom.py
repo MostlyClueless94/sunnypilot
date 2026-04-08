@@ -7,12 +7,10 @@ See the LICENSE.md file in the root directory for more details.
 from openpilot.common.params import Params
 from openpilot.selfdrive.ui.bp.widgets.section_header import SectionHeader
 from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import CUSTOM_MODEL_PATH_COLOR_LABELS, DYNAMIC_PATH_COLOR_PALETTE_LABELS
-from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.sunnypilot.widgets.list_view import multiple_button_item_sp, option_item_sp, toggle_item_sp
 from openpilot.system.ui.widgets import Widget
 from openpilot.system.ui.widgets.scroller_tici import Scroller
-from opendbc.car.subaru.values import CAR, SubaruFlags
 
 
 RESUME_SPEED_LABELS = ["Fastest", "Faster", "Fast", "Medium", "Slow", "Slower", "Slowest"]
@@ -35,11 +33,6 @@ RESUME_SPEED_DESC = (
 )
 RESUME_SOFTNESS_DESC = (
   "Adjust how gently steering re-engages after manual override. Higher levels reduce the initial reclaim bite."
-)
-STOP_AND_GO_DESC = "Experimental feature to enable auto-resume during stop-and-go for certain supported Subaru platforms."
-STOP_AND_GO_MANUAL_BRAKE_DESC = (
-  "Experimental feature to enable stop and go for Subaru Global models with manual handbrake. "
-  + "Models with electric parking brake should keep this disabled. Thanks to martinl for this implementation!"
 )
 DYNAMIC_PATH_COLOR_DESC = (
   "Color the driving path by drive mode. "
@@ -111,20 +104,6 @@ class MCCustomLayout(Widget):
       initial_state=self._params.get_bool("MCShowVehicleBrakeStatus"),
     )
     self._subaru_header = SectionHeader(tr("Subaru"))
-    self._subaru_stop_and_go = toggle_item_sp(
-      title=lambda: tr("Stop and Go (Beta)"),
-      description=lambda: tr(STOP_AND_GO_DESC),
-      param="SubaruStopAndGo",
-      initial_state=self._params.get_bool("SubaruStopAndGo"),
-      callback=self._on_subaru_toggle_changed,
-    )
-    self._subaru_stop_and_go_manual_parking_brake = toggle_item_sp(
-      title=lambda: tr("Stop and Go for Manual Parking Brake (Beta)"),
-      description=lambda: tr(STOP_AND_GO_MANUAL_BRAKE_DESC),
-      param="SubaruStopAndGoManualParkingBrake",
-      initial_state=self._params.get_bool("SubaruStopAndGoManualParkingBrake"),
-      callback=self._on_subaru_toggle_changed,
-    )
     self._subaru_advanced_tuning = toggle_item_sp(
       title=lambda: tr("Advanced Tuning"),
       description=lambda: tr(ADVANCED_TUNING_DESC),
@@ -188,8 +167,6 @@ class MCCustomLayout(Widget):
       SectionHeader(tr("Driving Status")),
       self._show_vehicle_brake_status,
       self._subaru_header,
-      self._subaru_stop_and_go,
-      self._subaru_stop_and_go_manual_parking_brake,
       self._subaru_advanced_tuning,
       self._subaru_smoothing_tune,
       self._subaru_smoothing_strength,
@@ -213,69 +190,18 @@ class MCCustomLayout(Widget):
   def _format_resume_softness_label(value: int) -> str:
     return tr(RESUME_SOFTNESS_LABELS[max(0, min(value, len(RESUME_SOFTNESS_LABELS) - 1))])
 
-  def _get_current_brand(self) -> str:
-    if bundle := ui_state.params.get("CarPlatformBundle"):
-      brand = bundle.get("brand", "")
-      if isinstance(brand, bytes):
-        brand = brand.decode("utf-8", errors="replace")
-      return str(brand)
-    if ui_state.CP is not None and ui_state.CP.carFingerprint != "MOCK":
-      brand = ui_state.CP.brand
-      if isinstance(brand, bytes):
-        brand = brand.decode("utf-8", errors="replace")
-      return str(brand)
-    return ""
-
-  def _is_subaru_active(self) -> bool:
-    return self._get_current_brand() == "subaru"
-
-  def _get_subaru_stop_and_go_available(self) -> bool:
-    bundle = ui_state.params.get("CarPlatformBundle")
-    if bundle:
-      platform = bundle.get("platform")
-      config = CAR[platform].config
-      return not (config.flags & (SubaruFlags.GLOBAL_GEN2 | SubaruFlags.HYBRID))
-    if ui_state.CP is not None:
-      return not (ui_state.CP.flags & (SubaruFlags.GLOBAL_GEN2 | SubaruFlags.HYBRID))
-    return False
-
-  @staticmethod
-  def _get_subaru_stop_and_go_disabled_msg(has_stop_and_go: bool) -> str:
-    if not has_stop_and_go:
-      return tr("This feature is currently not available on this platform.")
-    if not ui_state.is_offroad():
-      return tr('Enable "Always Offroad" in Device panel, or turn vehicle off to toggle.')
-    return ""
-
-  def _set_subaru_section_visibility(self, is_subaru: bool, advanced_tuning_enabled: bool) -> None:
-    self._subaru_header.set_visible(is_subaru)
-    self._subaru_stop_and_go.set_visible(is_subaru)
-    self._subaru_stop_and_go_manual_parking_brake.set_visible(is_subaru)
-    self._subaru_advanced_tuning.set_visible(is_subaru)
-    self._subaru_smoothing_tune.set_visible(is_subaru and advanced_tuning_enabled)
-    self._subaru_smoothing_strength.set_visible(is_subaru and advanced_tuning_enabled)
-    self._subaru_center_damping.set_visible(is_subaru and advanced_tuning_enabled)
-    self._manual_yield_resume_speed.set_visible(is_subaru and advanced_tuning_enabled)
-    self._manual_yield_resume_softness.set_visible(is_subaru and advanced_tuning_enabled)
+  def _set_subaru_section_visibility(self, advanced_tuning_enabled: bool) -> None:
+    self._subaru_header.set_visible(True)
+    self._subaru_advanced_tuning.set_visible(True)
+    self._subaru_smoothing_tune.set_visible(advanced_tuning_enabled)
+    self._subaru_smoothing_strength.set_visible(advanced_tuning_enabled)
+    self._subaru_center_damping.set_visible(advanced_tuning_enabled)
+    self._manual_yield_resume_speed.set_visible(advanced_tuning_enabled)
+    self._manual_yield_resume_softness.set_visible(advanced_tuning_enabled)
 
   def _update_subaru_settings(self) -> None:
-    is_subaru = self._is_subaru_active()
     advanced_tuning_enabled = self._params.get_bool("MCSubaruAdvancedTuning")
     smoothing_enabled = self._params.get_bool("MCSubaruSmoothingTune")
-    has_stop_and_go = self._get_subaru_stop_and_go_available()
-    disabled_msg = self._get_subaru_stop_and_go_disabled_msg(has_stop_and_go)
-
-    self._subaru_stop_and_go.action_item.set_state(self._params.get_bool("SubaruStopAndGo"))
-    self._subaru_stop_and_go_manual_parking_brake.action_item.set_state(
-      self._params.get_bool("SubaruStopAndGoManualParkingBrake")
-    )
-    for toggle, desc in [
-      (self._subaru_stop_and_go, tr(STOP_AND_GO_DESC)),
-      (self._subaru_stop_and_go_manual_parking_brake, tr(STOP_AND_GO_MANUAL_BRAKE_DESC)),
-    ]:
-      toggle.action_item.set_enabled(has_stop_and_go and ui_state.is_offroad())
-      toggle.set_description(f"<b>{disabled_msg}</b><br><br>{desc}" if disabled_msg else desc)
-
     self._subaru_advanced_tuning.action_item.set_state(advanced_tuning_enabled)
     self._subaru_smoothing_tune.action_item.set_state(smoothing_enabled)
     self._subaru_smoothing_strength.action_item.current_value = max(-3, min(self._get_int_param("MCSubaruSmoothingStrength", 2), 4))
@@ -284,7 +210,7 @@ class MCCustomLayout(Widget):
     self._manual_yield_resume_softness.action_item.current_value = max(0, min(self._get_int_param("MCSubaruManualYieldResumeSoftness", 4), 6))
     self._subaru_smoothing_strength.action_item.set_enabled(smoothing_enabled)
     self._subaru_center_damping.action_item.set_enabled(smoothing_enabled)
-    self._set_subaru_section_visibility(is_subaru, advanced_tuning_enabled)
+    self._set_subaru_section_visibility(advanced_tuning_enabled)
 
   def _update_state(self):
     super()._update_state()

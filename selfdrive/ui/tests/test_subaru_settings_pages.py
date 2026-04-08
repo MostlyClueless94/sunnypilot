@@ -14,22 +14,34 @@ def _read(path: Path) -> str:
   return path.read_text(encoding="utf-8")
 
 
-def test_tici_subaru_brand_page_keeps_stop_and_go_and_hosts_subaru_tuning():
+def test_tici_subaru_brand_page_hosts_stop_and_go_only():
   source = _read(TICI_SUBARU)
   assert "class SubaruSettings(BrandSettings):" in source
+  assert "def __init__(self):" in source
   assert "def update_settings(self):" in source
-  assert "return None" in source
-  assert 'param="SubaruStopAndGo"' not in source
+  assert 'param="SubaruStopAndGo"' in source
+  assert 'param="SubaruStopAndGoManualParkingBrake"' in source
+  assert "self.items = [" in source
+  assert "self.stop_and_go_toggle," in source
+  assert "self.stop_and_go_manual_parking_brake_toggle," in source
   assert 'param="MCSubaruAdvancedTuning"' not in source
   assert 'SectionHeader(tr("Lateral Tuning"))' not in source
+  assert "Manual Yield Resume" not in source
 
 
-def test_tici_subaru_brand_page_hides_tuning_block_behind_advanced_tuning():
+def test_tici_subaru_brand_page_restores_stop_and_go_platform_logic():
   source = _read(TICI_SUBARU)
   assert "from openpilot.selfdrive.ui.sunnypilot.layouts.settings.vehicle.brands.base import BrandSettings" in source
-  assert "self.items" not in source
-  assert "toggle_item_sp" not in source
-  assert "option_item_sp" not in source
+  assert "from openpilot.selfdrive.ui.ui_state import ui_state" in source
+  assert "from openpilot.system.ui.sunnypilot.widgets.list_view import toggle_item_sp" in source
+  assert "from opendbc.car.subaru.values import CAR, SubaruFlags" in source
+  assert "self.has_stop_and_go = False" in source
+  assert "platform = bundle.get(\"platform\")" in source
+  assert "config = CAR[platform].config" in source
+  assert "self.has_stop_and_go = not (config.flags & (SubaruFlags.GLOBAL_GEN2 | SubaruFlags.HYBRID))" in source
+  assert "toggle.action_item.set_enabled(self.has_stop_and_go and ui_state.is_offroad())" in source
+  assert 'Enable "Always Offroad" in Device panel, or turn vehicle off to toggle.' in source
+  assert "strict=True" in source
 
 
 def test_ford_brand_page_does_not_gain_subaru_controls():

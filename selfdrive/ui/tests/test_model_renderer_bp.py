@@ -58,7 +58,8 @@ def test_bp_renderers_define_mode_aware_lane_line_colors():
     assert "UIStatus.LONG_ONLY" in source
     assert "OUTER_LANE_LINE_COLOR_BP = rl.Color(255, 255, 255, 255)" in source
     assert "ROAD_EDGE_COLOR_BP = rl.Color(255, 0, 0, 255)" in source
-    assert 'get_dynamic_edge_color(UIStatus.LAT_ONLY, ui_state.dynamic_path_color_palette)' in source
+    assert 'get_dynamic_edge_color(UIStatus.LAT_ONLY)' in source
+    assert "dynamic_path_color_palette" not in source
 
 
 def test_bp_renderers_draw_path_edges_and_glow_effects():

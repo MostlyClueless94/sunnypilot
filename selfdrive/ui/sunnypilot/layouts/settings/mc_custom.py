@@ -6,7 +6,7 @@ See the LICENSE.md file in the root directory for more details.
 """
 from openpilot.common.params import Params
 from openpilot.selfdrive.ui.bp.widgets.section_header import SectionHeader
-from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import CUSTOM_MODEL_PATH_COLOR_LABELS, DYNAMIC_PATH_COLOR_PALETTE_LABELS
+from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import CUSTOM_MODEL_PATH_COLOR_LABELS
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.sunnypilot.widgets.list_view import multiple_button_item_sp, option_item_sp, toggle_item_sp
 from openpilot.system.ui.widgets import Widget
@@ -35,23 +35,12 @@ RESUME_SOFTNESS_DESC = (
   "Adjust how gently steering re-engages after manual override. Higher levels reduce the initial reclaim bite."
 )
 DYNAMIC_PATH_COLOR_DESC = (
-  "Color the driving path by drive mode. "
-  + "Custom uses the BP gray, blue, and green palette. "
-  + "Stock uses stock-themed fill colors with a vibrant outline. "
-  + "Dynamic Path Color changes the path fill and outline, "
-  + "overrides Rainbow Mode and Custom Model Path Color, "
-  + "and keeps the current BP lane line and road edge rendering."
-)
-DYNAMIC_PATH_COLOR_PALETTE_DESC = (
-  "Choose whether Dynamic Path Color uses the custom BP palette "
-  + "or stock-themed fill colors with a vibrant outline."
+  "Color the driving path by drive mode. Light gray when inactive or truly "
+  + "overriding, teal when steering-only, and green for full control."
 )
 CUSTOM_MODEL_PATH_COLOR_DESC = (
-  "Use BluePilot-style preset colors for the driving path overlay. "
-  + "Lane lines and road edges follow the selected color family. "
-  + "Stock keeps the normal BluePilot behavior. "
-  + "When a preset is selected, it overrides Rainbow Mode. "
-  + "Dynamic Path Color takes priority when enabled."
+  "Use preset colors for the driving path overlay. Stock keeps the normal "
+  + "path behavior, and Dynamic Path Color still takes priority when enabled."
 )
 SHOW_VEHICLE_BRAKE_STATUS_DESC = (
   "Display current speed in red whenever the vehicle is braking, "
@@ -80,14 +69,6 @@ class MCCustomLayout(Widget):
       description=lambda: tr(DYNAMIC_PATH_COLOR_DESC),
       param="DynamicPathColor",
       initial_state=self._params.get_bool("DynamicPathColor"),
-    )
-    self._dynamic_path_color_palette = multiple_button_item_sp(
-      title=lambda: tr("Dynamic Path Color Palette"),
-      description=lambda: tr(DYNAMIC_PATH_COLOR_PALETTE_DESC),
-      buttons=[lambda label=label: tr(label) for label in DYNAMIC_PATH_COLOR_PALETTE_LABELS],
-      param="DynamicPathColorPalette",
-      button_width=160,
-      inline=False
     )
     self._custom_model_path_color = multiple_button_item_sp(
       title=lambda: tr("Custom Model Path Color"),
@@ -160,7 +141,6 @@ class MCCustomLayout(Widget):
     return [
       SectionHeader(tr("Pathing")),
       self._dynamic_path_color,
-      self._dynamic_path_color_palette,
       self._custom_model_path_color,
       SectionHeader(tr("Driving Status")),
       self._show_vehicle_brake_status,
@@ -211,10 +191,6 @@ class MCCustomLayout(Widget):
     super()._update_state()
 
     self._dynamic_path_color.action_item.set_state(self._params.get_bool("DynamicPathColor"))
-    self._dynamic_path_color_palette.action_item.set_selected_button(
-      max(0, min(self._get_int_param("DynamicPathColorPalette"), len(DYNAMIC_PATH_COLOR_PALETTE_LABELS) - 1))
-    )
-    self._dynamic_path_color_palette.action_item.set_enabled(self._params.get_bool("DynamicPathColor"))
     selected_color = max(0, min(self._get_int_param("CustomModelPathColor"), len(CUSTOM_MODEL_PATH_COLOR_LABELS) - 1))
     self._custom_model_path_color.action_item.set_selected_button(selected_color)
     self._show_vehicle_brake_status.action_item.set_state(self._params.get_bool("MCShowVehicleBrakeStatus"))

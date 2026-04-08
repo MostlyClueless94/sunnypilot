@@ -14,7 +14,7 @@ def _read(path: Path) -> str:
 def test_mc_custom_hosts_subaru_controls_at_the_end_of_the_page():
   source = _read(MC_CUSTOM)
   assert 'param="DynamicPathColor"' in source
-  assert 'param="DynamicPathColorPalette"' in source
+  assert 'param="DynamicPathColorPalette"' not in source
   assert 'param="CustomModelPathColor"' in source
   assert 'param="MCShowVehicleBrakeStatus"' in source
   assert 'SectionHeader(tr("Subaru"))' in source
@@ -28,7 +28,7 @@ def test_mc_custom_hosts_subaru_controls_at_the_end_of_the_page():
   assert 'param="MCSubaruManualYieldResumeSpeed"' in source
   assert 'param="MCSubaruManualYieldResumeSoftness"' in source
   assert 'Subaru Delay Tweak (Test)' not in source
-  assert 'self._dynamic_path_color_palette.action_item.set_enabled(self._params.get_bool("DynamicPathColor"))' in source
+  assert "Dynamic Path Color Palette" not in source
 
 
 def test_mc_custom_always_shows_subaru_section_and_preserves_tuning_logic():

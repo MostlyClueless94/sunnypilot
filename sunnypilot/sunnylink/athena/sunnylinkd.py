@@ -72,6 +72,7 @@ BLOCKED_PARAMS = {
 
 # Parameters that exist in Params but should not be shown in SunnyLink UI (orphans / device-only tuning)
 HIDDEN_PARAMS = {
+  "DynamicPathColorPalette",
   "FordFollowingAccelROC",
   "FordFollowingGasROC",
 }

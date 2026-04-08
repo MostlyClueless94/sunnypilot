@@ -11,12 +11,12 @@ from openpilot.selfdrive.locationd.calibrationd import HEIGHT_INIT
 from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import (
   CUSTOM_MODEL_PATH_EDGE_COLORS,
   CUSTOM_MODEL_PATH_COLOR_PRESETS,
-  CUSTOM_MODEL_PATH_SOLID_COLORS,
+  DEFAULT_GREEN_PATH_COLORS,
   PATH_GRADIENT_STOPS,
+  STOCK_LAT_ONLY_COLOR,
   get_default_path_edge_color,
   get_dynamic_edge_color,
   get_dynamic_path_colors,
-  solid_color_from_gradient,
   vibrant_edge_color_from_gradient,
 )
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
@@ -30,12 +30,6 @@ from openpilot.selfdrive.ui.sunnypilot.mici.onroad.model_renderer import LANE_LI
 CLIP_MARGIN = 500
 MIN_DRAW_DISTANCE = 10.0
 MAX_DRAW_DISTANCE = 100.0
-
-THROTTLE_COLORS = [
-  rl.Color(13, 248, 122, 102),   # HSLF(148/360, 0.94, 0.51, 0.4)
-  rl.Color(114, 255, 92, 89),    # HSLF(112/360, 1.0, 0.68, 0.35)
-  rl.Color(114, 255, 92, 0),     # HSLF(112/360, 1.0, 0.68, 0.0)
-]
 
 NO_THROTTLE_COLORS = [
   rl.Color(242, 242, 242, 102), # HSLF(148/360, 0.0, 0.95, 0.4)
@@ -106,7 +100,6 @@ class ModelRenderer(Widget, ModelRendererSP):
     self._active_path_gradient: Gradient | None = None
     self._active_path_color = rl.Color(255, 255, 255, 30)
     self._active_path_edge_color = rl.Color(255, 255, 255, 255)
-    self._custom_marking_color: rl.Color | None = None
 
     # Get longitudinal control setting from car parameters
     if car_params := Params().get("CarParams"):
@@ -290,7 +283,6 @@ class ModelRenderer(Widget, ModelRendererSP):
     self._active_path_gradient = None
     self._active_path_color = rl.Color(255, 255, 255, 30)
     self._active_path_edge_color = get_default_path_edge_color(ui_state.status)
-    self._custom_marking_color = None
 
     if not self._path.projected_points.size:
       return
@@ -307,15 +299,14 @@ class ModelRenderer(Widget, ModelRendererSP):
       return
 
     if ui_state.dynamic_path_color:
-      dynamic_status = ui_state.get_dynamic_path_status(sm['selfdriveState'], sm['selfdriveStateSP'], sm['onroadEvents'])
-      dynamic_colors = get_dynamic_path_colors(dynamic_status, ui_state.dynamic_path_color_palette)
+      dynamic_colors = get_dynamic_path_colors(ui_state.status)
       self._active_path_gradient = Gradient(
         start=(0.0, 1.0),
         end=(0.0, 0.0),
         colors=dynamic_colors,
         stops=PATH_GRADIENT_STOPS,
       )
-      self._active_path_edge_color = get_dynamic_edge_color(dynamic_status, ui_state.dynamic_path_color_palette)
+      self._active_path_edge_color = get_dynamic_edge_color(ui_state.status)
       return
 
     if ui_state.custom_model_path_color in CUSTOM_MODEL_PATH_COLOR_PRESETS:
@@ -325,10 +316,6 @@ class ModelRenderer(Widget, ModelRendererSP):
         end=(0.0, 0.0),
         colors=preset_colors,
         stops=PATH_GRADIENT_STOPS,
-      )
-      self._custom_marking_color = CUSTOM_MODEL_PATH_SOLID_COLORS.get(
-        ui_state.custom_model_path_color,
-        solid_color_from_gradient(preset_colors),
       )
       self._active_path_edge_color = CUSTOM_MODEL_PATH_EDGE_COLORS[ui_state.custom_model_path_color]
       return
@@ -340,7 +327,7 @@ class ModelRenderer(Widget, ModelRendererSP):
     allow_throttle = sm['longitudinalPlan'].allowThrottle or not self._longitudinal_control
     self._blend_filter.update(int(allow_throttle))
     blend_factor = round(self._blend_filter.x * 100) / 100
-    blended_colors = self._blend_colors(NO_THROTTLE_COLORS, THROTTLE_COLORS, blend_factor)
+    blended_colors = self._blend_colors(NO_THROTTLE_COLORS, DEFAULT_GREEN_PATH_COLORS, blend_factor)
     if ui_state.status == UIStatus.DISENGAGED:
       self._active_path_color = rl.Color(0, 0, 0, 90)
     else:
@@ -381,21 +368,11 @@ class ModelRenderer(Widget, ModelRendererSP):
 
   def _get_ll_color(self, prob: float, adjacent: bool, left: bool):
     alpha = np.clip(prob, 0.0, 0.7)
-    if self._custom_marking_color is not None:
-      color = rl.Color(self._custom_marking_color.r, self._custom_marking_color.g, self._custom_marking_color.b, int(alpha * 255))
-
-      torque = self._torque_filter.x
-      high_torque = adjacent and abs(torque) > 0.6
-      if high_torque and (left == (torque > 0)):
-        color = blend_colors(
-          color,
-          rl.Color(255, 115, 0, int(alpha * 255)),
-          np.interp(abs(torque), [0.6, 0.8], [0.0, 1.0])
-        )
-      return color
-
     if adjacent:
-      _base_color = LANE_LINE_COLORS.get(ui_state.status, LANE_LINE_COLORS[UIStatus.DISENGAGED])
+      if ui_state.status == UIStatus.LAT_ONLY:
+        _base_color = get_dynamic_edge_color(ui_state.status) if ui_state.dynamic_path_color else STOCK_LAT_ONLY_COLOR
+      else:
+        _base_color = LANE_LINE_COLORS.get(ui_state.status, LANE_LINE_COLORS[UIStatus.DISENGAGED])
       color = rl.Color(_base_color.r, _base_color.g, _base_color.b, int(alpha * 255))
 
       # turn adjacent lls orange if torque is high
@@ -443,8 +420,7 @@ class ModelRenderer(Widget, ModelRendererSP):
     else:
       draw_polygon(self._rect, self._path.projected_points, self._active_path_color)
 
-    if ui_state.dynamic_path_color:
-      self._draw_path_edges()
+    self._draw_path_edges()
 
   def _draw_path_edges(self):
     if not self._path.projected_points.size:

@@ -31,7 +31,7 @@ class ModelRendererBP(ModelRenderer):
       return OUTER_LANE_LINE_COLOR_BP
 
     if ui_state.status == UIStatus.LAT_ONLY and ui_state.dynamic_path_color:
-      base = get_dynamic_edge_color(UIStatus.LAT_ONLY, ui_state.dynamic_path_color_palette)
+      base = get_dynamic_edge_color(UIStatus.LAT_ONLY)
     else:
       base = LANE_LINE_COLORS_BP.get(ui_state.status, LANE_LINE_COLORS_BP[UIStatus.DISENGAGED])
 

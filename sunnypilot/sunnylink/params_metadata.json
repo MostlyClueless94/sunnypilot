@@ -1142,7 +1142,7 @@
   },
   "MCSubaruSmoothingTune": {
     "title": "Subaru Steering Smoothing",
-    "description": "Enable Subaru low-speed steering tuning. When enabled, you can adjust smoothing and near-center damping strength below."
+    "description": "Enable the optional Subaru low-speed smoothing experiment below."
   },
   "MCSubaruSmoothingStrength": {
     "title": "Smoothing Strength",
@@ -1158,8 +1158,12 @@
       { "value": 4, "label": "+4" }
     ]
   },
+  "MCSubaruCenterDampingTune": {
+    "title": "Subaru Center Damping",
+    "description": "Enable the optional Subaru near-center damping experiment below."
+  },
   "MCSubaruCenterDampingStrength": {
-    "title": "Center Damping",
+    "title": "Center Damping Strength",
     "description": "Adjust Subaru near-center damping and sign-flip control at low speed. Positive values add more damping, negative values make it more responsive, and Stock keeps the current validated Subaru behavior.",
     "options": [
       { "value": -3, "label": "-3" },
@@ -1175,32 +1179,6 @@
   "MCSubaruAdvancedTuning": {
     "title": "Advanced Tuning",
     "description": "Show Subaru lateral tuning controls. Hidden controls keep their saved values active."
-  },
-  "MCSubaruManualYieldResumeSpeed": {
-    "title": "Manual Yield Resume Speed",
-    "description": "Adjust how quickly steering re-engages after you release the wheel during a confirmed manual override.",
-    "options": [
-      { "value": 0, "label": "Fastest" },
-      { "value": 1, "label": "Faster" },
-      { "value": 2, "label": "Fast" },
-      { "value": 3, "label": "Medium" },
-      { "value": 4, "label": "Slow" },
-      { "value": 5, "label": "Slower" },
-      { "value": 6, "label": "Slowest" }
-    ]
-  },
-  "MCSubaruManualYieldResumeSoftness": {
-    "title": "Manual Yield Resume Softness",
-    "description": "Adjust how gently steering re-engages after manual override. Higher levels reduce the initial reclaim bite.",
-    "options": [
-      { "value": 0, "label": "Standard" },
-      { "value": 1, "label": "Soft" },
-      { "value": 2, "label": "Softer" },
-      { "value": 3, "label": "Very Soft" },
-      { "value": 4, "label": "Extra Soft" },
-      { "value": 5, "label": "Softest" },
-      { "value": 6, "label": "Max Soft" }
-    ]
   },
   "MCSubaruSoftCaptureEnabled": {
     "title": "Soft-Capture Engage Blend",

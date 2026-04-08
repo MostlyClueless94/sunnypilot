@@ -9,6 +9,7 @@ from openpilot.common.swaglog import cloudlog
 ONROAD_BRIGHTNESS_MIGRATION_VERSION: str = "1.0"
 ONROAD_BRIGHTNESS_TIMER_MIGRATION_VERSION: str = "1.0"
 MATCH_VEHICLE_SPEEDOMETER_MIGRATION_VERSION: str = "1.0"
+SUBARU_SOFT_CAPTURE_ONLY_MIGRATION_VERSION: str = "subi-staging-1.0"
 
 # index → seconds mapping for OnroadScreenOffTimer (SSoT)
 ONROAD_BRIGHTNESS_TIMER_VALUES = {0: 3, 1: 5, 2: 7, 3: 10, 4: 15, 5: 30, **{i: (i - 5) * 60 for i in range(6, 16)}}
@@ -66,3 +67,20 @@ def run_migration(_params):
       cloudlog.info(log_str + f" Setting MatchVehicleSpeedometerMigrated to {MATCH_VEHICLE_SPEEDOMETER_MIGRATION_VERSION}")
     except Exception as e:
       cloudlog.exception(f"Error migrating MatchVehicleSpeedometer: {e}")
+
+  # reset Subaru tuning to the soft-capture-only staging defaults
+  if _params.get("SubaruSoftCaptureOnlyMigrated") != SUBARU_SOFT_CAPTURE_ONLY_MIGRATION_VERSION:
+    try:
+      _params.put_bool("MCSubaruSoftCaptureEnabled", True)
+      _params.put("MCSubaruSoftCaptureLevel", "1")
+      _params.put_bool("MCSubaruSmoothingTune", False)
+      _params.put("MCSubaruSmoothingStrength", "0")
+      _params.put_bool("MCSubaruCenterDampingTune", False)
+      _params.put("MCSubaruCenterDampingStrength", "0")
+      _params.put("SubaruSoftCaptureOnlyMigrated", SUBARU_SOFT_CAPTURE_ONLY_MIGRATION_VERSION)
+      cloudlog.info(
+        "Successfully reset Subaru tuning to the subi-staging soft-capture-only defaults. "
+        + f"Setting SubaruSoftCaptureOnlyMigrated to {SUBARU_SOFT_CAPTURE_ONLY_MIGRATION_VERSION}"
+      )
+    except Exception as e:
+      cloudlog.exception(f"Error migrating Subaru soft-capture-only defaults: {e}")

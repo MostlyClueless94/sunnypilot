@@ -11,8 +11,6 @@ from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import CUSTOM_MODEL_PA
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.widgets.scroller import NavScroller
 
-RESUME_SPEED_LABELS = ["Fastest", "Faster", "Fast", "Medium", "Slow", "Slower", "Slowest"]
-RESUME_SOFTNESS_LABELS = ["Standard", "Soft", "Softer", "Very Soft", "Extra Soft", "Softest", "Max Soft"]
 SOFT_CAPTURE_STRENGTH_LABELS = ["1 - Light", "2 - Mild", "3 - Medium", "4 - Strong", "5 - Max"]
 
 
@@ -26,45 +24,10 @@ class SubaruLayoutMici(NavScroller):
     self._lateral_header = GreyBigButton("lateral\ntuning")
     self._visuals_header = GreyBigButton("visuals")
 
-    self._subaru_advanced_tuning_toggle = BigParamControl("advanced\ntuning", "MCSubaruAdvancedTuning",
-                                                          desc="show Subaru lateral tuning controls")
-    self._subaru_smoothing_toggle = BigParamControl("subaru steering\nsmoothing", "MCSubaruSmoothingTune")
-    self._subaru_smoothing_strength_btn = BigButton("smoothing\nstrength")
-    self._subaru_smoothing_strength_btn.set_click_callback(
-      lambda: self._show_value_selector(
-        self._subaru_smoothing_strength_btn,
-        "MCSubaruSmoothingStrength",
-        list(range(-3, 5)),
-        self._format_strength_label,
-      )
-    )
-
-    self._subaru_center_damping_btn = BigButton("center\ndamping")
-    self._subaru_center_damping_btn.set_click_callback(
-      lambda: self._show_value_selector(
-        self._subaru_center_damping_btn,
-        "MCSubaruCenterDampingStrength",
-        list(range(-3, 5)),
-        self._format_strength_label,
-      )
-    )
-    self._manual_yield_resume_speed_btn = BigButton("manual yield\nresume speed")
-    self._manual_yield_resume_speed_btn.set_click_callback(
-      lambda: self._show_value_selector(
-        self._manual_yield_resume_speed_btn,
-        "MCSubaruManualYieldResumeSpeed",
-        list(range(7)),
-        self._format_resume_speed_label,
-      )
-    )
-    self._manual_yield_resume_softness_btn = BigButton("manual yield\nresume softness")
-    self._manual_yield_resume_softness_btn.set_click_callback(
-      lambda: self._show_value_selector(
-        self._manual_yield_resume_softness_btn,
-        "MCSubaruManualYieldResumeSoftness",
-        list(range(7)),
-        self._format_resume_softness_label,
-      )
+    self._subaru_advanced_tuning_toggle = BigParamControl(
+      "advanced\ntuning",
+      "MCSubaruAdvancedTuning",
+      desc="show Subaru lateral tuning controls",
     )
     self._subaru_soft_capture_toggle = BigParamControl(
       "soft-capture\nengage blend",
@@ -80,12 +43,42 @@ class SubaruLayoutMici(NavScroller):
         self._format_soft_capture_label,
       )
     )
+    self._subaru_smoothing_toggle = BigParamControl(
+      "subaru steering\nsmoothing",
+      "MCSubaruSmoothingTune",
+      desc="optional low-speed smoothing",
+    )
+    self._subaru_smoothing_strength_btn = BigButton("smoothing\nstrength")
+    self._subaru_smoothing_strength_btn.set_click_callback(
+      lambda: self._show_value_selector(
+        self._subaru_smoothing_strength_btn,
+        "MCSubaruSmoothingStrength",
+        list(range(-3, 5)),
+        self._format_strength_label,
+      )
+    )
+    self._subaru_center_damping_toggle = BigParamControl(
+      "subaru center\ndamping",
+      "MCSubaruCenterDampingTune",
+      desc="optional near-center damping",
+    )
+    self._subaru_center_damping_strength_btn = BigButton("center damping\nstrength")
+    self._subaru_center_damping_strength_btn.set_click_callback(
+      lambda: self._show_value_selector(
+        self._subaru_center_damping_strength_btn,
+        "MCSubaruCenterDampingStrength",
+        list(range(-3, 5)),
+        self._format_strength_label,
+      )
+    )
 
     self._show_brake_status = BigParamControl("show brake\nstatus", "ShowBrakeStatus", desc="red when brake lights are on")
     self._show_confidence_ball = BigParamControl("show confidence\nball", "BPShowConfidenceBall", desc="display onroad confidence ball")
-    self._dynamic_path_color = BigParamControl("dynamic path\ncolor", "DynamicPathColor",
-                                               desc="light gray inactive, teal steering-only, green full control")
-
+    self._dynamic_path_color = BigParamControl(
+      "dynamic path\ncolor",
+      "DynamicPathColor",
+      desc="light gray inactive, teal steering-only, green full control",
+    )
     self._custom_model_path_color_btn = BigButton("custom model\npath color")
     self._custom_model_path_color_btn.set_click_callback(
       lambda: self._show_value_selector(
@@ -95,7 +88,6 @@ class SubaruLayoutMici(NavScroller):
         lambda value: CUSTOM_MODEL_PATH_COLOR_LABELS[value].lower(),
       )
     )
-
     self._match_vehicle_speed = BigParamControl(
       "match vehicle\nspeedometer",
       "MatchVehicleSpeedometer",
@@ -106,13 +98,12 @@ class SubaruLayoutMici(NavScroller):
     self.main_items = [
       self._lateral_header,
       self._subaru_advanced_tuning_toggle,
-      self._subaru_smoothing_toggle,
-      self._subaru_smoothing_strength_btn,
-      self._subaru_center_damping_btn,
-      self._manual_yield_resume_speed_btn,
-      self._manual_yield_resume_softness_btn,
       self._subaru_soft_capture_toggle,
       self._subaru_soft_capture_strength_btn,
+      self._subaru_smoothing_toggle,
+      self._subaru_smoothing_strength_btn,
+      self._subaru_center_damping_toggle,
+      self._subaru_center_damping_strength_btn,
       self._visuals_header,
       self._show_brake_status,
       self._show_confidence_ball,
@@ -125,8 +116,9 @@ class SubaruLayoutMici(NavScroller):
 
     self._refresh_toggles = (
       ("MCSubaruAdvancedTuning", self._subaru_advanced_tuning_toggle),
-      ("MCSubaruSmoothingTune", self._subaru_smoothing_toggle),
       ("MCSubaruSoftCaptureEnabled", self._subaru_soft_capture_toggle),
+      ("MCSubaruSmoothingTune", self._subaru_smoothing_toggle),
+      ("MCSubaruCenterDampingTune", self._subaru_center_damping_toggle),
       ("ShowBrakeStatus", self._show_brake_status),
       ("BPShowConfidenceBall", self._show_confidence_ball),
       ("DynamicPathColor", self._dynamic_path_color),
@@ -139,25 +131,16 @@ class SubaruLayoutMici(NavScroller):
     return "stock" if value == 0 else f"{value:+d}"
 
   @staticmethod
-  def _format_resume_speed_label(value: int) -> str:
-    return RESUME_SPEED_LABELS[max(0, min(value, len(RESUME_SPEED_LABELS) - 1))]
-
-  @staticmethod
-  def _format_resume_softness_label(value: int) -> str:
-    return RESUME_SOFTNESS_LABELS[max(0, min(value, len(RESUME_SOFTNESS_LABELS) - 1))]
-
-  @staticmethod
   def _format_soft_capture_label(value: int) -> str:
     return SOFT_CAPTURE_STRENGTH_LABELS[max(0, min(value - 1, len(SOFT_CAPTURE_STRENGTH_LABELS) - 1))]
 
   def _set_advanced_tuning_visibility(self, enabled: bool) -> None:
-    self._subaru_smoothing_toggle.set_visible(enabled)
-    self._subaru_smoothing_strength_btn.set_visible(enabled)
-    self._subaru_center_damping_btn.set_visible(enabled)
-    self._manual_yield_resume_speed_btn.set_visible(enabled)
-    self._manual_yield_resume_softness_btn.set_visible(enabled)
     self._subaru_soft_capture_toggle.set_visible(enabled)
     self._subaru_soft_capture_strength_btn.set_visible(enabled)
+    self._subaru_smoothing_toggle.set_visible(enabled)
+    self._subaru_smoothing_strength_btn.set_visible(enabled)
+    self._subaru_center_damping_toggle.set_visible(enabled)
+    self._subaru_center_damping_strength_btn.set_visible(enabled)
 
   @staticmethod
   def _get_int_param(key: str, default: int = 0) -> int:
@@ -221,20 +204,22 @@ class SubaruLayoutMici(NavScroller):
       item.set_checked(self._get_bool_param(key, True) if key == "MatchVehicleSpeedometer" else self._get_bool_param(key))
 
     advanced_tuning_enabled = ui_state.params.get_bool("MCSubaruAdvancedTuning")
-    smoothing_enabled = ui_state.params.get_bool("MCSubaruSmoothingTune")
-    self._set_advanced_tuning_visibility(advanced_tuning_enabled)
-    self._subaru_smoothing_strength_btn.set_enabled(smoothing_enabled)
-    self._subaru_center_damping_btn.set_enabled(smoothing_enabled)
-    self._subaru_smoothing_strength_btn.set_value(self._format_strength_label(max(-3, min(self._get_int_param("MCSubaruSmoothingStrength"), 4))))
-    self._subaru_center_damping_btn.set_value(self._format_strength_label(max(-3, min(self._get_int_param("MCSubaruCenterDampingStrength"), 4))))
-    resume_speed = max(0, min(self._get_int_param("MCSubaruManualYieldResumeSpeed", 4), 6))
-    resume_softness = max(0, min(self._get_int_param("MCSubaruManualYieldResumeSoftness", 4), 6))
     soft_capture_enabled = ui_state.params.get_bool("MCSubaruSoftCaptureEnabled")
-    soft_capture_level = max(1, min(self._get_int_param("MCSubaruSoftCaptureLevel", 3), 5))
-    self._manual_yield_resume_speed_btn.set_value(self._format_resume_speed_label(resume_speed))
-    self._manual_yield_resume_softness_btn.set_value(self._format_resume_softness_label(resume_softness))
+    smoothing_enabled = ui_state.params.get_bool("MCSubaruSmoothingTune")
+    center_damping_enabled = ui_state.params.get_bool("MCSubaruCenterDampingTune")
+    self._set_advanced_tuning_visibility(advanced_tuning_enabled)
     self._subaru_soft_capture_strength_btn.set_enabled(soft_capture_enabled)
-    self._subaru_soft_capture_strength_btn.set_value(self._format_soft_capture_label(soft_capture_level))
+    self._subaru_smoothing_strength_btn.set_enabled(smoothing_enabled)
+    self._subaru_center_damping_strength_btn.set_enabled(center_damping_enabled)
+    self._subaru_soft_capture_strength_btn.set_value(
+      self._format_soft_capture_label(max(1, min(self._get_int_param("MCSubaruSoftCaptureLevel", 1), 5)))
+    )
+    self._subaru_smoothing_strength_btn.set_value(
+      self._format_strength_label(max(-3, min(self._get_int_param("MCSubaruSmoothingStrength", 0), 4)))
+    )
+    self._subaru_center_damping_strength_btn.set_value(
+      self._format_strength_label(max(-3, min(self._get_int_param("MCSubaruCenterDampingStrength", 0), 4)))
+    )
 
     model_color_index = max(0, min(self._get_int_param("CustomModelPathColor"), len(CUSTOM_MODEL_PATH_COLOR_LABELS) - 1))
     self._custom_model_path_color_btn.set_value(CUSTOM_MODEL_PATH_COLOR_LABELS[model_color_index].lower())

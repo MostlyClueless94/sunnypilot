@@ -2,10 +2,13 @@
 - Stable install: `https://installer.comma.ai/MostlyClueless94/subi-1.0`
 - Broad testing: `https://installer.comma.ai/MostlyClueless94/subi-staging`
 - Personal testing: `https://installer.comma.ai/MostlyClueless94/MostlyClueless`
-- Reintroduces the optional Subaru soft-capture engage blend experiment on `subi-staging` only.
-- Feature is off by default and is exposed on both the TICI and MICI Subaru settings pages.
+- Resets `subi-staging` to a soft-capture-only Subaru test configuration.
+- Soft-capture is on by default at Level 1 and is exposed on both the TICI and MICI Subaru settings pages.
 - Adds a `Soft-Capture Strength` selector with ASCII labels: `1 - Light` through `5 - Max`.
-- Keeps the existing low-speed smoothing and manual-yield reclaim behavior unchanged.
+- Removes the always-on low-speed deadzone / straight-stability shaping from the live runtime path.
+- Removes the old manual-yield reclaim hold/ramp from runtime and from the visible staging Subaru settings pages.
+- Keeps smoothing and center damping as separate optional experiments, both default off at strength `0`.
+- Adds a one-time migration that force-resets existing users to the same soft-capture-only defaults.
 - `subi-1.0` remains unchanged and does not pick up this experiment automatically.
 
 # SubiPilot 1.0 Subaru Angle Release

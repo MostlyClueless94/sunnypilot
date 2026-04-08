@@ -10,6 +10,33 @@ When we make meaningful project changes, add a new dated entry near the top with
 - validation performed
 - open follow-ups or blockers
 
+## 2026-04-08
+
+### `subaru/soft-capture engage blend` add a MostlyClueless-only steering handoff experiment
+
+What changed:
+- Added a Subaru angle-LKAS soft-capture experiment on `MostlyClueless` only.
+- When enabled, fresh lateral engage blends from the current wheel angle toward the model target over a short ramp window instead of snapping immediately.
+- Added `Soft-Capture Engage Blend` and `Soft-Capture Strength` to the TICI `MC Custom` Subaru section under `Advanced Tuning`.
+- Added focused Subaru controller tests for engage-edge ramp start, disabled no-op behavior, strength scaling, ramp completion, and non-stacking behavior with the existing manual-yield reclaim ramp.
+
+Why:
+- The branch already has low-speed smoothing and manual-yield reclaim shaping, but fresh lateral engage can still feel abrupt when steering authority comes back to openpilot.
+- This experiment isolates that first engage handoff without changing the existing driver-override reclaim path.
+
+Branch/install implications:
+- `MostlyClueless` only.
+- Off by default.
+- Not for `subi-staging`, `subi-1.0`, or other stable branches without separate road validation.
+
+Validation guidance:
+- Host validation should cover compile/lint plus focused Subaru controller and MC Custom source tests.
+- Road-test checks should compare:
+  - Level 1 against stock feel for a light engage blend
+  - Level 3 as the default experimental reference
+  - Level 5 for the softest handoff
+- Confirm the existing manual-yield reclaim path still feels unchanged after steering override release.
+
 ## 2026-03-31
 
 ### `subaru/low-speed center damping` reduce sub-10 mph straight-tracking wheel chatter

@@ -34,6 +34,18 @@ RESUME_SPEED_DESC = (
 RESUME_SOFTNESS_DESC = (
   "Adjust how gently steering re-engages after manual override. Higher levels reduce the initial reclaim bite."
 )
+SOFT_CAPTURE_DESC = (
+  "Smooth the transition when openpilot takes back steering control. "
+  + "When enabled, the wheel angle blends gradually toward the model target "
+  + "instead of snapping instantly. Experiment — MostlyClueless only."
+)
+SOFT_CAPTURE_STRENGTH_DESC = (
+  "Adjust how gently openpilot reclaims steering on engage. "
+  + "Level 1 is a light blend (0.15 s). Level 5 is the most damped "
+  + "(0.50 s, near-zero start). Higher levels reduce snap-to-target feel "
+  + "but extend the handoff window."
+)
+SOFT_CAPTURE_STRENGTH_LABELS = ["1 — Light", "2 — Mild", "3 — Medium", "4 — Strong", "5 — Max"]
 DYNAMIC_PATH_COLOR_DESC = (
   "Color the driving path by drive mode. Light gray when inactive or truly "
   + "overriding, teal when steering-only, and green for full control."
@@ -137,6 +149,22 @@ class MCCustomLayout(Widget):
       label_callback=self._format_resume_softness_label,
       inline=False,
     )
+    self._subaru_soft_capture = toggle_item_sp(
+      title=lambda: tr("Soft-Capture Engage Blend"),
+      description=lambda: tr(SOFT_CAPTURE_DESC),
+      param="MCSubaruSoftCaptureEnabled",
+      initial_state=self._params.get_bool("MCSubaruSoftCaptureEnabled"),
+    )
+    self._subaru_soft_capture_strength = option_item_sp(
+      title=lambda: tr("Soft-Capture Strength"),
+      description=lambda: tr(SOFT_CAPTURE_STRENGTH_DESC),
+      param="MCSubaruSoftCaptureLevel",
+      min_value=1,
+      max_value=5,
+      value_change_step=1,
+      label_callback=self._format_soft_capture_label,
+      inline=False,
+    )
 
     return [
       SectionHeader(tr("Pathing")),
@@ -151,6 +179,8 @@ class MCCustomLayout(Widget):
       self._subaru_center_damping,
       self._manual_yield_resume_speed,
       self._manual_yield_resume_softness,
+      self._subaru_soft_capture,
+      self._subaru_soft_capture_strength,
     ]
 
   @staticmethod
@@ -165,6 +195,11 @@ class MCCustomLayout(Widget):
   def _format_resume_softness_label(value: int) -> str:
     return tr(RESUME_SOFTNESS_LABELS[max(0, min(value, len(RESUME_SOFTNESS_LABELS) - 1))])
 
+  @staticmethod
+  def _format_soft_capture_label(value: int) -> str:
+    idx = max(0, min(value - 1, len(SOFT_CAPTURE_STRENGTH_LABELS) - 1))
+    return tr(SOFT_CAPTURE_STRENGTH_LABELS[idx])
+
   def _set_subaru_section_visibility(self, advanced_tuning_enabled: bool) -> None:
     self._subaru_header.set_visible(True)
     self._subaru_advanced_tuning.set_visible(True)
@@ -173,6 +208,8 @@ class MCCustomLayout(Widget):
     self._subaru_center_damping.set_visible(advanced_tuning_enabled)
     self._manual_yield_resume_speed.set_visible(advanced_tuning_enabled)
     self._manual_yield_resume_softness.set_visible(advanced_tuning_enabled)
+    self._subaru_soft_capture.set_visible(advanced_tuning_enabled)
+    self._subaru_soft_capture_strength.set_visible(advanced_tuning_enabled)
 
   def _update_subaru_settings(self) -> None:
     advanced_tuning_enabled = self._params.get_bool("MCSubaruAdvancedTuning")
@@ -183,8 +220,12 @@ class MCCustomLayout(Widget):
     self._subaru_center_damping.action_item.current_value = max(-3, min(self._get_int_param("MCSubaruCenterDampingStrength", 2), 4))
     self._manual_yield_resume_speed.action_item.current_value = max(0, min(self._get_int_param("MCSubaruManualYieldResumeSpeed", 4), 6))
     self._manual_yield_resume_softness.action_item.current_value = max(0, min(self._get_int_param("MCSubaruManualYieldResumeSoftness", 4), 6))
+    soft_capture_enabled = self._params.get_bool("MCSubaruSoftCaptureEnabled")
+    self._subaru_soft_capture.action_item.set_state(soft_capture_enabled)
+    self._subaru_soft_capture_strength.action_item.current_value = max(1, min(self._get_int_param("MCSubaruSoftCaptureLevel", 3), 5))
     self._subaru_smoothing_strength.action_item.set_enabled(smoothing_enabled)
     self._subaru_center_damping.action_item.set_enabled(smoothing_enabled)
+    self._subaru_soft_capture_strength.action_item.set_enabled(soft_capture_enabled)
     self._set_subaru_section_visibility(advanced_tuning_enabled)
 
   def _update_state(self):

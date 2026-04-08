@@ -45,8 +45,10 @@ def test_mc_custom_always_shows_subaru_section_and_preserves_tuning_logic():
   assert 'self._subaru_smoothing_strength.action_item.set_enabled(smoothing_enabled)' in source
   assert 'self._subaru_center_damping.action_item.set_enabled(smoothing_enabled)' in source
   assert 'self._set_subaru_section_visibility(advanced_tuning_enabled)' in source
-  assert 'callback=self._on_subaru_toggle_changed' in source
-  assert 'def _on_subaru_toggle_changed(self, _):' in source
+  assert 'callback=self._on_subaru_toggle_changed' not in source
+  assert 'def _on_subaru_toggle_changed(self, _):' not in source
+  assert 'self._subaru_advanced_tuning.action_item.set_state(advanced_tuning_enabled)' in source
+  assert 'self._subaru_smoothing_tune.action_item.set_state(smoothing_enabled)' in source
 
 
 def test_params_keys_register_subaru_tuning_defaults_for_mc_custom_menu():

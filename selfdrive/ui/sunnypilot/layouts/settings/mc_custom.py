@@ -109,14 +109,12 @@ class MCCustomLayout(Widget):
       description=lambda: tr(ADVANCED_TUNING_DESC),
       param="MCSubaruAdvancedTuning",
       initial_state=self._params.get_bool("MCSubaruAdvancedTuning"),
-      callback=self._on_subaru_toggle_changed,
     )
     self._subaru_smoothing_tune = toggle_item_sp(
       title=lambda: tr("Subaru Steering Smoothing"),
       description=lambda: tr(SMOOTHING_TUNE_DESC),
       param="MCSubaruSmoothingTune",
       initial_state=self._params.get_bool("MCSubaruSmoothingTune"),
-      callback=self._on_subaru_toggle_changed,
     )
     self._subaru_smoothing_strength = option_item_sp(
       title=lambda: tr("Smoothing Strength"),
@@ -174,9 +172,6 @@ class MCCustomLayout(Widget):
       self._manual_yield_resume_speed,
       self._manual_yield_resume_softness,
     ]
-
-  def _on_subaru_toggle_changed(self, _):
-    self._update_subaru_settings()
 
   @staticmethod
   def _format_subaru_strength_label(value: int) -> str:

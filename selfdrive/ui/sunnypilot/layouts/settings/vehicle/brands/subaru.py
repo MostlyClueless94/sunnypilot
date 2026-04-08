@@ -64,10 +64,6 @@ class SubaruSettings(BrandSettings):
       ),
     ]
 
-    self.stop_and_go_toggle.action_item.set_state(ui_state.params.get_bool("SubaruStopAndGo"))
-    self.stop_and_go_manual_parking_brake_toggle.action_item.set_state(
-      ui_state.params.get_bool("SubaruStopAndGoManualParkingBrake")
-    )
     for toggle, desc in zip([self.stop_and_go_toggle, self.stop_and_go_manual_parking_brake_toggle], descriptions, strict=True):
       toggle.action_item.set_enabled(self.has_stop_and_go and ui_state.is_offroad())
       toggle.set_description(f"<b>{disabled_msg}</b><br><br>{desc}" if disabled_msg else desc)

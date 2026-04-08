@@ -42,6 +42,8 @@ def test_tici_subaru_brand_page_restores_stop_and_go_platform_logic():
   assert "toggle.action_item.set_enabled(self.has_stop_and_go and ui_state.is_offroad())" in source
   assert 'Enable "Always Offroad" in Device panel, or turn vehicle off to toggle.' in source
   assert "strict=True" in source
+  assert 'action_item.set_state(ui_state.params.get_bool("SubaruStopAndGo"))' not in source
+  assert 'action_item.set_state(' not in source
 
 
 def test_ford_brand_page_does_not_gain_subaru_controls():

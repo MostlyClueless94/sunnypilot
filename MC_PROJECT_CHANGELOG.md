@@ -12,30 +12,30 @@ When we make meaningful project changes, add a new dated entry near the top with
 
 ## 2026-04-08
 
-### `subaru/soft-capture engage blend` add a MostlyClueless-only steering handoff experiment
+### `subaru/soft-capture only reset` make soft-capture the default Subaru test path
 
 What changed:
-- Added a Subaru angle-LKAS soft-capture experiment on `MostlyClueless` only.
-- When enabled, fresh lateral engage blends from the current wheel angle toward the model target over a short ramp window instead of snapping immediately.
-- Added `Soft-Capture Engage Blend` and `Soft-Capture Strength` to the TICI `MC Custom` Subaru section under `Advanced Tuning`.
-- Added focused Subaru controller tests for engage-edge ramp start, disabled no-op behavior, strength scaling, ramp completion, and non-stacking behavior with the existing manual-yield reclaim ramp.
+- Reset the `MostlyClueless` Subaru angle path to a soft-capture-first test configuration.
+- Soft-capture is now on by default at Level 1.
+- Removed the branch-local always-on low-speed deadzone/straight-stability shaping from the live runtime path.
+- Removed the old manual-yield reclaim hold/ramp from runtime and from the visible TICI settings UI.
+- Split optional smoothing and optional center damping into separate toggles, both default off with strength `0`.
+- Added a one-time migration that force-resets existing users to the same soft-capture-only test defaults.
+- Updated focused Subaru controller, migration, and MC Custom source tests to match the new contract.
 
 Why:
-- The branch already has low-speed smoothing and manual-yield reclaim shaping, but fresh lateral engage can still feel abrupt when steering authority comes back to openpilot.
-- This experiment isolates that first engage handoff without changing the existing driver-override reclaim path.
+- Recent testing pointed to the old always-on low-speed shaping and post-override reclaim ramp as likely contributors to sluggish lane changes and delayed steering return.
+- This resets the branch to a cleaner baseline so soft-capture can be evaluated on its own, while still letting smoothing and center damping be re-enabled independently for comparison.
 
 Branch/install implications:
 - `MostlyClueless` only.
-- Off by default.
+- Soft-capture is on by default at Level 1 after migration.
+- Smoothing and center damping are off by default after migration.
 - Not for `subi-staging`, `subi-1.0`, or other stable branches without separate road validation.
 
 Validation guidance:
-- Host validation should cover compile/lint plus focused Subaru controller and MC Custom source tests.
-- Road-test checks should compare:
-  - Level 1 against stock feel for a light engage blend
-  - Level 3 as the default experimental reference
-  - Level 5 for the softest handoff
-- Confirm the existing manual-yield reclaim path still feels unchanged after steering override release.
+- Host validation should cover compile/lint plus focused Subaru controller, migration, and MC Custom source tests.
+- Road-test checks should start from the default soft-capture-only state, then compare optional smoothing and optional center damping separately if extra tuning is still needed.
 
 ## 2026-03-31
 

@@ -19,29 +19,30 @@ from openpilot.system.ui.widgets import Widget
 from openpilot.system.ui.widgets.scroller_tici import Scroller
 
 
-ADVANCED_TUNING_DESC = "Show Subaru lateral tuning controls. Hidden controls keep their saved values active."
+ANGLE_ONLY_DESC = "Angle-based Subaru only. Does not affect older torque-based Subaru models."
+ADVANCED_TUNING_DESC = f"Show angle Subaru tuning controls. Hidden controls keep their saved values active. {ANGLE_ONLY_DESC}"
 SOFT_CAPTURE_DESC = (
   "Smooth the transition when openpilot takes back steering control. "
   + "When enabled, the wheel angle blends gradually toward the model target "
-  + "instead of snapping instantly. Experiment - subi-staging only."
+  + f"instead of snapping instantly. {ANGLE_ONLY_DESC} Experiment - subi-staging only."
 )
 SOFT_CAPTURE_STRENGTH_DESC = (
   "Adjust how gently openpilot reclaims steering on engage. "
   + "Level 1 is a light blend (0.15 s). Level 5 is the most damped "
   + "(0.50 s, near-zero start). Higher levels reduce snap-to-target feel "
-  + "but extend the handoff window."
+  + f"but extend the handoff window. {ANGLE_ONLY_DESC}"
 )
 SOFT_CAPTURE_STRENGTH_LABELS = ["1 - Light", "2 - Mild", "3 - Medium", "4 - Strong", "5 - Max"]
-SMOOTHING_TUNE_DESC = "Enable the optional Subaru low-speed smoothing experiment below."
+SMOOTHING_TUNE_DESC = f"Enable the optional Subaru low-speed smoothing experiment below. {ANGLE_ONLY_DESC}"
 SMOOTHING_STRENGTH_DESC = (
   "Adjust low-speed Subaru smoothing. Positive values add more smoothing, "
-  + "negative values make it more responsive, and Stock keeps the current validated Subaru behavior."
+  + f"negative values make it more responsive, and Stock keeps the current validated Subaru behavior. {ANGLE_ONLY_DESC}"
 )
-CENTER_DAMPING_TUNE_DESC = "Enable the optional Subaru near-center damping experiment below."
+CENTER_DAMPING_TUNE_DESC = f"Enable the optional Subaru near-center damping experiment below. {ANGLE_ONLY_DESC}"
 CENTER_DAMPING_STRENGTH_DESC = (
   "Adjust Subaru near-center damping and sign-flip control at low speed. "
   + "Positive values add more damping, negative values make it more responsive, "
-  + "and Stock keeps the current validated Subaru behavior."
+  + f"and Stock keeps the current validated Subaru behavior. {ANGLE_ONLY_DESC}"
 )
 DYNAMIC_PATH_COLOR_DESC = (
   "Color the driving path by drive mode. Light gray when inactive or truly "
@@ -203,7 +204,7 @@ class SubaruLayout(Widget):
     self._set_advanced_tuning_visibility(self._params.get_bool("MCSubaruAdvancedTuning"))
 
     return [
-      SubaruSectionHeader(lambda: tr("Lateral Tuning")),
+      SubaruSectionHeader(lambda: tr("Angle Subaru Tuning")),
       self._subaru_advanced_tuning,
       self._subaru_soft_capture,
       self._subaru_soft_capture_strength,

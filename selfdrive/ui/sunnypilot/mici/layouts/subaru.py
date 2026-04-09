@@ -12,6 +12,7 @@ from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.widgets.scroller import NavScroller
 
 SOFT_CAPTURE_STRENGTH_LABELS = ["1 - Light", "2 - Mild", "3 - Medium", "4 - Strong", "5 - Max"]
+ANGLE_ONLY_DESC = "angle-based Subaru only; older torque models unaffected"
 
 
 class SubaruLayoutMici(NavScroller):
@@ -21,18 +22,18 @@ class SubaruLayoutMici(NavScroller):
     self.original_back_callback = back_callback
     self.focused_widget = None
 
-    self._lateral_header = GreyBigButton("lateral\ntuning")
+    self._lateral_header = GreyBigButton("angle subaru\ntuning")
     self._visuals_header = GreyBigButton("visuals")
 
     self._subaru_advanced_tuning_toggle = BigParamControl(
       "advanced\ntuning",
       "MCSubaruAdvancedTuning",
-      desc="show Subaru lateral tuning controls",
+      desc="show angle Subaru tuning controls only; older torque models unaffected",
     )
     self._subaru_soft_capture_toggle = BigParamControl(
       "soft-capture\nengage blend",
       "MCSubaruSoftCaptureEnabled",
-      desc="smooth steering handoff on engage",
+      desc=f"{ANGLE_ONLY_DESC}; smooth steering handoff on engage",
     )
     self._subaru_soft_capture_strength_btn = BigButton("soft-capture\nstrength")
     self._subaru_soft_capture_strength_btn.set_click_callback(
@@ -46,7 +47,7 @@ class SubaruLayoutMici(NavScroller):
     self._subaru_smoothing_toggle = BigParamControl(
       "subaru steering\nsmoothing",
       "MCSubaruSmoothingTune",
-      desc="optional low-speed smoothing",
+      desc=f"{ANGLE_ONLY_DESC}; optional low-speed smoothing",
     )
     self._subaru_smoothing_strength_btn = BigButton("smoothing\nstrength")
     self._subaru_smoothing_strength_btn.set_click_callback(
@@ -60,7 +61,7 @@ class SubaruLayoutMici(NavScroller):
     self._subaru_center_damping_toggle = BigParamControl(
       "subaru center\ndamping",
       "MCSubaruCenterDampingTune",
-      desc="optional near-center damping",
+      desc=f"{ANGLE_ONLY_DESC}; optional near-center damping",
     )
     self._subaru_center_damping_strength_btn = BigButton("center damping\nstrength")
     self._subaru_center_damping_strength_btn.set_click_callback(

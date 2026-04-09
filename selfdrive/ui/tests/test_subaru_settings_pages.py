@@ -40,13 +40,14 @@ def test_tici_subaru_page_uses_soft_capture_only_tuning_order_and_per_toggle_ena
     source.index('param="ShowBrakeStatus"'),
   ]
 
-  assert 'tr("Lateral Tuning")' in source
+  assert 'tr("Angle Subaru Tuning")' in source
   assert 'tr("Visuals")' in source
   assert positions == sorted(positions)
   assert 'param="MCSubaruManualYieldResumeSpeed"' not in source
   assert 'param="MCSubaruManualYieldResumeSoftness"' not in source
   assert 'title=lambda: tr("Subaru Center Damping")' in source
   assert 'title=lambda: tr("Center Damping Strength")' in source
+  assert 'Angle-based Subaru only. Does not affect older torque-based Subaru models.' in source
   assert 'self._subaru_soft_capture.set_visible(enabled)' in source
   assert 'self._subaru_soft_capture_strength.set_visible(enabled)' in source
   assert 'self._subaru_smoothing_tune.set_visible(enabled)' in source
@@ -81,12 +82,13 @@ def test_mici_subaru_page_matches_same_soft_capture_only_tuning_model():
     source.index('"ShowBrakeStatus"'),
   ]
 
-  assert 'GreyBigButton("lateral\\ntuning")' in source
+  assert 'GreyBigButton("angle subaru\\ntuning")' in source
   assert 'GreyBigButton("visuals")' in source
   assert positions == sorted(positions)
   assert '"MCSubaruManualYieldResumeSpeed"' not in source
   assert '"MCSubaruManualYieldResumeSoftness"' not in source
   assert 'BigParamControl(' in source
+  assert 'older torque models unaffected' in source
   assert '"subaru center\\ndamping"' in source
   assert '"MCSubaruCenterDampingTune"' in source
   assert 'BigButton("center damping\\nstrength")' in source
@@ -128,8 +130,8 @@ def test_staging_params_defaults_and_metadata_match_soft_capture_only_contract()
   assert '"MCSubaruManualYieldResumeSoftness"' not in metadata_source
   assert '"title": "Subaru Center Damping"' in metadata_source
   assert '"title": "Center Damping Strength"' in metadata_source
-  assert 'Enable the optional Subaru low-speed smoothing experiment below.' in metadata_source
-  assert 'Enable the optional Subaru near-center damping experiment below.' in metadata_source
+  assert 'Angle-based Subaru only. Does not affect older torque-based Subaru models.' in metadata_source
+  assert 'Show angle Subaru tuning controls. Hidden controls keep their saved values active.' in metadata_source
   assert '{ "value": 1, "label": "1 - Light" }' in metadata_source
   assert '{ "value": 5, "label": "5 - Max" }' in metadata_source
   assert '1 — Light' not in metadata_source

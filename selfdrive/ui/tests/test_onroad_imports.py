@@ -17,5 +17,7 @@ def test_onroad_entrypoint_imports(module_name):
 
 def test_sunnypilot_model_renderer_exports_chevron_metrics():
   source = SP_MODEL_RENDERER.read_text(encoding="utf-8")
+  assert "from openpilot.selfdrive.ui.sunnypilot.onroad.chevron_metrics import ChevronMetrics" in source
   assert "from openpilot.selfdrive.ui.sunnypilot.onroad.chevron_metrics_bp import ChevronMetricsBP" in source
+  assert '__all__ = ["ChevronMetrics", "ModelRendererSP"]' in source
   assert "self.chevron_metrics = ChevronMetricsBP()" in source

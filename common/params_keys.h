@@ -205,6 +205,10 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"ShowAdvancedControls", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"ShowTurnSignals", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"StandstillTimer", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"SubiPilotPortalCrashCount", {PERSISTENT | BACKUP, INT, "0"}},
+    {"SubiPilotPortalEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"SubiPilotPortalLastCrash", {PERSISTENT | BACKUP, INT, "0"}},
+    {"SubiPilotPortalPort", {PERSISTENT | BACKUP, INT, "8088"}},
     {"TrueVEgoUI", {PERSISTENT | BACKUP, BOOL, "0"}},  // Legacy compatibility key migrated to MCSubaruMatchVehicleSpeedometer.
 
     // MADS params

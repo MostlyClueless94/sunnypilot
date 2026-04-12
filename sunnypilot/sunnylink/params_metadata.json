@@ -1351,6 +1351,22 @@
     "title": "[TIZI/TICI only] Standstill Timer",
     "description": "Show a timer on the HUD when the car is at a standstill."
   },
+  "SubiPilotPortalCrashCount": {
+    "title": "SubiPilot Portal Crash Count",
+    "description": "Internal counter used by the SubiPilot Portal to track recent backend crashes."
+  },
+  "SubiPilotPortalEnabled": {
+    "title": "SubiPilot Portal",
+    "description": "Enable the local SubiPilot web portal for route review, log viewing, and raw parameter editing. Keep disabled unless you trust the current network."
+  },
+  "SubiPilotPortalLastCrash": {
+    "title": "SubiPilot Portal Last Crash",
+    "description": "Internal timestamp for the last SubiPilot Portal backend crash."
+  },
+  "SubiPilotPortalPort": {
+    "title": "SubiPilot Portal Port",
+    "description": "HTTP port used by the local SubiPilot web portal."
+  },
   "SubaruStopAndGo": {
     "title": "Subaru Stop and Go",
     "description": ""

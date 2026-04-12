@@ -8,6 +8,7 @@ from openpilot.selfdrive.ui.mici.layouts.settings import settings as OP
 from openpilot.selfdrive.ui.mici.widgets.button import BigButton
 from openpilot.selfdrive.ui.sunnypilot.mici.layouts.sunnylink import SunnylinkLayoutMici
 from openpilot.selfdrive.ui.sunnypilot.mici.layouts.models import ModelsLayoutMici
+from openpilot.selfdrive.ui.sunnypilot.mici.layouts.portal import SubiPilotPortalLayoutMici
 from openpilot.selfdrive.ui.sunnypilot.mici.layouts.subaru import SubaruLayoutMici
 from openpilot.system.ui.lib.application import gui_app
 
@@ -22,6 +23,10 @@ class SettingsLayoutSP(OP.SettingsLayout):
     sunnylink_btn = BigButton("sunnylink", "", gui_app.texture("icons_mici/settings/developer/ssh.png", ICON_SIZE, ICON_SIZE))
     sunnylink_btn.set_click_callback(lambda: gui_app.push_widget(sunnylink_panel))
 
+    portal_panel = SubiPilotPortalLayoutMici(back_callback=gui_app.pop_widget)
+    portal_btn = BigButton("subipilot\nportal", "", gui_app.texture("icons_mici/settings/network/wifi_strength_full.png", ICON_SIZE, ICON_SIZE))
+    portal_btn.set_click_callback(lambda: gui_app.push_widget(portal_panel))
+
     models_panel = ModelsLayoutMici(back_callback=gui_app.pop_widget)
     models_btn = BigButton("models", "", gui_app.texture("../../sunnypilot/selfdrive/assets/offroad/icon_models.png", ICON_SIZE, ICON_SIZE))
     models_btn.set_click_callback(lambda: gui_app.push_widget(models_panel))
@@ -33,8 +38,9 @@ class SettingsLayoutSP(OP.SettingsLayout):
     items = self._scroller._items.copy()
 
     items.insert(1, sunnylink_btn)
-    items.insert(2, models_btn)
-    items.insert(3, subaru_btn)
+    items.insert(2, portal_btn)
+    items.insert(3, models_btn)
+    items.insert(4, subaru_btn)
     self._scroller._items.clear()
     for item in items:
       self._scroller.add_widget(item)

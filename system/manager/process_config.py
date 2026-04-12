@@ -71,6 +71,12 @@ def use_github_runner(started, params, CP: car.CarParams) -> bool:
 def use_copyparty(started, params, CP: car.CarParams) -> bool:
   return bool(params.get_bool("EnableCopyparty"))
 
+def use_subipilot_portal(started, params, CP: car.CarParams) -> bool:
+  return bool(params.get_bool("SubiPilotPortalEnabled"))
+
+def use_subipilot_route_preprocessor(started, params, CP: car.CarParams) -> bool:
+  return only_offroad(started, params, CP) and use_subipilot_portal(started, params, CP)
+
 def sunnylink_ready_shim(started, params, CP: car.CarParams) -> bool:
   """Shim for sunnylink_ready to match the process manager signature."""
   return sunnylink_ready(params)
@@ -174,6 +180,10 @@ procs += [
 
   # Backup
   PythonProcess("backup_manager", "sunnypilot.sunnylink.backups.manager", and_(only_offroad, sunnylink_ready_shim)),
+
+  # SubiPilot Portal
+  PythonProcess("subipilot_portal", "sunnypilot.portal.backend.subipilot_portal", use_subipilot_portal),
+  PythonProcess("subipilot_route_preprocessor", "sunnypilot.portal.backend.subipilot_route_preprocessor", use_subipilot_route_preprocessor),
 
   # mapd
   NativeProcess("mapd", Paths.mapd_root(), ["bash", "-c", f"{MAPD_PATH} > /dev/null 2>&1"], mapd_ready),

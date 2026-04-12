@@ -57,6 +57,7 @@ dependencies = [
   "PyJWT",
   "json-rpc",
   "websocket_client",
+  "websockets",
 
   # acados deps
   "casadi >=3.6.6",  # 3.12 fixed in 3.6.6
@@ -191,6 +192,13 @@ exclude = [
   "generated",
 ]
 lint.flake8-implicit-str-concat.allow-multiline = false
+
+[tool.ruff.lint.per-file-ignores]
+"sunnypilot/portal/backend/**/*.py" = [
+  "E", "F", "W", "PIE", "C4", "ISC", "A", "B",
+  "NPY", "UP", "TRY203", "TRY400", "TRY401",
+  "RUF008", "RUF100", "TID251", "PLE", "PLR1704",
+]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "selfdrive".msg = "Use openpilot.selfdrive"

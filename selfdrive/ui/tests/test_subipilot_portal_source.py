@@ -78,9 +78,11 @@ def test_subipilot_portal_device_settings_entries_are_present():
 
   assert 'from openpilot.selfdrive.ui.sunnypilot.layouts.settings.portal import SubiPilotPortalLayout' in tici_source
   assert 'PanelInfo(tr_noop("SubiPilot Portal"), SubiPilotPortalLayout()' in tici_source
+  assert tici_source.index("OP.PanelType.SUBARU: PanelInfo") < tici_source.index("OP.PanelType.SUBIPILOT_PORTAL: PanelInfo")
   assert 'from openpilot.selfdrive.ui.sunnypilot.mici.layouts.portal import SubiPilotPortalLayoutMici' in mici_source
   assert 'portal_panel = SubiPilotPortalLayoutMici(back_callback=gui_app.pop_widget)' in mici_source
   assert 'portal_btn = BigButton("subipilot\\nportal"' in mici_source
+  assert mici_source.index("items.insert(3, subaru_btn)") < mici_source.index("items.insert(4, portal_btn)")
   assert 'param=PORTAL_ENABLED_PARAM' in tici_portal_source
   assert 'BigParamControl(' in mici_portal_source
   assert 'param=PORTAL_ENABLED_PARAM' in mici_portal_source

@@ -43,7 +43,6 @@ OP.PanelType = IntEnum(
   "PanelType",
   [es.name for es in OP.PanelType] + [
     "SUNNYLINK",
-    "SUBIPILOT_PORTAL",
     "MODELS",
     "STEERING",
     "CRUISE",
@@ -54,6 +53,7 @@ OP.PanelType = IntEnum(
     "TRIPS",
     "VEHICLE",
     "SUBARU",
+    "SUBIPILOT_PORTAL",
   ],
   start=0,
 )
@@ -116,7 +116,6 @@ class SettingsLayoutSP(OP.SettingsLayout):
       OP.PanelType.DEVICE: PanelInfo(tr_noop("Device"), DeviceLayoutSP(), icon="../../sunnypilot/selfdrive/assets/offroad/icon_home.png"),
       OP.PanelType.NETWORK: PanelInfo(tr_noop("Network"), NetworkUISP(wifi_manager), icon="icons/network.png"),
       OP.PanelType.SUNNYLINK: PanelInfo(tr_noop("sunnylink"), SunnylinkLayout(), icon="icons/wifi_strength_full.png"),
-      OP.PanelType.SUBIPILOT_PORTAL: PanelInfo(tr_noop("SubiPilot Portal"), SubiPilotPortalLayout(), icon="icons/wifi_strength_full.png"),
       OP.PanelType.TOGGLES: PanelInfo(tr_noop("Toggles"), TogglesLayout(), icon="../../sunnypilot/selfdrive/assets/offroad/icon_toggle.png"),
       OP.PanelType.SOFTWARE: PanelInfo(tr_noop("Software"), SoftwareLayoutSP(), icon="../../sunnypilot/selfdrive/assets/offroad/icon_software.png"),
       OP.PanelType.MODELS: PanelInfo(tr_noop("Models"), ModelsLayout(), icon="../../sunnypilot/selfdrive/assets/offroad/icon_models.png"),
@@ -129,6 +128,7 @@ class SettingsLayoutSP(OP.SettingsLayout):
       OP.PanelType.TRIPS: PanelInfo(tr_noop("Trips"), TripsLayout(), icon="../../sunnypilot/selfdrive/assets/offroad/icon_trips.png"),
       OP.PanelType.VEHICLE: PanelInfo(tr_noop("Vehicle"), VehicleLayout(), icon="../../sunnypilot/selfdrive/assets/offroad/icon_vehicle.png"),
       OP.PanelType.SUBARU: PanelInfo(tr_noop("Subaru"), SubaruLayout(), icon="../../sunnypilot/selfdrive/assets/offroad/icon_vehicle.png"),
+      OP.PanelType.SUBIPILOT_PORTAL: PanelInfo(tr_noop("SubiPilot Portal"), SubiPilotPortalLayout(), icon="icons/wifi_strength_full.png"),
       OP.PanelType.FIREHOSE: PanelInfo(tr_noop("Firehose"), FirehoseLayout(), icon="../../sunnypilot/selfdrive/assets/offroad/icon_firehose.png"),
       OP.PanelType.DEVELOPER: PanelInfo(tr_noop("Developer"), DeveloperLayoutSP(), icon="icons/shell.png"),
     }

@@ -38,9 +38,9 @@ class SettingsLayoutSP(OP.SettingsLayout):
     items = self._scroller._items.copy()
 
     items.insert(1, sunnylink_btn)
-    items.insert(2, portal_btn)
-    items.insert(3, models_btn)
-    items.insert(4, subaru_btn)
+    items.insert(2, models_btn)
+    items.insert(3, subaru_btn)
+    items.insert(4, portal_btn)
     self._scroller._items.clear()
     for item in items:
       self._scroller.add_widget(item)

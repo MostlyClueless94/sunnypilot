@@ -12,7 +12,6 @@ PARAMS_KEYS = REPO_ROOT / "common/params_keys.h"
 PARAMS_METADATA = REPO_ROOT / "sunnypilot/sunnylink/params_metadata.json"
 
 TUNING_PARAMS = [
-  "MCSubaruMatchVehicleSpeedometer",
   "MCSubaruAdvancedTuning",
   "MCSubaruManualYieldTorqueThresholdEnabled",
   "MCSubaruManualYieldTorqueThreshold",
@@ -23,6 +22,7 @@ TUNING_PARAMS = [
   "MCSubaruSoftCaptureEnabled",
   "MCSubaruSoftCaptureLevel",
 ]
+METADATA_PARAMS = ["MCSubaruMatchVehicleSpeedometer", *TUNING_PARAMS]
 RETIRED_TUNING_PARAMS = [
   "MCSubaruSmoothingTune",
   "MCSubaruSmoothingStrength",
@@ -49,10 +49,14 @@ def test_tici_and_mici_settings_roots_still_expose_dedicated_subaru_panels():
 def test_tici_subaru_page_uses_bluepilot_tuning_order_and_per_toggle_enablement():
   source = _read(TICI_SUBARU)
   positions = [source.index(f'param="{param}"') for param in TUNING_PARAMS]
+  tuning_items = source[source.index('SubaruSectionHeader(lambda: tr("Angle Subaru Tuning"))'):source.index('SubaruSectionHeader(lambda: tr("Visuals"))')]
+  visuals_items = source[source.index('SubaruSectionHeader(lambda: tr("Visuals"))'):source.index("  def _update_state")]
 
   assert 'tr("Angle Subaru Tuning")' in source
   assert 'tr("Visuals")' in source
   assert positions == sorted(positions)
+  assert "self._subaru_match_vehicle_speed" not in tuning_items
+  assert visuals_items.index("self._subaru_match_vehicle_speed") < visuals_items.index("self._show_brake_status")
   for param in RETIRED_TUNING_PARAMS:
     assert f'param="{param}"' not in source
   assert 'Angle-based Subaru only. Does not affect older torque-based Subaru models.' in source
@@ -82,7 +86,6 @@ def test_mici_subaru_page_matches_same_bluepilot_tuning_model():
   source = _read(MICI_SUBARU)
   main_items = source[source.index("self.main_items = ["):source.index("self._scroller.add_widgets")]
   ordered_items = [
-    "self._match_vehicle_speed",
     "self._subaru_advanced_tuning_toggle",
     "self._manual_yield_torque_threshold_toggle",
     "self._manual_yield_torque_threshold_btn",
@@ -98,6 +101,8 @@ def test_mici_subaru_page_matches_same_bluepilot_tuning_model():
   assert 'GreyBigButton("angle subaru\\ntuning")' in source
   assert 'GreyBigButton("visuals")' in source
   assert positions == sorted(positions)
+  assert main_items.index("self._visuals_header") < main_items.index("self._match_vehicle_speed")
+  assert main_items.index("self._match_vehicle_speed") < main_items.index("self._show_brake_status")
   for param in RETIRED_TUNING_PARAMS:
     assert f'"{param}"' not in source
   assert 'older torque models unaffected' in source
@@ -138,7 +143,7 @@ def test_staging_params_defaults_and_metadata_match_bluepilot_tuning_contract():
   assert '{"MCSubaruSoftCaptureLevel", {PERSISTENT | BACKUP, INT, "3"}}' in params_source
   assert '{"Subaru11BluePilotTuningMigrated", {PERSISTENT | BACKUP, STRING, "0.0"}}' in params_source
 
-  for param in TUNING_PARAMS:
+  for param in METADATA_PARAMS:
     assert f'"{param}"' in metadata_source
   for param in RETIRED_TUNING_PARAMS:
     assert f'"{param}"' not in metadata_source

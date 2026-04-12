@@ -123,7 +123,6 @@ class SubaruLayoutMici(NavScroller):
 
     self.main_items = [
       self._lateral_header,
-      self._match_vehicle_speed,
       self._subaru_advanced_tuning_toggle,
       self._manual_yield_torque_threshold_toggle,
       self._manual_yield_torque_threshold_btn,
@@ -134,6 +133,7 @@ class SubaruLayoutMici(NavScroller):
       self._subaru_soft_capture_toggle,
       self._subaru_soft_capture_strength_btn,
       self._visuals_header,
+      self._match_vehicle_speed,
       self._show_brake_status,
       self._show_confidence_ball,
       self._dynamic_path_color,

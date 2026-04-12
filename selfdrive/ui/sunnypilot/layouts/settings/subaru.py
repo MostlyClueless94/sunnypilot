@@ -268,7 +268,6 @@ class SubaruLayout(Widget):
 
     return [
       SubaruSectionHeader(lambda: tr("Angle Subaru Tuning")),
-      self._subaru_match_vehicle_speed,
       self._subaru_advanced_tuning,
       self._manual_yield_torque_threshold_enabled,
       self._manual_yield_torque_threshold,
@@ -279,6 +278,7 @@ class SubaruLayout(Widget):
       self._subaru_soft_capture,
       self._subaru_soft_capture_strength,
       SubaruSectionHeader(lambda: tr("Visuals")),
+      self._subaru_match_vehicle_speed,
       self._show_brake_status,
       self._show_confidence_ball,
       self._dynamic_path_color,

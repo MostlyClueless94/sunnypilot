@@ -21,7 +21,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"CameraDebugExpTime", {CLEAR_ON_MANAGER_START, STRING}},
     {"CarBatteryCapacity", {PERSISTENT, INT}},
     {"CarParams", {CLEAR_ON_MANAGER_START | CLEAR_ON_ONROAD_TRANSITION, BYTES}},
-    {"CarParamsCache", {CLEAR_ON_MANAGER_START, BYTES}},
+    {"CarParamsCache", {CLEAR_ON_MANAGER_START | CLEAR_ON_OFFROAD_TRANSITION, BYTES}},
     {"CarParamsPersistent", {PERSISTENT, BYTES}},
     {"CarParamsPrevRoute", {PERSISTENT, BYTES}},
     {"CompletedTrainingVersion", {PERSISTENT, STRING, "0"}},
@@ -144,16 +144,19 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"Brightness", {PERSISTENT | BACKUP, INT, "0"}},
     {"CarList", {PERSISTENT, JSON}},
     {"CarParamsSP", {CLEAR_ON_MANAGER_START | CLEAR_ON_ONROAD_TRANSITION, BYTES}},
-    {"CarParamsSPCache", {CLEAR_ON_MANAGER_START, BYTES}},
+    {"CarParamsSPCache", {CLEAR_ON_MANAGER_START | CLEAR_ON_OFFROAD_TRANSITION, BYTES}},
     {"CarParamsSPPersistent", {PERSISTENT, BYTES}},
     {"CarPlatformBundle", {PERSISTENT | BACKUP, JSON}},
     {"ChevronInfo", {PERSISTENT | BACKUP, INT, "4"}},
     {"CompletedSunnylinkConsentVersion", {PERSISTENT, STRING, "0"}},
+    {"CustomModelPathColor", {PERSISTENT | BACKUP, INT, "0"}},
     {"CustomAccIncrementsEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"CustomAccLongPressIncrement", {PERSISTENT | BACKUP, INT, "5"}},
     {"CustomAccShortPressIncrement", {PERSISTENT | BACKUP, INT, "1"}},
     {"DeviceBootMode", {PERSISTENT | BACKUP, INT, "0"}},
     {"DevUIInfo", {PERSISTENT | BACKUP, INT, "0"}},
+    {"DynamicPathColor", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"DynamicPathColorPalette", {PERSISTENT | BACKUP, INT, "0"}},  // Legacy compatibility key; staging always uses the stock dynamic palette.
     {"EnableCopyparty", {PERSISTENT | BACKUP, BOOL}},
     {"EnableGithubRunner", {PERSISTENT | BACKUP, BOOL}},
     {"GreenLightAlert", {PERSISTENT | BACKUP, BOOL, "0"}},
@@ -167,6 +170,9 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"LastGPSPositionLLK", {PERSISTENT, STRING}},
     {"LeadDepartAlert", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"MaxTimeOffroad", {PERSISTENT | BACKUP, INT, "1800"}},
+    {"MatchVehicleSpeedometer", {PERSISTENT | BACKUP, BOOL, "1"}},  // Legacy compatibility key migrated to MCSubaruMatchVehicleSpeedometer.
+    {"MatchVehicleSpeedometerMigrated", {PERSISTENT | BACKUP, STRING, "0.0"}},
+    {"Subaru11BluePilotTuningMigrated", {PERSISTENT | BACKUP, STRING, "0.0"}},
     {"ModelRunnerTypeCache", {CLEAR_ON_ONROAD_TRANSITION, INT}},
     {"OffroadMode", {CLEAR_ON_MANAGER_START, BOOL}},
     {"Offroad_TiciSupport", {CLEAR_ON_MANAGER_START, JSON}},
@@ -179,10 +185,27 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"QuietMode", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"RainbowMode", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"RocketFuel", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"BPShowConfidenceBall", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"MCSubaruAdvancedTuning", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"MCSubaruMatchVehicleSpeedometer", {PERSISTENT | BACKUP, BOOL, "1"}},
+    {"MCSubaruManualYieldTorqueThresholdEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"MCSubaruManualYieldTorqueThreshold", {PERSISTENT | BACKUP, INT, "80"}},
+    {"MCSubaruManualYieldResumeSoftnessEnabled", {PERSISTENT | BACKUP, BOOL, "1"}},
+    {"MCSubaruManualYieldResumeSoftness", {PERSISTENT | BACKUP, INT, "4"}},
+    {"MCSubaruManualYieldReleaseGuardEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"MCSubaruManualYieldReleaseGuardLevel", {PERSISTENT | BACKUP, INT, "2"}},
+    {"MCSubaruSoftCaptureEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"MCSubaruSoftCaptureLevel", {PERSISTENT | BACKUP, INT, "3"}},
+    {"MCSubaruSmoothingTune", {PERSISTENT | BACKUP, BOOL, "0"}},          // Legacy compatibility key; no longer used by SubiPilot 1.1 runtime/UI.
+    {"MCSubaruSmoothingStrength", {PERSISTENT | BACKUP, INT, "0"}},       // Legacy compatibility key; no longer used by SubiPilot 1.1 runtime/UI.
+    {"MCSubaruCenterDampingTune", {PERSISTENT | BACKUP, BOOL, "0"}},      // Legacy compatibility key; no longer used by SubiPilot 1.1 runtime/UI.
+    {"MCSubaruCenterDampingStrength", {PERSISTENT | BACKUP, INT, "0"}},   // Legacy compatibility key; no longer used by SubiPilot 1.1 runtime/UI.
+    {"MCSubaruManualYieldResumeSpeed", {PERSISTENT | BACKUP, INT, "4"}},  // Legacy compatibility key; no longer used by SubiPilot 1.1 runtime/UI.
+    {"ShowBrakeStatus", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"ShowAdvancedControls", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"ShowTurnSignals", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"StandstillTimer", {PERSISTENT | BACKUP, BOOL, "0"}},
-    {"TrueVEgoUI", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"TrueVEgoUI", {PERSISTENT | BACKUP, BOOL, "0"}},  // Legacy compatibility key migrated to MCSubaruMatchVehicleSpeedometer.
 
     // MADS params
     {"Mads", {PERSISTENT | BACKUP, BOOL, "1"}},
@@ -192,6 +215,8 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
 
     // Model Manager params
     {"ModelManager_ActiveBundle", {PERSISTENT, JSON}},
+    {"ModelManager_AngleSubaruNNMV2AutoFailed", {PERSISTENT, BOOL, "0"}},
+    {"ModelManager_AngleSubaruNNMV2OptOut", {PERSISTENT, BOOL, "0"}},
     {"ModelManager_ClearCache", {CLEAR_ON_MANAGER_START, BOOL}},
     {"ModelManager_DownloadIndex", {CLEAR_ON_MANAGER_START | CLEAR_ON_ONROAD_TRANSITION, INT}},
     {"ModelManager_Favs", {PERSISTENT | BACKUP, STRING}},

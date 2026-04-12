@@ -3,6 +3,7 @@ import time
 import datetime
 from openpilot.common.time_helpers import system_time_valid
 from openpilot.selfdrive.ui.ui_state import ui_state
+from openpilot.system.version import order_branches_for_ui
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.multilang import tr, trn
 from openpilot.system.ui.widgets import Widget, DialogResult
@@ -185,11 +186,7 @@ class SoftwareLayout(Widget):
     current_git_branch = ui_state.params.get("GitBranch") or ""
     branches_str = ui_state.params.get("UpdaterAvailableBranches") or ""
     branches = [b for b in branches_str.split(",") if b]
-
-    for b in [current_git_branch, "devel-staging", "devel", "nightly", "nightly-dev", "master"]:
-      if b in branches:
-        branches.remove(b)
-        branches.insert(0, b)
+    branches = order_branches_for_ui(branches, current_git_branch)
 
     current_target = ui_state.params.get("UpdaterTargetBranch") or ""
 

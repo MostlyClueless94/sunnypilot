@@ -93,6 +93,10 @@
     "title": "[TIZI/TICI only] Blind Spot Detection",
     "description": "Enabling this will display warnings when a vehicle is detected in your blind spot as long as your car has BSM supported."
   },
+  "BPShowConfidenceBall": {
+    "title": "Show Confidence Ball",
+    "description": "Display the confidence ball on the driving view."
+  },
   "BlinkerLateralReengageDelay": {
     "title": "Post-Blinker Delay",
     "description": "Delay before lateral control resumes after the turn signal ends."
@@ -198,6 +202,20 @@
     "title": "Current Route",
     "description": ""
   },
+  "CustomModelPathColor": {
+    "title": "Custom Model Path Color",
+    "description": "Use preset colors for the driving path overlay. The selected preset changes the path fill and path outline while lane lines and road edges keep BP-style rendering. Overrides Rainbow Mode when set to anything other than Stock. Dynamic Path Color still takes priority when enabled.",
+    "options": [
+      { "value": 0, "label": "Stock" },
+      { "value": 1, "label": "Blue" },
+      { "value": 2, "label": "Green" },
+      { "value": 3, "label": "Purple" },
+      { "value": 4, "label": "Orange" },
+      { "value": 5, "label": "Red" },
+      { "value": 6, "label": "Cyan" },
+      { "value": 7, "label": "Yellow" }
+    ]
+  },
   "CustomAccIncrementsEnabled": {
     "title": "Custom ACC Increments",
     "description": ""
@@ -223,6 +241,10 @@
   "DevUIInfo": {
     "title": "Developer UI Info",
     "description": ""
+  },
+  "DynamicPathColor": {
+    "title": "Dynamic Path Color",
+    "description": "Color the driving path by drive mode. Light gray when inactive or truly overriding, teal when steering-only, and green for full control. Overrides Custom Model Path Color and Rainbow Mode, and keeps Experimental path coloring unchanged."
   },
   "DeviceBootMode": {
     "title": "Device Boot Mode",
@@ -1122,6 +1144,100 @@
     "title": "[TIZI/TICI only] Real-time Acceleration Bar",
     "description": "Show an indicator on the left side of the screen to display real-time vehicle acceleration and deceleration. This displays what the car is currently doing, not what the planner is requesting."
   },
+  "MCSubaruAdvancedTuning": {
+    "title": "Advanced Tuning",
+    "description": "Show angle Subaru tuning controls. Hidden controls keep their saved values active. Angle-based Subaru only. Does not affect older torque-based Subaru models."
+  },
+  "MCSubaruMatchVehicleSpeedometer": {
+    "title": "Match Vehicle Speedometer",
+    "description": "When enabled, the Subaru on-road speedometer matches the vehicle dash or cluster speed when supported. Turn it off to show true wheel-speed-based speed instead."
+  },
+  "MCSubaruManualYieldTorqueThresholdEnabled": {
+    "title": "Custom Yield Torque",
+    "description": "Enable a custom Subaru manual-yield torque threshold. When off, manual override detection falls back to the stock Subaru threshold for your platform while keeping your saved test value. Angle-based Subaru only. Does not affect older torque-based Subaru models."
+  },
+  "MCSubaruManualYieldTorqueThreshold": {
+    "title": "Manual Yield Torque Threshold",
+    "description": "Adjust the steering torque required to count as manual yield. Lower values detect lighter steady driver input sooner. 80 matches the stock threshold on modern Subaru angle-LKAS platforms. Angle-based Subaru only. Does not affect older torque-based Subaru models.",
+    "options": [
+      { "value": 10, "label": "10" },
+      { "value": 15, "label": "15" },
+      { "value": 20, "label": "20" },
+      { "value": 25, "label": "25" },
+      { "value": 30, "label": "30" },
+      { "value": 35, "label": "35" },
+      { "value": 40, "label": "40" },
+      { "value": 45, "label": "45" },
+      { "value": 50, "label": "50" },
+      { "value": 55, "label": "55" },
+      { "value": 60, "label": "60" },
+      { "value": 65, "label": "65" },
+      { "value": 70, "label": "70" },
+      { "value": 75, "label": "75" },
+      { "value": 80, "label": "80 - Stock" }
+    ],
+    "min": 10,
+    "max": 80,
+    "step": 5
+  },
+  "MCSubaruManualYieldResumeSoftnessEnabled": {
+    "title": "Custom Resume Softness",
+    "description": "Enable custom manual-yield resume softness. When off, steering reclaim softness falls back to the current validated default while keeping your saved softness selection. Angle-based Subaru only. Does not affect older torque-based Subaru models."
+  },
+  "MCSubaruManualYieldResumeSoftness": {
+    "title": "Manual Yield Resume Softness",
+    "description": "Adjust how gently steering re-engages after manual override. Higher levels reduce the initial reclaim bite. Angle-based Subaru only. Does not affect older torque-based Subaru models.",
+    "options": [
+      { "value": 0, "label": "Standard" },
+      { "value": 1, "label": "Soft" },
+      { "value": 2, "label": "Softer" },
+      { "value": 3, "label": "Very Soft" },
+      { "value": 4, "label": "Extra Soft" },
+      { "value": 5, "label": "Softest" },
+      { "value": 6, "label": "Max Soft" }
+    ],
+    "min": 0,
+    "max": 6,
+    "step": 1
+  },
+  "MCSubaruManualYieldReleaseGuardEnabled": {
+    "title": "Manual Yield Release Guard",
+    "description": "Keep Subaru manual-yield override active a bit longer after steering input briefly drops. This can reduce false reclaim jerks when you are still holding the wheel at a steady angle. Angle-based Subaru only. Does not affect older torque-based Subaru models."
+  },
+  "MCSubaruManualYieldReleaseGuardLevel": {
+    "title": "Release Guard Strength",
+    "description": "Adjust how much confirmation Subaru waits for before reclaim begins after manual override. Higher levels wait longer for a clean release before the existing resume ramp starts. Angle-based Subaru only. Does not affect older torque-based Subaru models.",
+    "options": [
+      { "value": 1, "label": "Light" },
+      { "value": 2, "label": "Medium" },
+      { "value": 3, "label": "Strong" }
+    ],
+    "min": 1,
+    "max": 3,
+    "step": 1
+  },
+  "MCSubaruSoftCaptureEnabled": {
+    "title": "Soft-Capture Engage Blend",
+    "description": "Smooth the transition when openpilot takes back steering control. When enabled, the wheel angle blends gradually toward the model target instead of snapping instantly. Angle-based Subaru only. Does not affect older torque-based Subaru models. Experiment - subi-staging only."
+  },
+  "MCSubaruSoftCaptureLevel": {
+    "title": "Soft-Capture Strength",
+    "description": "Adjust how gently openpilot reclaims steering on engage. Level 1 is a light blend (0.15 s). Level 5 is the most damped (0.50 s, near-zero start). Higher levels reduce snap-to-target feel but extend the handoff window. Angle-based Subaru only. Does not affect older torque-based Subaru models.",
+    "options": [
+      { "value": 1, "label": "1 - Light" },
+      { "value": 2, "label": "2 - Mild" },
+      { "value": 3, "label": "3 - Medium" },
+      { "value": 4, "label": "4 - Strong" },
+      { "value": 5, "label": "5 - Max" }
+    ],
+    "min": 1,
+    "max": 5,
+    "step": 1
+  },
+  "ShowBrakeStatus": {
+    "title": "Show Brake Status",
+    "description": "Display current speed in red when brake lights are on."
+  },
   "RouteCount": {
     "title": "Route Count",
     "description": ""
@@ -1327,10 +1443,6 @@
   "TrainingVersion": {
     "title": "Training Version",
     "description": ""
-  },
-  "TrueVEgoUI": {
-    "title": "[TIZI/TICI only] Speedometer: Always Display True Speed",
-    "description": "For applicable vehicles, always display the true vehicle current speed from wheel speed sensors."
   },
   "UbloxAvailable": {
     "title": "Ublox Available",

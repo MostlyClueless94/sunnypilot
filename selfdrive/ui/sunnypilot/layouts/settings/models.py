@@ -20,6 +20,7 @@ from openpilot.system.ui.widgets.scroller_tici import Scroller
 from openpilot.system.ui.widgets.toggle import ON_COLOR
 
 from openpilot.sunnypilot.models.runners.constants import CUSTOM_MODEL_PATH
+from openpilot.sunnypilot.models.helpers import update_angle_subaru_nnmv2_selection_policy
 from openpilot.system.ui.sunnypilot.lib.styles import style
 from openpilot.system.ui.sunnypilot.lib.utils import NoElideButtonAction
 from openpilot.system.ui.sunnypilot.widgets.list_view import ListItemSP, toggle_item_sp, option_item_sp
@@ -189,9 +190,11 @@ class ModelsLayout(Widget):
       return
     selected_ref = self.model_dialog.selection_ref
     if selected_ref == "Default":
+      update_angle_subaru_nnmv2_selection_policy(ui_state.params, default_selected=True)
       ui_state.params.remove("ModelManager_ActiveBundle")
       self._show_reset_params_dialog()
     elif selected_bundle := next((bundle for bundle in self.model_manager.availableBundles if bundle.ref == selected_ref), None):
+      update_angle_subaru_nnmv2_selection_policy(ui_state.params, selected_bundle=selected_bundle)
       ui_state.params.put("ModelManager_DownloadIndex", selected_bundle.index)
       if self.model_manager.activeBundle and selected_bundle.generation != self.model_manager.activeBundle.generation:
         self._show_reset_params_dialog()

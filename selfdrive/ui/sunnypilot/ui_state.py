@@ -91,6 +91,8 @@ class UIStateSP:
     state = ss.state
     mads = ss_sp.mads
     mads_state = mads.state
+    override_longitudinal = any(e.overrideLongitudinal for e in onroad_evt)
+    override_lateral = any(e.overrideLateral for e in onroad_evt)
 
     if state == OpenpilotState.preEnabled:
       return "override"
@@ -99,8 +101,11 @@ class UIStateSP:
       if not mads.available:
         return "override"
 
-      if any(e.overrideLongitudinal for e in onroad_evt):
+      if override_lateral:
         return "override"
+
+      if override_longitudinal:
+        return "lat_only" if mads.enabled else "override"
 
     if mads_state in (MADSState.paused, MADSState.overriding):
       return "override"
@@ -131,9 +136,12 @@ class UIStateSP:
     self.active_bundle = self.params.get("ModelManager_ActiveBundle")
     self.blindspot = self.params.get_bool("BlindSpot")
     self.chevron_metrics = self.params.get("ChevronInfo")
+    self.custom_model_path_color = self.params.get("CustomModelPathColor", return_default=True)
     self.custom_interactive_timeout = self.params.get("InteractivityTimeout", return_default=True)
     self.developer_ui = self.params.get("DevUIInfo")
+    self.dynamic_path_color = self.params.get_bool("DynamicPathColor")
     self.hide_v_ego_ui = self.params.get_bool("HideVEgoUI")
+    self.match_vehicle_speedometer = self.params.get_bool("MCSubaruMatchVehicleSpeedometer")
     self.onroad_brightness = int(float(self.params.get("OnroadScreenOffBrightness", return_default=True)))
     self.onroad_brightness_timer_param = self.params.get("OnroadScreenOffTimer", return_default=True)
     self.rainbow_path = self.params.get_bool("RainbowMode")
@@ -143,7 +151,6 @@ class UIStateSP:
     self.standstill_timer = self.params.get_bool("StandstillTimer")
     self.sunnylink_enabled = self.params.get_bool("SunnylinkEnabled")
     self.torque_bar = self.params.get_bool("TorqueBar")
-    self.true_v_ego_ui = self.params.get_bool("TrueVEgoUI")
     self.turn_signals = self.params.get_bool("ShowTurnSignals")
     self.boot_offroad_mode = self.params.get("DeviceBootMode", return_default=True)
 

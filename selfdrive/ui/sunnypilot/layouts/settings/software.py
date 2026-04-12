@@ -8,7 +8,7 @@ import os
 
 from openpilot.selfdrive.ui.layouts.settings.software import SoftwareLayout
 from openpilot.selfdrive.ui.ui_state import ui_state
-from openpilot.system.hardware import HARDWARE
+from openpilot.system.version import SUBIPILOT_BRANCH_ORDER, order_branches_for_ui
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.multilang import tr, tr_noop
 from openpilot.system.ui.widgets import DialogResult
@@ -53,13 +53,9 @@ class SoftwareLayoutSP(SoftwareLayout):
   def _on_select_branch(self):
     current_git_branch = ui_state.params.get("GitBranch") or ""
     branches_str = ui_state.params.get("UpdaterAvailableBranches") or ""
-    branches = [b for b in branches_str.split(",") if b]
+    branches = order_branches_for_ui([b for b in branches_str.split(",") if b], current_git_branch)
     current_target = ui_state.params.get("UpdaterTargetBranch") or ""
-    top_level_branches = [current_git_branch, "release-mici", "release-tizi", "staging", "dev", "master"]
-
-    if HARDWARE.get_device_type() == "tici":
-      top_level_branches = ["release-tici", "staging-tici"]
-      branches = [b for b in branches if b.endswith("-tici")]
+    top_level_branches = [b for b in [current_git_branch, *SUBIPILOT_BRANCH_ORDER] if b in branches]
 
     top_level_nodes = [TreeNode(b, {'display_name': b}) for b in top_level_branches if b in branches]
     remaining_branches = [b for b in branches if b not in top_level_branches]

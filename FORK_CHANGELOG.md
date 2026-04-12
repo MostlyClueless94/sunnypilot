@@ -1,0 +1,164 @@
+# SubiPilot 1.1 Clean Rebuild Candidate
+- Stable install: `https://installer.comma.ai/MostlyClueless94/subi-1.0`
+- Broad testing: `https://installer.comma.ai/MostlyClueless94/subi-staging`
+- Personal testing: `https://installer.comma.ai/MostlyClueless94/MostlyClueless`
+- Rebuilds `subi-staging` from current upstream `sunnypilot/master`.
+- Carries forward Jacob Waller's Subaru angle-LKAS measured-steering engage sync and safety support.
+- Uses the personal BluePilot Subaru tuning model: custom yield torque, custom resume softness, manual-yield release guard, and soft-capture engage blend.
+- Keeps SubiPilot UI improvements, including dynamic/custom path colors, confidence ball, brake-status speed highlight, Subaru speedometer matching, and the SubiPilot spinner/logo.
+- Retires the visible smoothing and center-damping tuning controls from the 1.1 staging runtime.
+- Adds a one-time migration that resets Subaru tuning to the BluePilot defaults for the 1.1 staging rebuild.
+- Keeps data-backed Subaru compatibility additions, including 2024 Crosstrek FW/platform support.
+- `subi-1.0` remains unchanged until this rebuilt staging line is validated.
+
+# SubiPilot 1.0 Subaru Angle Release
+- Stable install: `https://installer.comma.ai/MostlyClueless94/subi-1.0`
+- Broad testing: `https://installer.comma.ai/MostlyClueless94/subi-staging`
+- Personal testing: `https://installer.comma.ai/MostlyClueless94/MostlyClueless`
+- Promotes the current validated `subi-staging` Subaru angle build to the stable `subi-1.0` lane.
+- Includes the low-speed Subaru steering package: smoothing, center deadband, straight-line stability hold, and center damping, all blended out by 10 mph.
+- Keeps the confirmed manual-override hold and smooth measured-angle re-entry ramp, with advanced Subaru tuning controls available in the Subaru menu.
+- Includes the Subaru UI/status cleanup: `Match Vehicle Speedometer`, brighter default dynamic path colors, gas-override teal handling, brake-status speed highlight, and the optional confidence ball.
+- Keeps the 2026-03-21 rollback in place for the stable release lane: no continuous VM engage-gap request gate, and no soft-capture handoff blending on `subi-1.0`.
+- Includes the angle-Subaru `NNMV2` auto-default policy and the 2024 Outback firmware fingerprint support carried on `subi-staging`.
+
+# SubiPilot 1.0 Update
+- Stable install: `https://installer.comma.ai/MostlyClueless94/subi-1.0`
+- Broad testing: `https://installer.comma.ai/MostlyClueless94/subi-staging`
+- Personal testing: `https://installer.comma.ai/MostlyClueless94/MostlyClueless`
+- Promotes the current `subi-staging` candidate to `subi-1.0`.
+- Adds BluePilot-style vibrant path fill and outline on C3X and C4.
+- Adds BluePilot-style lane lines, road edges, and chevron visuals.
+- `Show Brake Status` now turns the current speed red during actual braking, including pedal, regen, ACC, and openpilot braking.
+- Preserves Subaru angle-based lateral support, including the 2025 Crosstrek startup hotfix.
+- Adds the low-speed straight-tracking stability improvement for Subaru.
+- No experimental `MostlyClueless` stock-ACC or dev-button features are included in this stable release.
+
+# SubiPilot 1.0
+- Stable install: `https://installer.comma.ai/MostlyClueless94/subi-1.0`
+- Broad testing: `https://installer.comma.ai/MostlyClueless94/subi-staging`
+- Personal testing: `https://installer.comma.ai/MostlyClueless94/MostlyClueless`
+- Ships the current `MostlyClueless` feature set, including Subaru-first UI polish, F-150 improvements, multi-vehicle fingerprint cache cleanup, and 2025 Crosstrek Wilderness support.
+- `subi-0.9` remains available as the previous stable lane, and `long` remains a separate experiment.
+
+## Branch Roles
+
+- `subi-1.0`: current stable public release lane.
+- `subi-staging`: broad public testing lane for the next release.
+- `subi-0.9`: previous stable release lane.
+- `MostlyClueless`: personal integration/testing branch.
+- Longitudinal experimentation is intentionally excluded from this rebuilt branch line.
+
+## 2026-03-23 (Dynamic Path Color Setting)
+
+### What changed
+
+- Added a new `Dynamic Path Color` Visuals setting on `MostlyClueless`.
+- The path now follows drive mode when enabled:
+  - gray for disengaged and override
+  - blue for MADS steering-only
+  - green for full active states
+- Added a `Dynamic Path Color Palette` selector:
+  - Custom
+  - Stock
+- Experimental path coloring keeps priority.
+- Dynamic Path Color overrides Rainbow Mode while enabled.
+- Dynamic Path Color also overrides Custom Model Path Color while enabled.
+- Dynamic mode can now use either the custom color palette or the stock border/status palette mirrored onto the path.
+- Added a `Custom Model Path Color` selector with preset colors:
+  - Stock
+  - Blue
+  - Green
+  - Purple
+  - Orange
+  - Red
+  - Cyan
+  - Yellow
+- Dynamic Path Color now uses the custom dynamic palette and the stock grayscale palette.
+- Custom Model Path Color overrides Rainbow Mode when a preset is selected, unless Dynamic Path Color is enabled.
+- Lane lines and road edges now follow the active path color family.
+
+### Validation Done
+
+- `python -m py_compile selfdrive/ui/sunnypilot/onroad/path_colors.py`
+- `python -m py_compile selfdrive/ui/sunnypilot/layouts/settings/visuals.py`
+- `python -m py_compile selfdrive/ui/sunnypilot/ui_state.py`
+- `python -m py_compile selfdrive/ui/onroad/model_renderer.py`
+- `python -m py_compile selfdrive/ui/mici/onroad/model_renderer.py`
+
+## 2026-03-21 (MostlyClueless Lateral Sensitivity Rollback)
+
+### Why
+
+- Real-road validation showed `MostlyClueless` was too sensitive to steering-angle mismatches on larger bumps and some curves.
+- The regression matched the two `MostlyClueless`-only lateral experiments:
+  - soft-capture engage/recovery smoothing
+  - Jacob `v2_limits` engage-gap gate
+
+### What changed
+
+- Rolled Subaru angle lateral behavior on `MostlyClueless` back toward `master` sensitivity while keeping the rebuilt upstream SunnyPilot base.
+- Removed the continuous VM-based engage-gap request gate.
+- Removed soft-capture handoff blending and its controller state.
+- Kept the stable Subaru behavior that already worked well:
+  - low-speed smoothing
+  - MADS manual-steer yield
+  - low-speed/high-angle guard
+  - post-non-drive cooldown
+  - modern Subaru angle support / Outback support
+
+### Validation Done
+
+- `python -m py_compile opendbc_repo/opendbc/car/subaru/carcontroller.py`
+- `python -m py_compile opendbc_repo/opendbc/car/subaru/values.py`
+- `python -m py_compile opendbc_repo/opendbc/car/subaru/test_carcontroller.py`
+
+### Known Follow-Up
+
+- `MostlyClueless` should be re-tested in the same curves and over the same larger bumps that exposed the regression.
+- `master` remains unchanged until in-car validation confirms the rollback restored stable behavior.
+
+## 2026-03-19 (MostlyClueless Reset to Current SunnyPilot)
+
+### Base
+
+- Rebuilt `MostlyClueless` from `sunnypilot/sunnypilot` `upstream/master` commit `1658898498b8867dca06b22be85bc650e6a284f9`.
+- Rebased custom Subaru work onto `sunnypilot/opendbc` commit `b178bc5d4e7cd15c50eb3e148cc2648b9379ca86`.
+- Moved `opendbc_repo` to dedicated repo: `https://github.com/MostlyClueless94/opendbc.git`.
+- Current rebuilt `opendbc_repo` pointer: `f40f1e647759107794be2be8be92e5ff0c1fadd1`.
+
+### Retained Subaru Patch Queue
+
+- Base Subaru compatibility:
+  - `170e1de2f` modern angle-LKAS Subaru support and 2025 Crosstrek platform
+  - `5d3f9bc83` expose 2025 Outback in selector
+  - `5e57cb77d` add 2025 Outback FW fingerprints
+  - `67e6381bc` use `ES_Status` cruise state for angle LKAS
+  - `3001604b0` gate angle LKAS requests to full-control drive state
+  - `da845de19` keep MADS angle control above low-speed threshold
+  - `72981fd08` allow MADS above 5 mph with low-speed angle guard
+  - `4d26129a1` harden angle LKAS around low-speed maneuver edges
+- Stable lateral behavior tuning:
+  - `7b9764be2` low-speed smoothing below 10 mph
+  - `2b55f0563` MADS manual-steer yield
+- `MostlyClueless` testing extras:
+  - `a25cfc8b7` soft-capture engage/recovery smoothing
+  - `3c03b639f` Jacob `v2_limits` engage-gap gate port
+
+### Explicitly Excluded
+
+- Old alpha-long / Outback longitudinal experiments
+- Old branch rename and cleanup commits
+- Old `master-tici` / staging documentation churn
+
+### Validation Done
+
+- `python -m py_compile opendbc_repo/opendbc/car/subaru/carcontroller.py`
+- `python -m py_compile opendbc_repo/opendbc/car/subaru/interface.py`
+- `python -m py_compile opendbc_repo/opendbc/car/subaru/values.py`
+- `python -m py_compile opendbc_repo/opendbc/car/subaru/test_carcontroller.py`
+
+### Known Follow-Up
+
+- `master` stays unchanged until this rebuilt `MostlyClueless` branch is validated in-car.
+- Full pytest/safety coverage still needs a Linux/Python 3.11+ environment.

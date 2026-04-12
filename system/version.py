@@ -13,18 +13,31 @@ from openpilot.common.git import get_commit, get_origin, get_branch, get_short_b
 RELEASE_SP_BRANCHES = ['release-c3', 'release', 'release-tizi', 'release-tici', 'release-tizi-staging', 'release-tici-staging']
 TESTED_SP_BRANCHES = ['staging-c3', 'staging-c3-new', 'staging']
 MASTER_SP_BRANCHES = ['master']
-RELEASE_BRANCHES = ['release-tizi-staging', 'release-mici-staging', 'release-tizi', 'release-mici', 'nightly']
-TESTED_BRANCHES = RELEASE_BRANCHES + ['devel-staging', 'nightly-dev'] + RELEASE_SP_BRANCHES + TESTED_SP_BRANCHES
+SUBIPILOT_RELEASE_BRANCHES = ['subi-0.9', 'subi-1.0']
+SUBIPILOT_TESTED_BRANCHES = ['subi-staging']
+SUBIPILOT_BRANCH_ORDER = ['subi-staging', 'subi-1.0', 'subi-0.9', 'MostlyClueless']
+RELEASE_BRANCHES = SUBIPILOT_RELEASE_BRANCHES + ['release-tizi-staging', 'release-mici-staging', 'release-tizi', 'release-mici', 'nightly']
+TESTED_BRANCHES = RELEASE_BRANCHES + SUBIPILOT_TESTED_BRANCHES + ['devel-staging', 'nightly-dev'] + RELEASE_SP_BRANCHES + TESTED_SP_BRANCHES
+LEGACY_STABLE_BRANCH_MIGRATIONS = {
+  "master": "subi-0.9",
+  "mc-0.9": "subi-0.9",
+}
 
 SP_BRANCH_MIGRATIONS = {
   ("tici", "staging-c3-new"): "staging-tici",
   ("tici", "dev-c3-new"): "staging-tici",
-  ("tici", "master"): "master-tici",
-  ("tici", "master-dev-c3-new"): "master-tici",
+  ("tici", "master-dev-c3-new"): "subi-0.9",
   ("tizi", "staging-c3-new"): "staging",
   ("tizi", "dev-c3-new"): "dev",
   ("tizi", "master-dev-c3-new"): "master-dev",
 }
+OFFICIAL_RELEASE_NOTES_REMOTES = (
+  "github.com/commaai/openpilot",
+  "github.com/sunnypilot/sunnypilot",
+  "github.com/sunnypilot/openpilot",
+  "github.com/sunnyhaibin/sunnypilot",
+  "github.com/sunnyhaibin/openpilot",
+)
 
 BUILD_METADATA_FILENAME = "build.json"
 
@@ -41,9 +54,59 @@ def get_version(path: str = BASEDIR) -> str:
   return version
 
 
+def normalize_origin(git_origin: str) -> str:
+  return git_origin \
+    .replace("git@", "", 1) \
+    .replace(".git", "", 1) \
+    .replace("https://", "", 1) \
+    .replace(":", "/", 1)
+
+
+def should_use_fork_release_notes(path: str = BASEDIR) -> bool:
+  return normalize_origin(get_origin(path)) not in OFFICIAL_RELEASE_NOTES_REMOTES
+
+
+def get_release_notes_filename(path: str = BASEDIR) -> str:
+  preferred = "FORK_CHANGELOG.md" if should_use_fork_release_notes(path) else "CHANGELOG.md"
+  fallbacks = ("CHANGELOG.md", "FORK_CHANGELOG.md")
+
+  for filename in (preferred, *fallbacks):
+    if os.path.exists(os.path.join(path, filename)):
+      return filename
+
+  return preferred
+
+
 def get_release_notes(path: str = BASEDIR) -> str:
-  with open(os.path.join(path, "CHANGELOG.md")) as f:
+  with open(os.path.join(path, get_release_notes_filename(path))) as f:
     return f.read().split('\n\n', 1)[0]
+
+
+def migrate_branch(device_type: str, branch: str | None) -> str | None:
+  if branch is None:
+    return None
+
+  if branch in LEGACY_STABLE_BRANCH_MIGRATIONS:
+    return LEGACY_STABLE_BRANCH_MIGRATIONS[branch]
+
+  return SP_BRANCH_MIGRATIONS.get((device_type, branch), branch)
+
+
+def order_branches_for_ui(branches: list[str], current_branch: str = "") -> list[str]:
+  ordered: list[str] = []
+  seen: set[str] = set()
+
+  for branch in [current_branch, *SUBIPILOT_BRANCH_ORDER]:
+    if branch and branch in branches and branch not in seen:
+      ordered.append(branch)
+      seen.add(branch)
+
+  for branch in branches:
+    if branch not in seen:
+      ordered.append(branch)
+      seen.add(branch)
+
+  return ordered
 
 
 @cache
@@ -106,11 +169,7 @@ class OpenpilotMetadata:
 
   @property
   def git_normalized_origin(self) -> str:
-    return self.git_origin \
-      .replace("git@", "", 1) \
-      .replace(".git", "", 1) \
-      .replace("https://", "", 1) \
-      .replace(":", "/", 1)
+    return normalize_origin(self.git_origin)
 
 
 @dataclass
@@ -152,12 +211,12 @@ class BuildMetadata:
       return "tici"
     elif self.development_channel:
       return "development"
+    elif self.release_channel or self.release_sp_channel:
+      return "release"
     elif self.tested_channel:
       return "staging"
     elif self.master_channel:
       return "master"
-    elif self.release_channel or self.release_sp_channel:
-      return "release"
     else:
       return "feature"
 

@@ -13,8 +13,8 @@ from openpilot.system.ui.widgets import Widget
 
 CHEVRON_INFO_DESCRIPTION = {
   "enabled": tr_noop("Display useful metrics below the chevron that tracks the lead car " +
-                     "only applicable to cars with sunnypilot longitudinal control."),
-  "disabled": tr_noop("This feature requires sunnypilot longitudinal control to be available.")
+                     "when lead vehicle data is available."),
+  "disabled": tr_noop("This feature becomes available once your car has been identified.")
 }
 
 
@@ -72,16 +72,6 @@ class VisualsLayout(Widget):
            "It is the driver's responsibility to observe their environment and make decisions accordingly."),
         None,
       ),
-      "TrueVEgoUI": (
-        lambda: tr("Speedometer: Always Display True Speed"),
-        tr("For applicable vehicles, always display the true vehicle current speed from wheel speed sensors."),
-        None,
-      ),
-      "HideVEgoUI": (
-        lambda: tr("Speedometer: Hide from Onroad Screen"),
-        tr("When enabled, the speedometer on the onroad screen is not displayed."),
-        None,
-      ),
       "ShowTurnSignals": (
         lambda: tr("Display Turn Signals"),
         tr("When enabled, visual turn indicators are drawn on the HUD."),
@@ -121,7 +111,8 @@ class VisualsLayout(Widget):
       inline=False
     )
 
-    items = list(self._toggles.values()) + [
+    items = list(self._toggles.values())
+    items += [
       self._chevron_info,
       self._dev_ui_info,
     ]
@@ -135,20 +126,22 @@ class VisualsLayout(Widget):
 
     self._dev_ui_info.action_item.set_selected_button(ui_state.params.get("DevUIInfo", return_default=True))
 
-    if ui_state.has_longitudinal_control:
+    if self._chevron_info_available():
       self._chevron_info.set_description(tr(CHEVRON_INFO_DESCRIPTION["enabled"]))
       self._chevron_info.action_item.set_selected_button(ui_state.params.get("ChevronInfo", return_default=True))
       self._chevron_info.action_item.set_enabled(True)
     else:
       self._chevron_info.set_description(tr(CHEVRON_INFO_DESCRIPTION["disabled"]))
       self._chevron_info.action_item.set_enabled(False)
-      ui_state.params.put("ChevronInfo", 0)
+
+  def _chevron_info_available(self) -> bool:
+    return ui_state.CP is not None
 
   def _render(self, rect):
     self._scroller.render(rect)
 
   def show_event(self):
     self._scroller.show_event()
-    if not ui_state.has_longitudinal_control:
+    if not self._chevron_info_available():
       self._chevron_info.set_description(tr(CHEVRON_INFO_DESCRIPTION["disabled"]))
       self._chevron_info.show_description(True)

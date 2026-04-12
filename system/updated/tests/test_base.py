@@ -23,13 +23,16 @@ def run(args, **kwargs):
 
 
 def update_release(directory, name, version, agnos_version, release_notes):
-  with open(directory / "RELEASES.md", "w") as f:
-    f.write(release_notes)
+  for release_notes_filename in ("CHANGELOG.md", "FORK_CHANGELOG.md", "RELEASES.md"):
+    with open(directory / release_notes_filename, "w") as f:
+      f.write(release_notes)
 
-  (directory / "common").mkdir(exist_ok=True)
+  version_dirs = [directory / "common", directory / "sunnypilot" / "common"]
+  for version_dir in version_dirs:
+    version_dir.mkdir(parents=True, exist_ok=True)
 
-  with open(directory / "common" / "version.h", "w") as f:
-    f.write(f'#define COMMA_VERSION "{version}"')
+    with open(version_dir / "version.h", "w") as f:
+      f.write(f'#define COMMA_VERSION "{version}"')
 
   launch_env = directory / "launch_env.sh"
   with open(launch_env, "w") as f:
@@ -44,8 +47,15 @@ def update_release(directory, name, version, agnos_version, release_notes):
 
 
 def get_version(path: str) -> str:
-  with open(os.path.join(path, "common", "version.h")) as f:
-    return f.read().split('"')[1]
+  version_paths = (
+    os.path.join(path, "sunnypilot", "common", "version.h"),
+    os.path.join(path, "common", "version.h"),
+  )
+  for version_path in version_paths:
+    if os.path.exists(version_path):
+      with open(version_path) as f:
+        return f.read().split('"')[1]
+  raise FileNotFoundError("version.h not found")
 
 
 @pytest.mark.slow # TODO: can we test overlayfs in GHA?
@@ -77,8 +87,9 @@ class TestBaseUpdate:
     os.environ["UPDATER_LOCK_FILE"] = str(self.mock_update_path / "safe_staging_overlay.lock")
 
     self.MOCK_RELEASES = {
-      "release3": ("0.1.2", "1.2", "0.1.2 release notes"),
-      "master": ("0.1.3", "1.2", "0.1.3 release notes"),
+      "subi-0.9": ("0.9.0", "1.2", "subi-0.9 release notes"),
+      "subi-staging": ("1.0.0-rc1", "1.2", "subi-staging release notes"),
+      "subi-1.0": ("1.0.0", "1.2", "subi-1.0 release notes"),
     }
 
   @pytest.fixture(autouse=True)
@@ -161,76 +172,76 @@ class ParamsBaseUpdateTest(TestBaseUpdate):
     self.wait_for_condition(lambda: self.params.get_bool("UpdateAvailable"))
 
   def test_no_update(self):
-    # Start on release3, ensure we don't fetch any updates
-    self.setup_remote_release("release3")
-    self.setup_basedir_release("release3")
+    # Start on stable, ensure we don't fetch any updates
+    self.setup_remote_release("subi-0.9")
+    self.setup_basedir_release("subi-0.9")
 
     with self.additional_context(), processes_context(["updated"]) as [updated]:
-      self._test_params("release3", False, False)
+      self._test_params("subi-0.9", False, False)
       self.wait_for_idle()
-      self._test_params("release3", False, False)
+      self._test_params("subi-0.9", False, False)
 
       self.send_check_for_updates_signal(updated)
 
       self.wait_for_idle()
 
-      self._test_params("release3", False, False)
+      self._test_params("subi-0.9", False, False)
 
   def test_new_release(self):
-    # Start on release3, simulate a release3 commit, ensure we fetch that update properly
-    self.setup_remote_release("release3")
-    self.setup_basedir_release("release3")
+    # Start on stable, simulate a new stable commit, ensure we fetch that update properly
+    self.setup_remote_release("subi-0.9")
+    self.setup_basedir_release("subi-0.9")
 
     with self.additional_context(), processes_context(["updated"]) as [updated]:
-      self._test_params("release3", False, False)
+      self._test_params("subi-0.9", False, False)
       self.wait_for_idle()
-      self._test_params("release3", False, False)
+      self._test_params("subi-0.9", False, False)
 
-      self.MOCK_RELEASES["release3"] = ("0.1.3", "1.2", "0.1.3 release notes")
-      self.update_remote_release("release3")
+      self.MOCK_RELEASES["subi-0.9"] = ("0.9.1", "1.2", "subi-0.9 hotfix notes")
+      self.update_remote_release("subi-0.9")
 
       self.send_check_for_updates_signal(updated)
 
       self.wait_for_fetch_available()
 
-      self._test_params("release3", True, False)
+      self._test_params("subi-0.9", True, False)
 
       self.send_download_signal(updated)
 
       self.wait_for_update_available()
 
-      self._test_params("release3", False, True)
-      self._test_finalized_update("release3", *self.MOCK_RELEASES["release3"])
+      self._test_params("subi-0.9", False, True)
+      self._test_finalized_update("subi-0.9", *self.MOCK_RELEASES["subi-0.9"])
 
   def test_switch_branches(self):
-    # Start on release3, request to switch to master manually, ensure we switched
-    self.setup_remote_release("release3")
-    self.setup_remote_release("master")
-    self.setup_basedir_release("release3")
+    # Start on stable, request to switch to staging manually, ensure we switched
+    self.setup_remote_release("subi-0.9")
+    self.setup_remote_release("subi-staging")
+    self.setup_basedir_release("subi-0.9")
 
     with self.additional_context(), processes_context(["updated"]) as [updated]:
-      self._test_params("release3", False, False)
+      self._test_params("subi-0.9", False, False)
       self.wait_for_idle()
-      self._test_params("release3", False, False)
+      self._test_params("subi-0.9", False, False)
 
-      self.set_target_branch("master")
+      self.set_target_branch("subi-staging")
       self.send_check_for_updates_signal(updated)
 
       self.wait_for_fetch_available()
 
-      self._test_params("master", True, False)
+      self._test_params("subi-staging", True, False)
 
       self.send_download_signal(updated)
 
       self.wait_for_update_available()
 
-      self._test_params("master", False, True)
-      self._test_finalized_update("master", *self.MOCK_RELEASES["master"])
+      self._test_params("subi-staging", False, True)
+      self._test_finalized_update("subi-staging", *self.MOCK_RELEASES["subi-staging"])
 
   def test_agnos_update(self, mocker):
-    # Start on release3, push an update with an agnos change
-    self.setup_remote_release("release3")
-    self.setup_basedir_release("release3")
+    # Start on stable, push an update with an agnos change
+    self.setup_remote_release("subi-0.9")
+    self.setup_basedir_release("subi-0.9")
 
     with self.additional_context(), processes_context(["updated"]) as [updated]:
       mocker.patch("openpilot.system.hardware.AGNOS", "True")
@@ -238,22 +249,22 @@ class ParamsBaseUpdateTest(TestBaseUpdate):
       mocker.patch("openpilot.system.hardware.tici.agnos.get_target_slot_number")
       mocker.patch("openpilot.system.hardware.tici.agnos.flash_agnos_update")
 
-      self._test_params("release3", False, False)
+      self._test_params("subi-0.9", False, False)
       self.wait_for_idle()
-      self._test_params("release3", False, False)
+      self._test_params("subi-0.9", False, False)
 
-      self.MOCK_RELEASES["release3"] = ("0.1.3", "1.3", "0.1.3 release notes")
-      self.update_remote_release("release3")
+      self.MOCK_RELEASES["subi-0.9"] = ("0.9.1", "1.3", "subi-0.9 agnos notes")
+      self.update_remote_release("subi-0.9")
 
       self.send_check_for_updates_signal(updated)
 
       self.wait_for_fetch_available()
 
-      self._test_params("release3", True, False)
+      self._test_params("subi-0.9", True, False)
 
       self.send_download_signal(updated)
 
       self.wait_for_update_available()
 
-      self._test_params("release3", False, True)
-      self._test_finalized_update("release3", *self.MOCK_RELEASES["release3"])
+      self._test_params("subi-0.9", False, True)
+      self._test_finalized_update("subi-0.9", *self.MOCK_RELEASES["subi-0.9"])

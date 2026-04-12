@@ -2,6 +2,7 @@ import time
 import numpy as np
 import pyray as rl
 from cereal import log, messaging
+from openpilot.common.params import Params
 from msgq.visionipc import VisionStreamType
 from openpilot.selfdrive.ui import UI_BORDER_SIZE
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
@@ -16,7 +17,8 @@ from openpilot.common.transformations.orientation import rot_from_euler
 
 if gui_app.sunnypilot_ui():
   from openpilot.selfdrive.ui.sunnypilot.onroad.alert_renderer import AlertRendererSP as AlertRenderer
-  from openpilot.selfdrive.ui.sunnypilot.onroad.augmented_road_view import BORDER_COLORS_SP, AugmentedRoadViewSP
+  from openpilot.selfdrive.ui.sunnypilot.onroad.augmented_road_view import BORDER_COLORS_SP, AugmentedRoadViewSP, resolve_border_color
+  from openpilot.selfdrive.ui.sunnypilot.onroad.confidence_ball import ConfidenceBallTiciSP
   from openpilot.selfdrive.ui.sunnypilot.onroad.driver_state import DriverStateRendererSP as DriverStateRenderer
   from openpilot.selfdrive.ui.sunnypilot.onroad.hud_renderer import HudRendererSP as HudRenderer
   from openpilot.selfdrive.ui.sunnypilot.ui_state import OnroadTimerStatus
@@ -37,13 +39,19 @@ BORDER_COLORS = {
 WIDE_CAM_MAX_SPEED = 10.0  # m/s (22 mph)
 ROAD_CAM_MIN_SPEED = 15.0  # m/s (34 mph)
 INF_POINT = np.array([1000.0, 0.0, 0.0])
+BALL_BORDER_MARGIN = UI_BORDER_SIZE // 2
+
+
+def _get_bool_param(params: Params, key: str, default: bool = False) -> bool:
+  value = params.get(key, return_default=True)
+  return default if value is None else bool(value)
 
 
 class AugmentedRoadView(CameraView, AugmentedRoadViewSP):
   def __init__(self, stream_type: VisionStreamType = VisionStreamType.VISION_STREAM_ROAD):
     CameraView.__init__(self, "camerad", stream_type)
     AugmentedRoadViewSP.__init__(self)
-    self._set_placeholder_color(BORDER_COLORS[UIStatus.DISENGAGED])
+    self._set_placeholder_color(resolve_border_color(UIStatus.DISENGAGED, BORDER_COLORS))
 
     self.device_camera: DeviceCameraConfig | None = None
     self.view_from_calib = view_frame_from_device_frame.copy()
@@ -57,6 +65,10 @@ class AugmentedRoadView(CameraView, AugmentedRoadViewSP):
     self._hud_renderer = HudRenderer()
     self.alert_renderer = AlertRenderer()
     self.driver_state_renderer = DriverStateRenderer()
+    self._params = Params()
+    self._confidence_ball = ConfidenceBallTiciSP() if gui_app.sunnypilot_ui() else None
+    self._show_confidence_ball = _get_bool_param(self._params, "BPShowConfidenceBall")
+    self._param_counter = 0
 
     # debug
     self._pm = messaging.PubMaster(['uiDebug'])
@@ -66,6 +78,12 @@ class AugmentedRoadView(CameraView, AugmentedRoadViewSP):
     start_draw = time.monotonic()
     if not ui_state.started:
       return
+
+    if gui_app.sunnypilot_ui():
+      self._param_counter += 1
+      if self._param_counter >= 60:
+        self._param_counter = 0
+        self._show_confidence_ball = _get_bool_param(self._params, "BPShowConfidenceBall")
 
     self._switch_stream_if_needed(ui_state.sm)
 
@@ -78,6 +96,13 @@ class AugmentedRoadView(CameraView, AugmentedRoadViewSP):
       rect.y + UI_BORDER_SIZE,
       rect.width - 2 * UI_BORDER_SIZE,
       rect.height - 2 * UI_BORDER_SIZE,
+    )
+    ball_offset = (self._confidence_ball.BALL_WIDTH + BALL_BORDER_MARGIN) if self._show_confidence_ball and self._confidence_ball is not None else 0
+    ui_rect = rl.Rectangle(
+      self._content_rect.x + ball_offset,
+      self._content_rect.y,
+      self._content_rect.width - ball_offset,
+      self._content_rect.height,
     )
 
     # Enable scissor mode to clip all rendering within content rectangle boundaries
@@ -95,9 +120,27 @@ class AugmentedRoadView(CameraView, AugmentedRoadViewSP):
     # Draw all UI overlays
     self.model_renderer.render(self._content_rect)
     AugmentedRoadViewSP.update_fade_out_bottom_overlay(self, self._content_rect)
-    self._hud_renderer.render(self._content_rect)
-    self.alert_renderer.render(self._content_rect)
-    self.driver_state_renderer.render(self._content_rect)
+    if self._show_confidence_ball and self._confidence_ball is not None:
+      ball_strip_width = self._confidence_ball.BALL_WIDTH + BALL_BORDER_MARGIN
+      rl.draw_rectangle_gradient_h(
+        int(self._content_rect.x),
+        int(self._content_rect.y),
+        int(ball_strip_width),
+        int(self._content_rect.height),
+        rl.Color(20, 20, 20, 120),
+        rl.Color(20, 20, 20, 0),
+      )
+      ball_rect = rl.Rectangle(
+        self._content_rect.x + BALL_BORDER_MARGIN,
+        self._content_rect.y,
+        ball_strip_width,
+        self._content_rect.height,
+      )
+      self._confidence_ball.render(ball_rect)
+
+    self._hud_renderer.render(ui_rect)
+    self.alert_renderer.render(ui_rect)
+    self.driver_state_renderer.render(ui_rect)
 
     # Custom UI extension point - add custom overlays here
     # Use self._content_rect for positioning within camera bounds
@@ -124,7 +167,7 @@ class AugmentedRoadView(CameraView, AugmentedRoadViewSP):
   def _draw_border(self, rect: rl.Rectangle):
     rl.draw_rectangle_lines_ex(rect, UI_BORDER_SIZE, rl.BLACK)
     border_roundness = 0.12
-    border_color = BORDER_COLORS.get(ui_state.status, BORDER_COLORS[UIStatus.DISENGAGED])
+    border_color = resolve_border_color(ui_state.status, BORDER_COLORS)
     border_rect = rl.Rectangle(rect.x + UI_BORDER_SIZE, rect.y + UI_BORDER_SIZE,
                                rect.width - 2 * UI_BORDER_SIZE, rect.height - 2 * UI_BORDER_SIZE)
     rl.draw_rectangle_rounded_lines_ex(border_rect, border_roundness, 10, UI_BORDER_SIZE, border_color)

@@ -6,6 +6,7 @@ See the LICENSE.md file in the root directory for more details.
 """
 import pyray as rl
 from openpilot.selfdrive.ui.ui_state import UIStatus
+from openpilot.selfdrive.ui.sunnypilot.onroad.chevron_metrics_bp import ChevronMetricsBP
 from openpilot.selfdrive.ui.sunnypilot.onroad.rainbow_path import RainbowPath
 
 LANE_LINE_COLORS_SP = {
@@ -17,3 +18,4 @@ LANE_LINE_COLORS_SP = {
 class ModelRendererSP:
   def __init__(self):
     self.rainbow_path = RainbowPath()
+    self.chevron_metrics = ChevronMetricsBP(scale=0.72, inverted_top_offset_ratio=0.2)

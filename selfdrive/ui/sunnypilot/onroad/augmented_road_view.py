@@ -7,12 +7,20 @@ See the LICENSE.md file in the root directory for more details.
 import pyray as rl
 from openpilot.common.filter_simple import FirstOrderFilter
 from openpilot.selfdrive.ui.ui_state import UIStatus, ui_state
+from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import get_dynamic_solid_color
 from openpilot.system.ui.lib.application import gui_app
 
 BORDER_COLORS_SP = {
   UIStatus.LAT_ONLY: rl.Color(0x00, 0xC8, 0xC8, 0xFF),  # Cyan for lateral-only state
   UIStatus.LONG_ONLY: rl.Color(0x96, 0x1C, 0xA8, 0xFF),  # Purple for longitudinal-only state
 }
+
+
+def resolve_border_color(status: UIStatus, fallback_colors: dict[UIStatus, rl.Color]) -> rl.Color:
+  if ui_state.dynamic_path_color:
+    return get_dynamic_solid_color(status)
+
+  return fallback_colors.get(status, fallback_colors[UIStatus.DISENGAGED])
 
 
 class AugmentedRoadViewSP:

@@ -17,7 +17,15 @@ from openpilot.system.hardware.hw import Paths
 
 from cereal import messaging, custom
 from openpilot.sunnypilot.models.fetcher import ModelFetcher
-from openpilot.sunnypilot.models.helpers import verify_file, get_active_bundle
+from openpilot.sunnypilot.models.helpers import (
+  ANGLE_SUBARU_NNMV2_AUTOFAILED_PARAM,
+  ANGLE_SUBARU_NNMV2_INTERNAL_NAME,
+  get_active_bundle,
+  get_angle_subaru_auto_default_bundle,
+  is_angle_subaru_from_persistent_params,
+  is_nnmv2_bundle,
+  verify_file,
+)
 
 
 class ModelManagerSP:
@@ -149,10 +157,14 @@ class ModelManagerSP:
       self.active_bundle = self.selected_bundle
       self.active_bundle.status = custom.ModelManagerSP.DownloadStatus.downloaded
       self.params.put("ModelManager_ActiveBundle", self.active_bundle.to_dict())
+      if is_angle_subaru_from_persistent_params(self.params) and is_nnmv2_bundle(self.active_bundle):
+        self.params.put_bool(ANGLE_SUBARU_NNMV2_AUTOFAILED_PARAM, False)
       self.selected_bundle = None
 
     except Exception:
       self.selected_bundle.status = custom.ModelManagerSP.DownloadStatus.failed
+      if is_angle_subaru_from_persistent_params(self.params) and is_nnmv2_bundle(self.selected_bundle):
+        self.params.put_bool(ANGLE_SUBARU_NNMV2_AUTOFAILED_PARAM, True)
       raise
 
     finally:
@@ -170,8 +182,19 @@ class ModelManagerSP:
       try:
         self.available_models = self.model_fetcher.get_available_bundles()
         self.active_bundle = get_active_bundle(self.params)
+        index_to_download = self.params.get("ModelManager_DownloadIndex")
 
-        if (index_to_download := self.params.get("ModelManager_DownloadIndex")) is not None:
+        if auto_bundle := get_angle_subaru_auto_default_bundle(
+          self.params,
+          self.available_models,
+          active_bundle=self.active_bundle,
+          download_index=index_to_download,
+        ):
+          cloudlog.info(f"Auto-queueing {ANGLE_SUBARU_NNMV2_INTERNAL_NAME} for angle Subaru default model")
+          self.params.put("ModelManager_DownloadIndex", auto_bundle.index)
+          index_to_download = auto_bundle.index
+
+        if index_to_download is not None:
           if model_to_download := next((model for model in self.available_models if model.index == index_to_download), None):
             try:
               self.download(model_to_download, Paths.model_root())

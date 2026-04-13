@@ -26,12 +26,13 @@ CUSTOM_YIELD_TORQUE_DESC = (
   "Enable a custom Subaru manual-yield torque threshold. When off, manual override detection falls back to "
   + "the stock Subaru threshold for your platform while keeping your saved test value. "
   + "Settings near the minimum may falsely detect manual override while openpilot is steering through turns. "
-  + f"40 is the minimum allowed test value. {ANGLE_ONLY_DESC}"
+  + f"Values above 80 require more driver torque and may be slower to detect manual override. 40 is the minimum allowed test value. {ANGLE_ONLY_DESC}"
 )
 YIELD_TORQUE_DESC = (
   "Adjust the steering torque required to count as manual yield. Lower values detect lighter steady driver "
   + "input sooner, but settings near the minimum may falsely detect manual override while openpilot is steering through turns. "
-  + f"40 is the minimum allowed test value; 80 matches the stock threshold on modern Subaru angle-LKAS platforms. {ANGLE_ONLY_DESC}"
+  + "80 matches the stock threshold on modern Subaru angle-LKAS platforms. Values above 80 are test values "
+  + f"that require more driver torque and may be slower to detect manual override. 40 is the minimum allowed test value. {ANGLE_ONLY_DESC}"
 )
 CUSTOM_RESUME_SOFTNESS_DESC = (
   "Enable a custom post-manual-yield steering reclaim ramp. When off, no SubiPilot reclaim ramp is applied "
@@ -76,7 +77,7 @@ RESUME_SOFTNESS_LABELS = ["Standard", "Soft", "Softer", "Very Soft", "Extra Soft
 RELEASE_GUARD_LEVEL_LABELS = ["Light", "Medium", "Strong"]
 SOFT_CAPTURE_STRENGTH_LABELS = ["1 - Light", "2 - Mild", "3 - Medium", "4 - Strong", "5 - Max"]
 MANUAL_YIELD_TORQUE_THRESHOLD_MIN = 40
-MANUAL_YIELD_TORQUE_THRESHOLD_MAX = 80
+MANUAL_YIELD_TORQUE_THRESHOLD_MAX = 150
 MANUAL_YIELD_TORQUE_THRESHOLD_STEP = 5
 
 
@@ -141,7 +142,11 @@ class SubaruLayout(Widget):
   @staticmethod
   def _format_manual_yield_torque_threshold_label(value: int) -> str:
     clamped = SubaruLayout._clamp_manual_yield_torque_threshold(value)
-    return tr("80 - Stock") if clamped == MANUAL_YIELD_TORQUE_THRESHOLD_MAX else str(clamped)
+    if clamped == 80:
+      return tr("80 - Stock")
+    if clamped > 80:
+      return f"{clamped} - {tr('Test')}"
+    return str(clamped)
 
   @staticmethod
   def _format_soft_capture_label(value: int) -> str:
@@ -306,7 +311,7 @@ class SubaruLayout(Widget):
     self._subaru_soft_capture.action_item.set_state(soft_capture_enabled)
 
     self._manual_yield_torque_threshold.action_item.current_value = self._clamp_manual_yield_torque_threshold(
-      self._get_int_param("MCSubaruManualYieldTorqueThreshold", MANUAL_YIELD_TORQUE_THRESHOLD_MAX)
+      self._get_int_param("MCSubaruManualYieldTorqueThreshold", 80)
     )
     self._manual_yield_resume_softness.action_item.current_value = max(0, min(self._get_int_param("MCSubaruManualYieldResumeSoftness", 4), 6))
     self._manual_yield_release_guard_level.action_item.current_value = max(1, min(self._get_int_param("MCSubaruManualYieldReleaseGuardLevel", 2), 3))

@@ -82,11 +82,11 @@ class TestSunnypilotParamsMigration:
     assert self.params.get("TrueVEgoUI") is None
     assert self.params.get("MatchVehicleSpeedometerMigrated") == MATCH_VEHICLE_SPEEDOMETER_MIGRATION_VERSION
 
-  def test_subaru_bluepilot_tuning_migration_force_resets_existing_values(self):
+  def test_subaru_bluepilot_tuning_migration_preserves_existing_values(self):
     self.params.put_bool("MCSubaruManualYieldTorqueThresholdEnabled", True)
-    self.params.put("MCSubaruManualYieldTorqueThreshold", "10")
-    self.params.put_bool("MCSubaruManualYieldResumeSoftnessEnabled", False)
-    self.params.put("MCSubaruManualYieldResumeSoftness", "0")
+    self.params.put("MCSubaruManualYieldTorqueThreshold", "60")
+    self.params.put_bool("MCSubaruManualYieldResumeSoftnessEnabled", True)
+    self.params.put("MCSubaruManualYieldResumeSoftness", "1")
     self.params.put_bool("MCSubaruManualYieldReleaseGuardEnabled", True)
     self.params.put("MCSubaruManualYieldReleaseGuardLevel", "3")
     self.params.put_bool("MCSubaruSoftCaptureEnabled", True)
@@ -96,6 +96,23 @@ class TestSunnypilotParamsMigration:
     self.params.put_bool("MCSubaruCenterDampingTune", True)
     self.params.put("MCSubaruCenterDampingStrength", "4")
 
+    run_migration(self.params)
+
+    assert self.params.get_bool("MCSubaruManualYieldTorqueThresholdEnabled")
+    assert self.params.get("MCSubaruManualYieldTorqueThreshold") == "60"
+    assert self.params.get_bool("MCSubaruManualYieldResumeSoftnessEnabled")
+    assert self.params.get("MCSubaruManualYieldResumeSoftness") == "1"
+    assert self.params.get_bool("MCSubaruManualYieldReleaseGuardEnabled")
+    assert self.params.get("MCSubaruManualYieldReleaseGuardLevel") == "3"
+    assert self.params.get_bool("MCSubaruSoftCaptureEnabled")
+    assert self.params.get("MCSubaruSoftCaptureLevel") == "1"
+    assert self.params.get_bool("MCSubaruSmoothingTune")
+    assert self.params.get("MCSubaruSmoothingStrength") == "4"
+    assert self.params.get_bool("MCSubaruCenterDampingTune")
+    assert self.params.get("MCSubaruCenterDampingStrength") == "4"
+    assert self.params.get("Subaru11BluePilotTuningMigrated") == SUBARU_11_BLUEPILOT_TUNING_MIGRATION_VERSION
+
+  def test_subaru_bluepilot_tuning_migration_seeds_missing_values(self):
     run_migration(self.params)
 
     assert not self.params.get_bool("MCSubaruManualYieldTorqueThresholdEnabled")
@@ -156,6 +173,15 @@ class TestSunnypilotParamsMigration:
     run_migration(self.params)
 
     assert self.params.get("MCSubaruManualYieldTorqueThreshold") == "40"
+    assert self.params.get("SubaruManualYieldTorqueFloorMigrated") == SUBARU_MANUAL_YIELD_TORQUE_FLOOR_MIGRATION_VERSION
+
+  def test_subaru_manual_yield_torque_floor_migration_preserves_high_test_values(self):
+    self.params.put("Subaru11BluePilotTuningMigrated", SUBARU_11_BLUEPILOT_TUNING_MIGRATION_VERSION)
+    self.params.put("MCSubaruManualYieldTorqueThreshold", "150")
+
+    run_migration(self.params)
+
+    assert self.params.get("MCSubaruManualYieldTorqueThreshold") == "150"
     assert self.params.get("SubaruManualYieldTorqueFloorMigrated") == SUBARU_MANUAL_YIELD_TORQUE_FLOOR_MIGRATION_VERSION
 
   def test_subaru_manual_yield_torque_floor_migration_is_idempotent_after_sentinel_is_set(self):

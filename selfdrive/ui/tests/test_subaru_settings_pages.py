@@ -62,8 +62,10 @@ def test_tici_subaru_page_uses_bluepilot_tuning_order_and_per_toggle_enablement(
   assert 'Angle-based Subaru only. Does not affect older torque-based Subaru models.' in source
   assert 'Experiment - subi-staging only.' in source
   assert "MANUAL_YIELD_TORQUE_THRESHOLD_MIN = 40" in source
+  assert "MANUAL_YIELD_TORQUE_THRESHOLD_MAX = 150" in source
   assert "40 is the minimum allowed test value" in source
   assert "may falsely detect manual override while openpilot is steering through turns" in source
+  assert "Values above 80 require more driver torque" in source
   assert 'self._manual_yield_torque_threshold_enabled.set_visible(enabled)' in source
   assert 'self._manual_yield_resume_softness_enabled.set_visible(enabled)' in source
   assert 'self._manual_yield_release_guard_enabled.set_visible(enabled)' in source
@@ -111,7 +113,9 @@ def test_mici_subaru_page_matches_same_bluepilot_tuning_model():
     assert f'"{param}"' not in source
   assert 'older torque models unaffected' in source
   assert "MANUAL_YIELD_TORQUE_THRESHOLD_MIN = 40" in source
+  assert "MANUAL_YIELD_TORQUE_THRESHOLD_MAX = 150" in source
   assert "values near 40 may false-trigger override in turns" in source
+  assert "values above 80 need more torque and may detect slower" in source
   assert '"custom yield\\ntorque"' in source
   assert 'BigButton("manual yield\\ntorque")' in source
   assert '"custom resume\\nsoftness"' in source
@@ -161,12 +165,17 @@ def test_staging_params_defaults_and_metadata_match_bluepilot_tuning_contract():
     metadata_source.index('"MCSubaruManualYieldTorqueThreshold":'):metadata_source.index('"MCSubaruManualYieldResumeSoftnessEnabled"')
   ]
   assert '"min": 40' in threshold_metadata
+  assert '"max": 150' in threshold_metadata
   assert '40 is the minimum allowed test value' in threshold_metadata
   assert 'may falsely detect manual override while openpilot is steering through turns' in threshold_metadata
+  assert 'Values above 80 are test values' in threshold_metadata
+  assert 'may be slower to detect manual override' in threshold_metadata
   for hidden_value in (10, 15, 20, 25, 30, 35):
     assert f'{{ "value": {hidden_value}, "label": "{hidden_value}" }}' not in threshold_metadata
   for shown_value in range(40, 80, 5):
     assert f'{{ "value": {shown_value}, "label": "{shown_value}" }}' in threshold_metadata
+  for test_value in range(85, 155, 5):
+    assert f'{{ "value": {test_value}, "label": "{test_value} - Test" }}' in threshold_metadata
   assert 'Manual Yield Resume Softness' in metadata_source
   assert 'no SubiPilot reclaim ramp is applied' in metadata_source
   assert 'Release Guard Strength' in metadata_source

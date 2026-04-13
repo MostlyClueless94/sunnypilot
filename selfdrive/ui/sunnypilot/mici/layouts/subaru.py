@@ -17,7 +17,7 @@ RESUME_SOFTNESS_LABELS = ["standard", "soft", "softer", "very soft", "extra soft
 RELEASE_GUARD_LEVEL_LABELS = ["light", "medium", "strong"]
 SOFT_CAPTURE_STRENGTH_LABELS = ["1 - Light", "2 - Mild", "3 - Medium", "4 - Strong", "5 - Max"]
 MANUAL_YIELD_TORQUE_THRESHOLD_MIN = 40
-MANUAL_YIELD_TORQUE_THRESHOLD_MAX = 80
+MANUAL_YIELD_TORQUE_THRESHOLD_MAX = 150
 MANUAL_YIELD_TORQUE_THRESHOLD_STEP = 5
 
 
@@ -44,7 +44,8 @@ class SubaruLayoutMici(NavScroller):
     self._manual_yield_torque_threshold_toggle = BigParamControl(
       "custom yield\ntorque",
       "MCSubaruManualYieldTorqueThresholdEnabled",
-      desc=f"custom manual-yield torque threshold; values near 40 may false-trigger override in turns; {ANGLE_ONLY_DESC}",
+      desc="custom manual-yield torque threshold; values near 40 may false-trigger override in turns; "
+           + f"values above 80 need more torque and may detect slower; {ANGLE_ONLY_DESC}",
     )
     self._manual_yield_resume_softness_toggle = BigParamControl(
       "custom resume\nsoftness",
@@ -193,7 +194,11 @@ class SubaruLayoutMici(NavScroller):
   @staticmethod
   def _format_manual_yield_torque_threshold_label(value: int) -> str:
     clamped = SubaruLayoutMici._clamp_manual_yield_torque_threshold(value)
-    return "80 - Stock" if clamped == MANUAL_YIELD_TORQUE_THRESHOLD_MAX else str(clamped)
+    if clamped == 80:
+      return "80 - Stock"
+    if clamped > 80:
+      return f"{clamped} - Test"
+    return str(clamped)
 
   @staticmethod
   def _format_soft_capture_label(value: int) -> str:
@@ -269,7 +274,7 @@ class SubaruLayoutMici(NavScroller):
     self._subaru_soft_capture_strength_btn.set_enabled(soft_capture_enabled)
     self._manual_yield_torque_threshold_btn.set_value(
       self._format_manual_yield_torque_threshold_label(
-        self._clamp_manual_yield_torque_threshold(self._get_int_param("MCSubaruManualYieldTorqueThreshold", MANUAL_YIELD_TORQUE_THRESHOLD_MAX))
+        self._clamp_manual_yield_torque_threshold(self._get_int_param("MCSubaruManualYieldTorqueThreshold", 80))
       )
     )
     self._manual_yield_resume_softness_btn.set_value(

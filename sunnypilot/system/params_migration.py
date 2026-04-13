@@ -9,7 +9,7 @@ from openpilot.common.swaglog import cloudlog
 ONROAD_BRIGHTNESS_MIGRATION_VERSION: str = "1.0"
 ONROAD_BRIGHTNESS_TIMER_MIGRATION_VERSION: str = "1.0"
 MATCH_VEHICLE_SPEEDOMETER_MIGRATION_VERSION: str = "1.1"
-SUBARU_11_BLUEPILOT_TUNING_MIGRATION_VERSION: str = "subi-staging-1.1-jacob-parity"
+SUBARU_11_BLUEPILOT_TUNING_MIGRATION_VERSION: str = "subi-staging-1.1-preserve-bluepilot-tuning"
 SUBARU_MANUAL_YIELD_TORQUE_FLOOR_MIGRATION_VERSION: str = "subi-staging-1.1-torque-floor-40"
 
 # index -> seconds mapping for OnroadScreenOffTimer (SSoT)
@@ -74,24 +74,41 @@ def run_migration(_params):
     except Exception as e:
       cloudlog.exception(f"Error migrating MCSubaruMatchVehicleSpeedometer: {e}")
 
-  # reset Subaru angle tuning to the BluePilot personal-build model for the 1.1 staging rebuild
+  # seed Subaru angle tuning defaults for the 1.1 staging rebuild without overwriting saved test choices
   if _params.get("Subaru11BluePilotTuningMigrated") != SUBARU_11_BLUEPILOT_TUNING_MIGRATION_VERSION:
     try:
-      _params.put_bool("MCSubaruManualYieldTorqueThresholdEnabled", False)
-      _params.put("MCSubaruManualYieldTorqueThreshold", "80")
-      _params.put_bool("MCSubaruManualYieldResumeSoftnessEnabled", False)
-      _params.put("MCSubaruManualYieldResumeSoftness", "4")
-      _params.put_bool("MCSubaruManualYieldReleaseGuardEnabled", False)
-      _params.put("MCSubaruManualYieldReleaseGuardLevel", "2")
-      _params.put_bool("MCSubaruSoftCaptureEnabled", False)
-      _params.put("MCSubaruSoftCaptureLevel", "3")
-      _params.put_bool("MCSubaruSmoothingTune", False)
-      _params.put("MCSubaruSmoothingStrength", "0")
-      _params.put_bool("MCSubaruCenterDampingTune", False)
-      _params.put("MCSubaruCenterDampingStrength", "0")
+      seeded_keys = []
+      bool_defaults = {
+        "MCSubaruManualYieldTorqueThresholdEnabled": False,
+        "MCSubaruManualYieldResumeSoftnessEnabled": False,
+        "MCSubaruManualYieldReleaseGuardEnabled": False,
+        "MCSubaruSoftCaptureEnabled": False,
+        "MCSubaruSmoothingTune": False,
+        "MCSubaruCenterDampingTune": False,
+      }
+      value_defaults = {
+        "MCSubaruManualYieldTorqueThreshold": "80",
+        "MCSubaruManualYieldResumeSoftness": "4",
+        "MCSubaruManualYieldReleaseGuardLevel": "2",
+        "MCSubaruSoftCaptureLevel": "3",
+        "MCSubaruSmoothingStrength": "0",
+        "MCSubaruCenterDampingStrength": "0",
+      }
+
+      for key, default in bool_defaults.items():
+        if _params.get(key) is None:
+          _params.put_bool(key, default)
+          seeded_keys.append(key)
+
+      for key, default in value_defaults.items():
+        if _params.get(key) is None:
+          _params.put(key, default)
+          seeded_keys.append(key)
+
       _params.put("Subaru11BluePilotTuningMigrated", SUBARU_11_BLUEPILOT_TUNING_MIGRATION_VERSION)
       cloudlog.info(
-        "Successfully reset Subaru tuning to the subi-staging 1.1 BluePilot defaults. "
+        "Successfully preserved existing Subaru tuning and seeded missing BluePilot defaults "
+        + f"for {seeded_keys}. "
         + f"Setting Subaru11BluePilotTuningMigrated to {SUBARU_11_BLUEPILOT_TUNING_MIGRATION_VERSION}"
       )
     except Exception as e:

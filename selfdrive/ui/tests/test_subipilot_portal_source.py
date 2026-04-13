@@ -88,6 +88,9 @@ def test_subipilot_portal_device_settings_entries_are_present():
   assert 'param=PORTAL_ENABLED_PARAM' in mici_portal_source
   assert "SubiPilot Portal" in tici_portal_source
   assert "portal\\naddress" in mici_portal_source
+  assert "QR_RESERVED_WIDTH = 146" in mici_portal_source
+  assert "def _width_hint(self) -> int:" in mici_portal_source
+  assert "width - self.QR_RESERVED_WIDTH" in mici_portal_source
 
 
 def test_subipilot_portal_web_branding_and_settings_fallback():

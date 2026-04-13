@@ -7,6 +7,7 @@ from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import (
   DEFAULT_GREEN_PATH_COLORS,
   PATH_GRADIENT_STOPS,
   STOCK_LAT_ONLY_COLOR,
+  STOCK_LONG_ONLY_COLOR,
   STOCK_DYNAMIC_BORDER_COLORS,
   STOCK_DYNAMIC_EDGE_COLORS,
   get_default_path_edge_color,
@@ -101,6 +102,10 @@ def test_stock_lat_only_color_matches_expected_mads_teal():
   assert _color_tuple(STOCK_LAT_ONLY_COLOR) == (0, 200, 200, 255)
 
 
+def test_stock_long_only_color_matches_expected_acc_only_purple():
+  assert _color_tuple(STOCK_LONG_ONLY_COLOR) == (150, 28, 168, 255)
+
+
 def test_model_renderers_use_stock_mads_teal_for_non_dynamic_lat_only_lane_lines():
   tici_source = TICI_MODEL_RENDERER.read_text(encoding="utf-8")
   mici_source = MICI_MODEL_RENDERER.read_text(encoding="utf-8")
@@ -110,6 +115,17 @@ def test_model_renderers_use_stock_mads_teal_for_non_dynamic_lat_only_lane_lines
   assert expected_logic in tici_source
   assert "STOCK_LAT_ONLY_COLOR" in mici_source
   assert expected_logic in mici_source
+
+
+def test_model_renderers_use_stock_acc_only_purple_for_long_only_lane_lines():
+  tici_source = TICI_MODEL_RENDERER.read_text(encoding="utf-8")
+  mici_source = MICI_MODEL_RENDERER.read_text(encoding="utf-8")
+
+  expected_mapping = "UIStatus.LONG_ONLY: STOCK_LONG_ONLY_COLOR"
+  assert "STOCK_LONG_ONLY_COLOR" in tici_source
+  assert expected_mapping in tici_source
+  assert "STOCK_LONG_ONLY_COLOR" in mici_source
+  assert expected_mapping in mici_source
 
 
 def test_custom_model_green_preset_remains_separate_from_default_green_path():

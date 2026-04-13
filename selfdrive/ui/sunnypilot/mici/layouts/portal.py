@@ -36,14 +36,28 @@ def _draw_qr(matrix: list[list[bool]], rect: rl.Rectangle) -> None:
 
 
 class PortalQRButton(BigButton):
+  QR_RESERVED_WIDTH = 146
+  QR_SIZE = 112
+  QR_TOP_OFFSET = 24
+
   def __init__(self, info: CachedPortalInfo):
     super().__init__(tr("portal\naddress"), "", scroll=True)
     self.info = info
 
+  def _should_draw_qr(self) -> bool:
+    return ui_state.params.get_bool(PORTAL_ENABLED_PARAM) and bool(self.info.qr_matrix)
+
+  def _width_hint(self) -> int:
+    width = super()._width_hint()
+    return max(120, width - self.QR_RESERVED_WIDTH) if self._should_draw_qr() else width
+
   def _draw_content(self, btn_y: float):
     super()._draw_content(btn_y)
-    if ui_state.params.get_bool(PORTAL_ENABLED_PARAM) and self.info.qr_matrix:
-      _draw_qr(self.info.qr_matrix, rl.Rectangle(self._rect.x + self._rect.width - 146, btn_y + 24, 112, 112))
+    if self._should_draw_qr():
+      _draw_qr(
+        self.info.qr_matrix,
+        rl.Rectangle(self._rect.x + self._rect.width - self.QR_RESERVED_WIDTH, btn_y + self.QR_TOP_OFFSET, self.QR_SIZE, self.QR_SIZE),
+      )
 
 
 class SubiPilotPortalLayoutMici(NavScroller):

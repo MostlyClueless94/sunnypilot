@@ -190,7 +190,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"MCSubaruMatchVehicleSpeedometer", {PERSISTENT | BACKUP, BOOL, "1"}},
     {"MCSubaruManualYieldTorqueThresholdEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"MCSubaruManualYieldTorqueThreshold", {PERSISTENT | BACKUP, INT, "80"}},
-    {"MCSubaruManualYieldResumeSoftnessEnabled", {PERSISTENT | BACKUP, BOOL, "1"}},
+    {"MCSubaruManualYieldResumeSoftnessEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"MCSubaruManualYieldResumeSoftness", {PERSISTENT | BACKUP, INT, "4"}},
     {"MCSubaruManualYieldReleaseGuardEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"MCSubaruManualYieldReleaseGuardLevel", {PERSISTENT | BACKUP, INT, "2"}},

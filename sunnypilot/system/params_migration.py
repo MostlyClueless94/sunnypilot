@@ -9,7 +9,7 @@ from openpilot.common.swaglog import cloudlog
 ONROAD_BRIGHTNESS_MIGRATION_VERSION: str = "1.0"
 ONROAD_BRIGHTNESS_TIMER_MIGRATION_VERSION: str = "1.0"
 MATCH_VEHICLE_SPEEDOMETER_MIGRATION_VERSION: str = "1.1"
-SUBARU_11_BLUEPILOT_TUNING_MIGRATION_VERSION: str = "subi-staging-1.1-bluepilot"
+SUBARU_11_BLUEPILOT_TUNING_MIGRATION_VERSION: str = "subi-staging-1.1-jacob-parity"
 
 # index -> seconds mapping for OnroadScreenOffTimer (SSoT)
 ONROAD_BRIGHTNESS_TIMER_VALUES = {0: 3, 1: 5, 2: 7, 3: 10, 4: 15, 5: 30, **{i: (i - 5) * 60 for i in range(6, 16)}}
@@ -78,7 +78,7 @@ def run_migration(_params):
     try:
       _params.put_bool("MCSubaruManualYieldTorqueThresholdEnabled", False)
       _params.put("MCSubaruManualYieldTorqueThreshold", "80")
-      _params.put_bool("MCSubaruManualYieldResumeSoftnessEnabled", True)
+      _params.put_bool("MCSubaruManualYieldResumeSoftnessEnabled", False)
       _params.put("MCSubaruManualYieldResumeSoftness", "4")
       _params.put_bool("MCSubaruManualYieldReleaseGuardEnabled", False)
       _params.put("MCSubaruManualYieldReleaseGuardLevel", "2")

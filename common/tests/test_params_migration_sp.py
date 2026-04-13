@@ -98,7 +98,7 @@ class TestSunnypilotParamsMigration:
 
     assert not self.params.get_bool("MCSubaruManualYieldTorqueThresholdEnabled")
     assert self.params.get("MCSubaruManualYieldTorqueThreshold") == "80"
-    assert self.params.get_bool("MCSubaruManualYieldResumeSoftnessEnabled")
+    assert not self.params.get_bool("MCSubaruManualYieldResumeSoftnessEnabled")
     assert self.params.get("MCSubaruManualYieldResumeSoftness") == "4"
     assert not self.params.get_bool("MCSubaruManualYieldReleaseGuardEnabled")
     assert self.params.get("MCSubaruManualYieldReleaseGuardLevel") == "2"

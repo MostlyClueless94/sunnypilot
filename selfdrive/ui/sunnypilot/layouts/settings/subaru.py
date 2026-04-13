@@ -31,11 +31,11 @@ YIELD_TORQUE_DESC = (
   + f"input sooner. 80 matches the stock threshold on modern Subaru angle-LKAS platforms. {ANGLE_ONLY_DESC}"
 )
 CUSTOM_RESUME_SOFTNESS_DESC = (
-  "Enable custom manual-yield resume softness. When off, steering reclaim softness falls back to the current "
-  + f"validated default while keeping your saved softness selection. {ANGLE_ONLY_DESC}"
+  "Enable a custom post-manual-yield steering reclaim ramp. When off, no SubiPilot reclaim ramp is applied "
+  + f"and your saved softness selection is kept for later testing. {ANGLE_ONLY_DESC}"
 )
 RESUME_SOFTNESS_DESC = (
-  "Adjust how gently steering re-engages after manual override. Higher levels reduce the initial reclaim bite. "
+  "Adjust how gently the optional steering reclaim ramp re-engages after manual override. Higher levels reduce the initial reclaim bite. "
   + ANGLE_ONLY_DESC
 )
 RELEASE_GUARD_DESC = (
@@ -188,7 +188,7 @@ class SubaruLayout(Widget):
       title=lambda: tr("Custom Resume Softness"),
       description=lambda: tr(CUSTOM_RESUME_SOFTNESS_DESC),
       param="MCSubaruManualYieldResumeSoftnessEnabled",
-      initial_state=self._get_bool_param("MCSubaruManualYieldResumeSoftnessEnabled", True),
+      initial_state=self._get_bool_param("MCSubaruManualYieldResumeSoftnessEnabled"),
     )
     self._manual_yield_resume_softness = option_item_sp(
       title=lambda: tr("Manual Yield Resume Softness"),
@@ -291,7 +291,7 @@ class SubaruLayout(Widget):
 
     advanced_tuning_enabled = self._get_bool_param("MCSubaruAdvancedTuning")
     torque_threshold_enabled = self._get_bool_param("MCSubaruManualYieldTorqueThresholdEnabled")
-    resume_softness_enabled = self._get_bool_param("MCSubaruManualYieldResumeSoftnessEnabled", True)
+    resume_softness_enabled = self._get_bool_param("MCSubaruManualYieldResumeSoftnessEnabled")
     release_guard_enabled = self._get_bool_param("MCSubaruManualYieldReleaseGuardEnabled")
     soft_capture_enabled = self._get_bool_param("MCSubaruSoftCaptureEnabled")
 

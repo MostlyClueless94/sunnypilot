@@ -69,6 +69,7 @@ def test_tici_subaru_page_uses_bluepilot_tuning_order_and_per_toggle_enablement(
   assert 'self._manual_yield_resume_softness.action_item.set_enabled(resume_softness_enabled)' in source
   assert 'self._manual_yield_release_guard_level.action_item.set_enabled(release_guard_enabled)' in source
   assert 'self._subaru_soft_capture_strength.action_item.set_enabled(soft_capture_enabled)' in source
+  assert 'no SubiPilot reclaim ramp is applied' in source
   assert '80 - Stock' in source
   assert '1 - Light' in source
   assert "1 \u2014 Light" not in source
@@ -109,6 +110,7 @@ def test_mici_subaru_page_matches_same_bluepilot_tuning_model():
   assert '"custom yield\\ntorque"' in source
   assert 'BigButton("manual yield\\ntorque")' in source
   assert '"custom resume\\nsoftness"' in source
+  assert 'off means no SubiPilot reclaim ramp' in source
   assert 'BigButton("manual yield\\nresume softness")' in source
   assert '"manual yield\\nrelease guard"' in source
   assert 'BigButton("release guard\\nstrength")' in source
@@ -135,7 +137,7 @@ def test_staging_params_defaults_and_metadata_match_bluepilot_tuning_contract():
   assert '{"MCSubaruMatchVehicleSpeedometer", {PERSISTENT | BACKUP, BOOL, "1"}}' in params_source
   assert '{"MCSubaruManualYieldTorqueThresholdEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in params_source
   assert '{"MCSubaruManualYieldTorqueThreshold", {PERSISTENT | BACKUP, INT, "80"}}' in params_source
-  assert '{"MCSubaruManualYieldResumeSoftnessEnabled", {PERSISTENT | BACKUP, BOOL, "1"}}' in params_source
+  assert '{"MCSubaruManualYieldResumeSoftnessEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in params_source
   assert '{"MCSubaruManualYieldResumeSoftness", {PERSISTENT | BACKUP, INT, "4"}}' in params_source
   assert '{"MCSubaruManualYieldReleaseGuardEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in params_source
   assert '{"MCSubaruManualYieldReleaseGuardLevel", {PERSISTENT | BACKUP, INT, "2"}}' in params_source
@@ -150,6 +152,7 @@ def test_staging_params_defaults_and_metadata_match_bluepilot_tuning_contract():
   assert '"MatchVehicleSpeedometer"' not in metadata_source
   assert 'Manual Yield Torque Threshold' in metadata_source
   assert 'Manual Yield Resume Softness' in metadata_source
+  assert 'no SubiPilot reclaim ramp is applied' in metadata_source
   assert 'Release Guard Strength' in metadata_source
   assert 'Angle-based Subaru only. Does not affect older torque-based Subaru models.' in metadata_source
   assert 'Experiment - subi-staging only.' in metadata_source

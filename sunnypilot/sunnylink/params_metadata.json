@@ -1182,11 +1182,11 @@
   },
   "MCSubaruManualYieldResumeSoftnessEnabled": {
     "title": "Custom Resume Softness",
-    "description": "Enable custom manual-yield resume softness. When off, steering reclaim softness falls back to the current validated default while keeping your saved softness selection. Angle-based Subaru only. Does not affect older torque-based Subaru models."
+    "description": "Enable a custom post-manual-yield steering reclaim ramp. When off, no SubiPilot reclaim ramp is applied and your saved softness selection is kept for later testing. Angle-based Subaru only. Does not affect older torque-based Subaru models."
   },
   "MCSubaruManualYieldResumeSoftness": {
     "title": "Manual Yield Resume Softness",
-    "description": "Adjust how gently steering re-engages after manual override. Higher levels reduce the initial reclaim bite. Angle-based Subaru only. Does not affect older torque-based Subaru models.",
+    "description": "Adjust how gently the optional steering reclaim ramp re-engages after manual override. Higher levels reduce the initial reclaim bite. Angle-based Subaru only. Does not affect older torque-based Subaru models.",
     "options": [
       { "value": 0, "label": "Standard" },
       { "value": 1, "label": "Soft" },

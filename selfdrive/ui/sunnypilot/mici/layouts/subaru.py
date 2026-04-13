@@ -49,7 +49,7 @@ class SubaruLayoutMici(NavScroller):
     self._manual_yield_resume_softness_toggle = BigParamControl(
       "custom resume\nsoftness",
       "MCSubaruManualYieldResumeSoftnessEnabled",
-      desc=f"custom steering reclaim softness; {ANGLE_ONLY_DESC}",
+      desc=f"optional post-manual-yield steering reclaim ramp; off means no SubiPilot reclaim ramp; {ANGLE_ONLY_DESC}",
     )
     self._manual_yield_release_guard_toggle = BigParamControl(
       "manual yield\nrelease guard",
@@ -146,7 +146,7 @@ class SubaruLayoutMici(NavScroller):
       ("MCSubaruMatchVehicleSpeedometer", self._match_vehicle_speed, True),
       ("MCSubaruAdvancedTuning", self._subaru_advanced_tuning_toggle, False),
       ("MCSubaruManualYieldTorqueThresholdEnabled", self._manual_yield_torque_threshold_toggle, False),
-      ("MCSubaruManualYieldResumeSoftnessEnabled", self._manual_yield_resume_softness_toggle, True),
+      ("MCSubaruManualYieldResumeSoftnessEnabled", self._manual_yield_resume_softness_toggle, False),
       ("MCSubaruManualYieldReleaseGuardEnabled", self._manual_yield_release_guard_toggle, False),
       ("MCSubaruSoftCaptureEnabled", self._subaru_soft_capture_toggle, False),
       ("ShowBrakeStatus", self._show_brake_status, False),
@@ -259,7 +259,7 @@ class SubaruLayoutMici(NavScroller):
 
     advanced_tuning_enabled = self._get_bool_param("MCSubaruAdvancedTuning")
     torque_threshold_enabled = self._get_bool_param("MCSubaruManualYieldTorqueThresholdEnabled")
-    resume_softness_enabled = self._get_bool_param("MCSubaruManualYieldResumeSoftnessEnabled", True)
+    resume_softness_enabled = self._get_bool_param("MCSubaruManualYieldResumeSoftnessEnabled")
     release_guard_enabled = self._get_bool_param("MCSubaruManualYieldReleaseGuardEnabled")
     soft_capture_enabled = self._get_bool_param("MCSubaruSoftCaptureEnabled")
     self._set_advanced_tuning_visibility(advanced_tuning_enabled)

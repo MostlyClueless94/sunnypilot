@@ -10,6 +10,7 @@ ONROAD_BRIGHTNESS_MIGRATION_VERSION: str = "1.0"
 ONROAD_BRIGHTNESS_TIMER_MIGRATION_VERSION: str = "1.0"
 MATCH_VEHICLE_SPEEDOMETER_MIGRATION_VERSION: str = "1.1"
 SUBARU_11_BLUEPILOT_TUNING_MIGRATION_VERSION: str = "subi-staging-1.1-jacob-parity"
+SUBARU_MANUAL_YIELD_TORQUE_FLOOR_MIGRATION_VERSION: str = "subi-staging-1.1-torque-floor-40"
 
 # index -> seconds mapping for OnroadScreenOffTimer (SSoT)
 ONROAD_BRIGHTNESS_TIMER_VALUES = {0: 3, 1: 5, 2: 7, 3: 10, 4: 15, 5: 30, **{i: (i - 5) * 60 for i in range(6, 16)}}
@@ -95,3 +96,23 @@ def run_migration(_params):
       )
     except Exception as e:
       cloudlog.exception(f"Error migrating Subaru BluePilot tuning defaults: {e}")
+
+  # clamp unsafe old custom manual-yield torque floors without resetting other Subaru tuning choices
+  if _params.get("SubaruManualYieldTorqueFloorMigrated") != SUBARU_MANUAL_YIELD_TORQUE_FLOOR_MIGRATION_VERSION:
+    try:
+      val = _params.get("MCSubaruManualYieldTorqueThreshold", return_default=True)
+      try:
+        threshold = int(val)
+      except (TypeError, ValueError):
+        threshold = 80
+
+      if threshold < 40:
+        _params.put("MCSubaruManualYieldTorqueThreshold", "40")
+        log_str = f"Successfully clamped MCSubaruManualYieldTorqueThreshold from {threshold} to 40."
+      else:
+        log_str = "Migration not required for MCSubaruManualYieldTorqueThreshold floor."
+
+      _params.put("SubaruManualYieldTorqueFloorMigrated", SUBARU_MANUAL_YIELD_TORQUE_FLOOR_MIGRATION_VERSION)
+      cloudlog.info(log_str + f" Setting SubaruManualYieldTorqueFloorMigrated to {SUBARU_MANUAL_YIELD_TORQUE_FLOOR_MIGRATION_VERSION}")
+    except Exception as e:
+      cloudlog.exception(f"Error migrating Subaru manual-yield torque floor: {e}")

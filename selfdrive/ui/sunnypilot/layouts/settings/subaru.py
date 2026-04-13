@@ -24,11 +24,14 @@ STAGING_EXPERIMENT_DESC = "Experiment - subi-staging only."
 ADVANCED_TUNING_DESC = f"Show angle Subaru tuning controls. Hidden controls keep their saved values active. {ANGLE_ONLY_DESC}"
 CUSTOM_YIELD_TORQUE_DESC = (
   "Enable a custom Subaru manual-yield torque threshold. When off, manual override detection falls back to "
-  + f"the stock Subaru threshold for your platform while keeping your saved test value. {ANGLE_ONLY_DESC}"
+  + "the stock Subaru threshold for your platform while keeping your saved test value. "
+  + "Settings near the minimum may falsely detect manual override while openpilot is steering through turns. "
+  + f"40 is the minimum allowed test value. {ANGLE_ONLY_DESC}"
 )
 YIELD_TORQUE_DESC = (
   "Adjust the steering torque required to count as manual yield. Lower values detect lighter steady driver "
-  + f"input sooner. 80 matches the stock threshold on modern Subaru angle-LKAS platforms. {ANGLE_ONLY_DESC}"
+  + "input sooner, but settings near the minimum may falsely detect manual override while openpilot is steering through turns. "
+  + f"40 is the minimum allowed test value; 80 matches the stock threshold on modern Subaru angle-LKAS platforms. {ANGLE_ONLY_DESC}"
 )
 CUSTOM_RESUME_SOFTNESS_DESC = (
   "Enable a custom post-manual-yield steering reclaim ramp. When off, no SubiPilot reclaim ramp is applied "
@@ -72,7 +75,7 @@ MATCH_VEHICLE_SPEED_DESC = (
 RESUME_SOFTNESS_LABELS = ["Standard", "Soft", "Softer", "Very Soft", "Extra Soft", "Softest", "Max Soft"]
 RELEASE_GUARD_LEVEL_LABELS = ["Light", "Medium", "Strong"]
 SOFT_CAPTURE_STRENGTH_LABELS = ["1 - Light", "2 - Mild", "3 - Medium", "4 - Strong", "5 - Max"]
-MANUAL_YIELD_TORQUE_THRESHOLD_MIN = 10
+MANUAL_YIELD_TORQUE_THRESHOLD_MIN = 40
 MANUAL_YIELD_TORQUE_THRESHOLD_MAX = 80
 MANUAL_YIELD_TORQUE_THRESHOLD_STEP = 5
 

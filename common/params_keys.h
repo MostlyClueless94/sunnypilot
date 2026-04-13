@@ -173,6 +173,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"MatchVehicleSpeedometer", {PERSISTENT | BACKUP, BOOL, "1"}},  // Legacy compatibility key migrated to MCSubaruMatchVehicleSpeedometer.
     {"MatchVehicleSpeedometerMigrated", {PERSISTENT | BACKUP, STRING, "0.0"}},
     {"Subaru11BluePilotTuningMigrated", {PERSISTENT | BACKUP, STRING, "0.0"}},
+    {"SubaruManualYieldTorqueFloorMigrated", {PERSISTENT | BACKUP, STRING, "0.0"}},
     {"ModelRunnerTypeCache", {CLEAR_ON_ONROAD_TRANSITION, INT}},
     {"OffroadMode", {CLEAR_ON_MANAGER_START, BOOL}},
     {"Offroad_TiciSupport", {CLEAR_ON_MANAGER_START, JSON}},

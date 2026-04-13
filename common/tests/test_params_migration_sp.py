@@ -2,6 +2,7 @@ from openpilot.common.params import Params
 from openpilot.sunnypilot.system.params_migration import (
   MATCH_VEHICLE_SPEEDOMETER_MIGRATION_VERSION,
   SUBARU_11_BLUEPILOT_TUNING_MIGRATION_VERSION,
+  SUBARU_MANUAL_YIELD_TORQUE_FLOOR_MIGRATION_VERSION,
   run_migration,
 )
 
@@ -27,6 +28,7 @@ class TestSunnypilotParamsMigration:
       "MCSubaruCenterDampingTune",
       "MCSubaruCenterDampingStrength",
       "Subaru11BluePilotTuningMigrated",
+      "SubaruManualYieldTorqueFloorMigrated",
     ):
       self.params.remove(key)
 
@@ -133,3 +135,36 @@ class TestSunnypilotParamsMigration:
     assert self.params.get_bool("MCSubaruSoftCaptureEnabled")
     assert self.params.get("MCSubaruSoftCaptureLevel") == "1"
     assert self.params.get("Subaru11BluePilotTuningMigrated") == SUBARU_11_BLUEPILOT_TUNING_MIGRATION_VERSION
+
+  def test_subaru_manual_yield_torque_floor_migration_clamps_low_values_once(self):
+    self.params.put("Subaru11BluePilotTuningMigrated", SUBARU_11_BLUEPILOT_TUNING_MIGRATION_VERSION)
+    self.params.put_bool("MCSubaruManualYieldTorqueThresholdEnabled", True)
+    self.params.put("MCSubaruManualYieldTorqueThreshold", "10")
+    self.params.put_bool("MCSubaruManualYieldResumeSoftnessEnabled", True)
+
+    run_migration(self.params)
+
+    assert self.params.get_bool("MCSubaruManualYieldTorqueThresholdEnabled")
+    assert self.params.get("MCSubaruManualYieldTorqueThreshold") == "40"
+    assert self.params.get_bool("MCSubaruManualYieldResumeSoftnessEnabled")
+    assert self.params.get("SubaruManualYieldTorqueFloorMigrated") == SUBARU_MANUAL_YIELD_TORQUE_FLOOR_MIGRATION_VERSION
+
+  def test_subaru_manual_yield_torque_floor_migration_preserves_supported_values(self):
+    self.params.put("Subaru11BluePilotTuningMigrated", SUBARU_11_BLUEPILOT_TUNING_MIGRATION_VERSION)
+    self.params.put("MCSubaruManualYieldTorqueThreshold", "40")
+
+    run_migration(self.params)
+
+    assert self.params.get("MCSubaruManualYieldTorqueThreshold") == "40"
+    assert self.params.get("SubaruManualYieldTorqueFloorMigrated") == SUBARU_MANUAL_YIELD_TORQUE_FLOOR_MIGRATION_VERSION
+
+  def test_subaru_manual_yield_torque_floor_migration_is_idempotent_after_sentinel_is_set(self):
+    self.params.put("Subaru11BluePilotTuningMigrated", SUBARU_11_BLUEPILOT_TUNING_MIGRATION_VERSION)
+    self.params.put("MCSubaruManualYieldTorqueThreshold", "10")
+
+    run_migration(self.params)
+    self.params.put("MCSubaruManualYieldTorqueThreshold", "10")
+    run_migration(self.params)
+
+    assert self.params.get("MCSubaruManualYieldTorqueThreshold") == "10"
+    assert self.params.get("SubaruManualYieldTorqueFloorMigrated") == SUBARU_MANUAL_YIELD_TORQUE_FLOOR_MIGRATION_VERSION

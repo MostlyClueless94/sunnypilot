@@ -1154,18 +1154,12 @@
   },
   "MCSubaruManualYieldTorqueThresholdEnabled": {
     "title": "Custom Yield Torque",
-    "description": "Enable a custom Subaru manual-yield torque threshold. When off, manual override detection falls back to the stock Subaru threshold for your platform while keeping your saved test value. Angle-based Subaru only. Does not affect older torque-based Subaru models."
+    "description": "Enable a custom Subaru manual-yield torque threshold. When off, manual override detection falls back to the stock Subaru threshold for your platform while keeping your saved test value. Settings near the minimum may falsely detect manual override while openpilot is steering through turns. 40 is the minimum allowed test value. Angle-based Subaru only. Does not affect older torque-based Subaru models."
   },
   "MCSubaruManualYieldTorqueThreshold": {
     "title": "Manual Yield Torque Threshold",
-    "description": "Adjust the steering torque required to count as manual yield. Lower values detect lighter steady driver input sooner. 80 matches the stock threshold on modern Subaru angle-LKAS platforms. Angle-based Subaru only. Does not affect older torque-based Subaru models.",
+    "description": "Adjust the steering torque required to count as manual yield. Lower values detect lighter steady driver input sooner, but settings near the minimum may falsely detect manual override while openpilot is steering through turns. 40 is the minimum allowed test value; 80 matches the stock threshold on modern Subaru angle-LKAS platforms. Angle-based Subaru only. Does not affect older torque-based Subaru models.",
     "options": [
-      { "value": 10, "label": "10" },
-      { "value": 15, "label": "15" },
-      { "value": 20, "label": "20" },
-      { "value": 25, "label": "25" },
-      { "value": 30, "label": "30" },
-      { "value": 35, "label": "35" },
       { "value": 40, "label": "40" },
       { "value": 45, "label": "45" },
       { "value": 50, "label": "50" },
@@ -1176,7 +1170,7 @@
       { "value": 75, "label": "75" },
       { "value": 80, "label": "80 - Stock" }
     ],
-    "min": 10,
+    "min": 40,
     "max": 80,
     "step": 5
   },

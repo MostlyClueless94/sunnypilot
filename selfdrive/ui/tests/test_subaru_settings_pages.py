@@ -61,6 +61,9 @@ def test_tici_subaru_page_uses_bluepilot_tuning_order_and_per_toggle_enablement(
     assert f'param="{param}"' not in source
   assert 'Angle-based Subaru only. Does not affect older torque-based Subaru models.' in source
   assert 'Experiment - subi-staging only.' in source
+  assert "MANUAL_YIELD_TORQUE_THRESHOLD_MIN = 40" in source
+  assert "40 is the minimum allowed test value" in source
+  assert "may falsely detect manual override while openpilot is steering through turns" in source
   assert 'self._manual_yield_torque_threshold_enabled.set_visible(enabled)' in source
   assert 'self._manual_yield_resume_softness_enabled.set_visible(enabled)' in source
   assert 'self._manual_yield_release_guard_enabled.set_visible(enabled)' in source
@@ -107,6 +110,8 @@ def test_mici_subaru_page_matches_same_bluepilot_tuning_model():
   for param in RETIRED_TUNING_PARAMS:
     assert f'"{param}"' not in source
   assert 'older torque models unaffected' in source
+  assert "MANUAL_YIELD_TORQUE_THRESHOLD_MIN = 40" in source
+  assert "values near 40 may false-trigger override in turns" in source
   assert '"custom yield\\ntorque"' in source
   assert 'BigButton("manual yield\\ntorque")' in source
   assert '"custom resume\\nsoftness"' in source
@@ -144,6 +149,7 @@ def test_staging_params_defaults_and_metadata_match_bluepilot_tuning_contract():
   assert '{"MCSubaruSoftCaptureEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in params_source
   assert '{"MCSubaruSoftCaptureLevel", {PERSISTENT | BACKUP, INT, "3"}}' in params_source
   assert '{"Subaru11BluePilotTuningMigrated", {PERSISTENT | BACKUP, STRING, "0.0"}}' in params_source
+  assert '{"SubaruManualYieldTorqueFloorMigrated", {PERSISTENT | BACKUP, STRING, "0.0"}}' in params_source
 
   for param in METADATA_PARAMS:
     assert f'"{param}"' in metadata_source
@@ -151,6 +157,16 @@ def test_staging_params_defaults_and_metadata_match_bluepilot_tuning_contract():
     assert f'"{param}"' not in metadata_source
   assert '"MatchVehicleSpeedometer"' not in metadata_source
   assert 'Manual Yield Torque Threshold' in metadata_source
+  threshold_metadata = metadata_source[
+    metadata_source.index('"MCSubaruManualYieldTorqueThreshold":'):metadata_source.index('"MCSubaruManualYieldResumeSoftnessEnabled"')
+  ]
+  assert '"min": 40' in threshold_metadata
+  assert '40 is the minimum allowed test value' in threshold_metadata
+  assert 'may falsely detect manual override while openpilot is steering through turns' in threshold_metadata
+  for hidden_value in (10, 15, 20, 25, 30, 35):
+    assert f'{{ "value": {hidden_value}, "label": "{hidden_value}" }}' not in threshold_metadata
+  for shown_value in range(40, 80, 5):
+    assert f'{{ "value": {shown_value}, "label": "{shown_value}" }}' in threshold_metadata
   assert 'Manual Yield Resume Softness' in metadata_source
   assert 'no SubiPilot reclaim ramp is applied' in metadata_source
   assert 'Release Guard Strength' in metadata_source

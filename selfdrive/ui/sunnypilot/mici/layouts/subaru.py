@@ -16,7 +16,7 @@ ANGLE_ONLY_DESC = "angle-based Subaru only; older torque models unaffected"
 RESUME_SOFTNESS_LABELS = ["standard", "soft", "softer", "very soft", "extra soft", "softest", "max soft"]
 RELEASE_GUARD_LEVEL_LABELS = ["light", "medium", "strong"]
 SOFT_CAPTURE_STRENGTH_LABELS = ["1 - Light", "2 - Mild", "3 - Medium", "4 - Strong", "5 - Max"]
-MANUAL_YIELD_TORQUE_THRESHOLD_MIN = 10
+MANUAL_YIELD_TORQUE_THRESHOLD_MIN = 40
 MANUAL_YIELD_TORQUE_THRESHOLD_MAX = 80
 MANUAL_YIELD_TORQUE_THRESHOLD_STEP = 5
 
@@ -44,7 +44,7 @@ class SubaruLayoutMici(NavScroller):
     self._manual_yield_torque_threshold_toggle = BigParamControl(
       "custom yield\ntorque",
       "MCSubaruManualYieldTorqueThresholdEnabled",
-      desc=f"custom manual-yield torque threshold; {ANGLE_ONLY_DESC}",
+      desc=f"custom manual-yield torque threshold; values near 40 may false-trigger override in turns; {ANGLE_ONLY_DESC}",
     )
     self._manual_yield_resume_softness_toggle = BigParamControl(
       "custom resume\nsoftness",

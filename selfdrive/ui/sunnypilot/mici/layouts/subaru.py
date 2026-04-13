@@ -194,10 +194,10 @@ class SubaruLayoutMici(NavScroller):
   @staticmethod
   def _format_manual_yield_torque_threshold_label(value: int) -> str:
     clamped = SubaruLayoutMici._clamp_manual_yield_torque_threshold(value)
+    if clamped <= 55:
+      return f"{clamped} - Caution"
     if clamped == 80:
       return "80 - Stock"
-    if clamped > 80:
-      return f"{clamped} - Test"
     return str(clamped)
 
   @staticmethod

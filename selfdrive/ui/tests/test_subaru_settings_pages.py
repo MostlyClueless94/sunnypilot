@@ -75,6 +75,8 @@ def test_tici_subaru_page_uses_bluepilot_tuning_order_and_per_toggle_enablement(
   assert 'self._manual_yield_release_guard_level.action_item.set_enabled(release_guard_enabled)' in source
   assert 'self._subaru_soft_capture_strength.action_item.set_enabled(soft_capture_enabled)' in source
   assert 'no SubiPilot reclaim ramp is applied' in source
+  assert "tr('Caution')" in source
+  assert "tr('Test')" not in source
   assert '80 - Stock' in source
   assert '1 - Light' in source
   assert "1 \u2014 Light" not in source
@@ -129,6 +131,8 @@ def test_mici_subaru_page_matches_same_bluepilot_tuning_model():
   assert 'self._manual_yield_resume_softness_btn.set_enabled(resume_softness_enabled)' in source
   assert 'self._manual_yield_release_guard_btn.set_enabled(release_guard_enabled)' in source
   assert 'self._subaru_soft_capture_strength_btn.set_enabled(soft_capture_enabled)' in source
+  assert 'Caution' in source
+  assert ' - Test' not in source
   assert '1 - Light' in source
   assert "1 \u2014 Light" not in source
 
@@ -172,10 +176,13 @@ def test_staging_params_defaults_and_metadata_match_bluepilot_tuning_contract():
   assert 'may be slower to detect manual override' in threshold_metadata
   for hidden_value in (10, 15, 20, 25, 30, 35):
     assert f'{{ "value": {hidden_value}, "label": "{hidden_value}" }}' not in threshold_metadata
-  for shown_value in range(40, 80, 5):
+  for caution_value in range(40, 60, 5):
+    assert f'{{ "value": {caution_value}, "label": "{caution_value} - Caution" }}' in threshold_metadata
+  for shown_value in range(60, 80, 5):
     assert f'{{ "value": {shown_value}, "label": "{shown_value}" }}' in threshold_metadata
-  for test_value in range(85, 155, 5):
-    assert f'{{ "value": {test_value}, "label": "{test_value} - Test" }}' in threshold_metadata
+  for high_value in range(85, 155, 5):
+    assert f'{{ "value": {high_value}, "label": "{high_value}" }}' in threshold_metadata
+  assert ' - Test' not in threshold_metadata
   assert 'Manual Yield Resume Softness' in metadata_source
   assert 'no SubiPilot reclaim ramp is applied' in metadata_source
   assert 'Release Guard Strength' in metadata_source

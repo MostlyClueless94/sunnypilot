@@ -142,10 +142,10 @@ class SubaruLayout(Widget):
   @staticmethod
   def _format_manual_yield_torque_threshold_label(value: int) -> str:
     clamped = SubaruLayout._clamp_manual_yield_torque_threshold(value)
+    if clamped <= 55:
+      return f"{clamped} - {tr('Caution')}"
     if clamped == 80:
       return tr("80 - Stock")
-    if clamped > 80:
-      return f"{clamped} - {tr('Test')}"
     return str(clamped)
 
   @staticmethod

@@ -3,7 +3,6 @@ from types import SimpleNamespace
 
 from openpilot.selfdrive.ui.sunnypilot.onroad import brake_status
 from openpilot.selfdrive.ui.sunnypilot.onroad.brake_status import (
-  STOCK_LONG_BRAKING_AEGO_THRESHOLD,
   is_vehicle_braking,
   should_highlight_braking_speed,
 )
@@ -42,15 +41,15 @@ def _build_cp(*, openpilot_longitudinal=False):
   return SimpleNamespace(openpilotLongitudinalControl=openpilot_longitudinal)
 
 
-def test_brake_status_triggers_on_brake_pedal():
-  assert is_vehicle_braking(_build_sm(brake_pressed=True), _build_cp()) is True
+def test_brake_status_does_not_trigger_on_brake_pedal_without_brake_light_state():
+  assert is_vehicle_braking(_build_sm(brake_pressed=True), _build_cp()) is False
 
 
-def test_brake_status_triggers_on_regen():
-  assert is_vehicle_braking(_build_sm(regen_braking=True), _build_cp()) is True
+def test_brake_status_does_not_trigger_on_regen_without_brake_light_state():
+  assert is_vehicle_braking(_build_sm(regen_braking=True), _build_cp()) is False
 
 
-def test_brake_status_prefers_brake_lights_when_available():
+def test_brake_status_triggers_when_brake_lights_are_available_and_on():
   sm = _build_sm(brake_lights_available=True, brake_lights_on=True, enabled=False, cruise_enabled=False, a_ego=0.0)
   assert is_vehicle_braking(sm, _build_cp()) is True
 
@@ -60,19 +59,24 @@ def test_brake_status_does_not_fall_through_when_brake_lights_available_but_off(
   assert is_vehicle_braking(sm, _build_cp(openpilot_longitudinal=True)) is False
 
 
-def test_brake_status_triggers_on_openpilot_longitudinal_braking():
+def test_brake_status_does_not_trigger_on_openpilot_longitudinal_braking_without_brake_light_state():
   sm = _build_sm(enabled=True, accel=-0.1)
-  assert is_vehicle_braking(sm, _build_cp(openpilot_longitudinal=True)) is True
+  assert is_vehicle_braking(sm, _build_cp(openpilot_longitudinal=True)) is False
 
 
-def test_brake_status_triggers_on_force_decel():
+def test_brake_status_does_not_trigger_on_force_decel_without_brake_light_state():
   sm = _build_sm(enabled=True, force_decel=True)
-  assert is_vehicle_braking(sm, _build_cp(openpilot_longitudinal=True)) is True
+  assert is_vehicle_braking(sm, _build_cp(openpilot_longitudinal=True)) is False
 
 
-def test_brake_status_triggers_on_stock_acc_braking_without_selfdrive_enabled():
-  sm = _build_sm(cruise_enabled=True, a_ego=STOCK_LONG_BRAKING_AEGO_THRESHOLD - 0.01)
-  assert is_vehicle_braking(sm, _build_cp(openpilot_longitudinal=False)) is True
+def test_brake_status_does_not_trigger_on_stock_acc_braking_without_brake_light_state():
+  sm = _build_sm(cruise_enabled=True, a_ego=-3.0)
+  assert is_vehicle_braking(sm, _build_cp(openpilot_longitudinal=False)) is False
+
+
+def test_brake_status_does_not_trigger_when_brake_lights_on_but_unavailable():
+  sm = _build_sm(brake_lights_available=False, brake_lights_on=True)
+  assert is_vehicle_braking(sm, _build_cp()) is False
 
 
 def test_brake_status_does_not_trigger_on_coast():
@@ -84,6 +88,12 @@ def test_should_highlight_braking_speed_respects_show_toggle(monkeypatch):
   ui_state = SimpleNamespace(sm=_build_sm(brake_lights_available=True, brake_lights_on=True), CP=_build_cp())
   monkeypatch.setattr(brake_status, "ui_state", ui_state)
   assert should_highlight_braking_speed(False) is False
+
+
+def test_should_highlight_braking_speed_uses_brake_light_state(monkeypatch):
+  ui_state = SimpleNamespace(sm=_build_sm(brake_lights_available=True, brake_lights_on=True), CP=_build_cp())
+  monkeypatch.setattr(brake_status, "ui_state", ui_state)
+  assert should_highlight_braking_speed(True) is True
 
 
 def test_speed_renderers_still_call_brake_status_helper():
